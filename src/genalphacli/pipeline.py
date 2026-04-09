@@ -106,6 +106,7 @@ def routes_to_command_graph(
     command_name: str = "api",
     base_url: str = "",
     auth: AuthConfig | None = None,
+    model_registry: dict[str, dict] | None = None,
     metadata: ParseMetadata | None = None,
 ) -> CommandGraph:
     """Convert parsed routes into a CommandGraph."""
@@ -136,12 +137,7 @@ def routes_to_command_graph(
                 method=route.method,
                 endpoint=route.path,
                 params=cmd_params,
-                output=OutputConfig(
-                    format=route.response_format,
-                    content_type=_format_to_content_type(route.response_format),
-                    response_model=route.response_model,
-                    response_schema=route.response_schema,
-                ),
+                output=_build_output_config(route, model_registry or {}),
             )
         )
 
@@ -151,6 +147,25 @@ def routes_to_command_graph(
         auth=auth or AuthConfig(),
         subcommands=subcommands,
         metadata=metadata or ParseMetadata(),
+    )
+
+
+def _build_output_config(route: ParsedRoute, model_registry: dict[str, dict]) -> OutputConfig:
+    """Build OutputConfig with resolved response model schema."""
+    from genalphacli.parsers.model_extractor import resolve_response_model
+
+    resolved = None
+    if route.response_model:
+        resolved = resolve_response_model(route.response_model, model_registry)
+
+    # Use OpenAPI response_schema if we have it and no AST-resolved model
+    schema = resolved or route.response_schema
+
+    return OutputConfig(
+        format=route.response_format,
+        content_type=_format_to_content_type(route.response_format),
+        response_model=route.response_model,
+        response_schema=schema,
     )
 
 
@@ -274,7 +289,18 @@ def run_pipeline(
         parse_time_ms=elapsed_ms,
     )
 
+    # Extract Pydantic model schemas for response_model resolution
+    from genalphacli.parsers.model_extractor import extract_models
+
+    py_files = file_index.get(".py", [])
+    model_registry = extract_models(py_files) if py_files else {}
+
     # Build command graph
     return routes_to_command_graph(
-        merged, command_name=command_name, base_url=base_url, auth=auth, metadata=metadata
+        merged,
+        command_name=command_name,
+        base_url=base_url,
+        auth=auth,
+        model_registry=model_registry,
+        metadata=metadata,
     )
