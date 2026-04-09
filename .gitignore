@@ -9,3 +9,5 @@ build/
 .mypy_cache/
 .env
 .beads/
+repos/*
+!repos/.gitkeep
