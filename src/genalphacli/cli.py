@@ -291,14 +291,16 @@ def build(
             raise typer.Exit(1)
 
         # Print Claude Desktop config snippet
-        config_snippet = get_claude_desktop_config(cli_name, config.base_url, env_var)
+        config_snippet = get_claude_desktop_config(cli_name, config.base_url, env_var, mcp_path)
         typer.echo("\nClaude Desktop config:")
         typer.echo(json.dumps(config_snippet, indent=2))
 
         # Offer auto-register
         config_path = find_claude_desktop_config()
         if config_path and typer.confirm(f"\nAuto-register with Claude Desktop ({config_path})?"):
-            if register_with_claude_desktop(config_path, cli_name, config.base_url, env_var):
+            if register_with_claude_desktop(
+                config_path, cli_name, config.base_url, env_var, mcp_path
+            ):
                 typer.echo("Registered! Restart Claude Desktop to load.")
             else:
                 typer.echo("Failed to register. Add manually.", err=True)

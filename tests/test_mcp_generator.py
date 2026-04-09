@@ -182,30 +182,50 @@ class TestMcpGenerator:
 
 
 class TestClaudeDesktopConfig:
-    def test_generates_config_snippet(self):
-        config = get_claude_desktop_config("myapi", "https://api.com", "MYAPI_TOKEN")
+    def test_generates_config_with_uv(self, tmp_path):
+        pkg_path = tmp_path / "myapi_mcp"
+        pkg_path.mkdir()
+        config = get_claude_desktop_config("myapi", "https://api.com", "MYAPI_TOKEN", pkg_path)
         assert "mcpServers" in config
         assert "myapi" in config["mcpServers"]
-        assert config["mcpServers"]["myapi"]["command"] == "myapi-mcp"
+        server_config = config["mcpServers"]["myapi"]
+        # Should use uv or python, not direct binary
+        assert "uv" in server_config["command"] or "python" in server_config["command"]
+        assert "args" in server_config
+        assert "env" in server_config
+
+    def test_config_has_env_vars(self, tmp_path):
+        pkg_path = tmp_path / "myapi_mcp"
+        pkg_path.mkdir()
+        config = get_claude_desktop_config("myapi", "https://api.com", "MYAPI_TOKEN", pkg_path)
+        env = config["mcpServers"]["myapi"]["env"]
+        assert "MYAPI_TOKEN" in env
+        assert "MYAPI_BASE_URL" in env
 
     def test_register_creates_entry(self, tmp_path):
         config_file = tmp_path / "claude_config.json"
         config_file.write_text('{"mcpServers": {}}')
+        pkg_path = tmp_path / "testapi_mcp"
+        pkg_path.mkdir()
 
         result = register_with_claude_desktop(
-            config_file, "testapi", "https://api.com", "TEST_TOKEN"
+            config_file, "testapi", "https://api.com", "TEST_TOKEN", pkg_path
         )
         assert result is True
 
         data = json.loads(config_file.read_text())
         assert "testapi" in data["mcpServers"]
-        assert data["mcpServers"]["testapi"]["command"] == "testapi-mcp"
+        # Should use uv or python
+        cmd = data["mcpServers"]["testapi"]["command"]
+        assert "uv" in cmd or "python" in cmd
 
     def test_register_preserves_existing(self, tmp_path):
         config_file = tmp_path / "claude_config.json"
         config_file.write_text('{"mcpServers": {"existing": {"command": "existing-mcp"}}}')
+        pkg_path = tmp_path / "newapi_mcp"
+        pkg_path.mkdir()
 
-        register_with_claude_desktop(config_file, "newapi", "https://api.com", "TOKEN")
+        register_with_claude_desktop(config_file, "newapi", "https://api.com", "TOKEN", pkg_path)
 
         data = json.loads(config_file.read_text())
         assert "existing" in data["mcpServers"]

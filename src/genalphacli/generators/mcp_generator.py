@@ -53,12 +53,52 @@ def generate(graph: CommandGraph, config: BuildConfig, output_dir: Path) -> Path
     return pkg_dir
 
 
-def get_claude_desktop_config(cli_name: str, base_url: str, auth_env_var: str) -> dict:
-    """Generate the Claude Desktop config snippet for this MCP server."""
+def _get_mcp_server_command(cli_name: str, pkg_path: Path) -> dict:
+    """Build the command config for launching the MCP server.
+
+    Uses absolute paths since Claude Desktop/Cursor don't inherit shell PATH.
+    Prefers 'uv run' (handles venvs, avoids macOS sandbox permission issues).
+    Falls back to 'python -m' if uv is not available.
+    """
+    import platform
+    import shutil
+
+    resolved_path = str(pkg_path.resolve())
+    uv_path = shutil.which("uv")
+
+    if uv_path:
+        return {
+            "command": uv_path,
+            "args": ["--directory", resolved_path, "run", f"{cli_name}-mcp"],
+        }
+
+    # Fallback: use python directly
+    python_path = shutil.which("python3") or shutil.which("python") or "python3"
+    server_module = f"{cli_name}_mcp.server"
+
+    if platform.system() == "Windows":
+        python_path = shutil.which("python") or "python"
+
+    return {
+        "command": python_path,
+        "args": ["-m", server_module],
+    }
+
+
+def get_claude_desktop_config(
+    cli_name: str, base_url: str, auth_env_var: str, pkg_path: Path
+) -> dict:
+    """Generate the Claude Desktop config snippet for this MCP server.
+
+    Auto-detects OS and available tools (uv/python) to build the right
+    command config with absolute paths.
+    """
+    cmd = _get_mcp_server_command(cli_name, pkg_path)
+
     return {
         "mcpServers": {
             cli_name: {
-                "command": f"{cli_name}-mcp",
+                **cmd,
                 "env": {
                     auth_env_var: f"${{env:{auth_env_var}}}",
                     f"{cli_name.upper()}_BASE_URL": base_url,
@@ -102,7 +142,7 @@ def import_env(name: str, default: str) -> str:
 
 
 def register_with_claude_desktop(
-    config_path: Path, cli_name: str, base_url: str, auth_env_var: str
+    config_path: Path, cli_name: str, base_url: str, auth_env_var: str, pkg_path: Path
 ) -> bool:
     """Add this MCP server to Claude Desktop's config file.
 
@@ -116,8 +156,9 @@ def register_with_claude_desktop(
     if "mcpServers" not in existing:
         existing["mcpServers"] = {}
 
+    cmd = _get_mcp_server_command(cli_name, pkg_path)
     existing["mcpServers"][cli_name] = {
-        "command": f"{cli_name}-mcp",
+        **cmd,
         "env": {
             auth_env_var: f"${{env:{auth_env_var}}}",
             f"{cli_name.upper()}_BASE_URL": base_url,
