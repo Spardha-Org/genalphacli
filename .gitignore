@@ -11,3 +11,4 @@ build/
 .beads/
 repos/*
 !repos/.gitkeep
+graph.json
