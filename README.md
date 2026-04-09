@@ -1,27 +1,23 @@
 # GenAlpha CLI
 
-Convert any API repository into a structured CLI command graph — automatically.
+Convert any API repository into a working, installable CLI tool — automatically.
 
-GenAlpha CLI clones a GitHub repository, detects the API framework, extracts all routes via static analysis, and outputs a JSON command graph that maps every endpoint to a CLI command with typed flags and parameters.
+GenAlpha CLI parses a GitHub repository, extracts all API routes via static analysis, and generates a standalone CLI that makes real API calls. No manual wiring. No Postman. Just `parse → build → use`.
 
-## How It Works
+## The Full Loop
 
 ```
-GitHub URL ──> Clone ──> Detect Framework ──> Parse Routes ──> Command Graph JSON
-                              │                     │
-                              │              ┌──────┴──────┐
-                              │              │             │
-                         FastAPI?        Layer 1       Layer 2
-                         Flask?       OpenAPI Spec   AST Parsing
-                         Django?      (if present)   (decorators,
-                         Spring?                      type hints)
-                              │              │             │
-                              │              └──────┬──────┘
-                              │                     │
-                              │              Merge Routes
-                              │            (later layer wins)
-                              │                     │
-                              └─────────────> Command Graph JSON
+                         PARSE                              BUILD                         USE
+                ┌─────────────────────┐          ┌──────────────────────┐       ┌──────────────────┐
+GitHub URL ───> │ Clone + Detect      │          │ Jinja2 Templates     │       │ Installed CLI     │
+   or           │ OpenAPI Spec Parse  │ ──JSON── │ Typer CLI Generation │ ───>  │ Real API Calls    │
+Local Path ───> │ AST Route Extract   │  graph   │ HTTP Client + Auth   │  pip  │ Auth + Errors     │
+                └─────────────────────┘          └──────────────────────┘       └──────────────────┘
+
+$ genalphacli parse owner/repo -o graph.json
+$ genalphacli build graph.json -n myapi --base-url https://api.example.com
+$ cd dist/myapi && pip install .
+$ myapi list-users --limit 5
 ```
 
 ## Quick Start
@@ -35,152 +31,151 @@ GitHub URL ──> Clone ──> Detect Framework ──> Parse Routes ──> C
 ### Installation
 
 ```bash
-git clone https://github.com/your-username/genalphacli.git
+git clone https://github.com/NandishNaik01/genalphacli.git
 cd genalphacli
 uv sync
 ```
 
-### Usage
-
-**Parse a local repository:**
+### Step 1: Parse a Repository
 
 ```bash
-uv run genalphacli parse-local /path/to/your/fastapi/project
-```
+# From GitHub
+uv run genalphacli parse owner/repo -o graph.json
 
-**Parse from GitHub:**
+# From a local directory
+uv run genalphacli parse-local ./my-fastapi-app -o graph.json
 
-```bash
-uv run genalphacli parse owner/repo
-```
-
-**Save output to a file:**
-
-```bash
-uv run genalphacli parse-local ./my-api --output graph.json
-```
-
-**Detect framework only:**
-
-```bash
+# Detect framework only
 uv run genalphacli detect owner/repo
 ```
 
-**Verbose mode (shows progress and stats):**
+### Step 2: Build a CLI
 
 ```bash
-uv run genalphacli parse-local ./my-api -v
+uv run genalphacli build graph.json \
+  --name myapi \
+  --base-url https://api.example.com \
+  --auth-type bearer \
+  --auth-env-var MYAPI_TOKEN
+```
+
+This generates a complete pip package at `dist/myapi/`.
+
+### Step 3: Install and Use
+
+```bash
+cd dist/myapi && uv pip install .
+
+# Now use it from anywhere
+myapi --help
+myapi list-users --limit 5
+myapi get-user abc123
+myapi create-user --name "John" --email "john@test.com"
+myapi create-user --body '{"name": "John", "email": "john@test.com", "role": "admin"}'
 ```
 
 ### GitHub Authentication
 
-For private repositories or to avoid API rate limits (60 req/hr unauthenticated):
+For private repositories or to avoid API rate limits:
 
 ```bash
 export GITHUB_TOKEN=your_github_token
-uv run genalphacli parse owner/private-repo
+uv run genalphacli parse owner/private-repo -o graph.json
 ```
 
-## Example Output
+## What Gets Generated
 
-Given a FastAPI application with user and item endpoints:
+The `build` command produces a complete, installable Python package:
 
-```bash
-uv run genalphacli parse-local ./my-fastapi-app
+```
+dist/myapi/
+├── pyproject.toml          # pip-installable with entry point
+├── src/myapi/
+│   ├── __init__.py
+│   ├── cli.py              # Typer CLI with all commands
+│   ├── client.py           # HTTP client with auth + error handling
+│   └── _graph.json         # Embedded command graph
 ```
 
-Produces:
+### Generated CLI Features
 
-```json
-{
-  "schema_version": "1.0.0",
-  "command": "my-fastapi-app",
-  "version": "0.1.0",
-  "base_url": "",
-  "auth": { "type": "none", "env_var": "" },
-  "subcommands": [
-    {
-      "name": "list-users",
-      "description": "List all users.",
-      "method": "GET",
-      "endpoint": "/users",
-      "params": [
-        { "name": "limit", "flag": "--limit", "type": "integer", "required": false },
-        { "name": "offset", "flag": "--offset", "type": "integer", "required": false }
-      ]
-    },
-    {
-      "name": "get-user",
-      "description": "Get a user by ID.",
-      "method": "GET",
-      "endpoint": "/users/{user_id}",
-      "params": [
-        { "name": "user_id", "flag": "--user-id", "type": "string", "required": true }
-      ]
-    },
-    {
-      "name": "create-user",
-      "description": "Create a new user.",
-      "method": "POST",
-      "endpoint": "/users",
-      "params": [
-        { "name": "name", "flag": "--name", "type": "string", "required": true },
-        { "name": "email", "flag": "--email", "type": "string", "required": true }
-      ]
-    }
-  ],
-  "metadata": {
-    "total_routes": 3,
-    "layer_counts": { "AST": 3 },
-    "files_scanned": 12,
-    "parse_time_ms": 8
-  }
-}
-```
+- **Path params as positional args**: `myapi get-user abc123` (not `--user-id abc123`)
+- **Body fields as flags**: `myapi create-user --name John --email j@test.com`
+- **Raw JSON override**: `myapi create-user --body '{"name": "John"}'` bypasses flags
+- **Pretty output**: `myapi list-users --pretty` for Rich-formatted JSON
+- **Friendly errors**: `401 → "Authentication failed. Set MYAPI_TOKEN env var."`
+- **Env-overridable base URL**: Set `MYAPI_BASE_URL` for staging/dev/prod
+- **Auth via env var**: Bearer token or API key from environment variable
+
+### Error Handling
+
+| HTTP Status | CLI Message |
+|---|---|
+| 401 | `Authentication failed. Set MYAPI_TOKEN environment variable.` |
+| 403 | `Permission denied.` |
+| 404 | `Resource not found.` |
+| 422 | `Validation error: {details}` |
+| 429 | `Rate limited. Try again later.` |
+| 5xx | `API error {status}: {body}` |
 
 ## Parsing Pipeline
 
-GenAlpha CLI uses a layered parsing strategy. Each layer fills gaps the previous one missed.
+Two-layer parsing strategy with auto-detection of base URL and auth.
 
 ### Layer 1: OpenAPI Spec Detection
 
-Scans for `openapi.json`, `swagger.yaml`, and similar files in the repo root and common directories (`/docs`, `/api-docs`, `/specs`). If a valid spec is found, it is parsed directly — this is the fastest and most accurate path.
+Scans for `openapi.json`, `swagger.yaml`, and similar files. If found, parses directly.
 
 - Supports OpenAPI v3 and Swagger v2
 - Resolves internal `$ref` references (remote URLs blocked for security)
-- Falls back gracefully if the spec is malformed
+- Extracts response schemas and content types
 
 ### Layer 2: AST-Based Route Extraction
 
-For repos without an OpenAPI spec, the parser uses Python's `ast` module to analyze source code and extract route information from decorators and type annotations.
+Uses Python's `ast` module to extract routes from decorators and type annotations.
 
-**Currently supported:**
-
-| Framework | Decorator Patterns | Parameter Extraction |
+| Framework | Decorator Patterns | Status |
 |---|---|---|
-| FastAPI | `@app.get()`, `@router.post()`, `@app.api_route()` | Type hints, path params, query params with defaults |
+| FastAPI | `@app.get()`, `@router.post()`, `@app.api_route()` | Supported |
+| Flask | `@app.route()`, `@blueprint.route()` | Planned |
+| Django/DRF | `path()`, `@api_view()`, `ViewSet` | Planned |
+| Spring Boot | `@GetMapping`, `@PostMapping` | Planned |
 
 **Handles complex patterns:**
 
-- `include_router(router, prefix="/api/v1")` prefix composition
+- Cross-file `include_router(router, prefix="/api/v1")` prefix resolution via import tracking
 - `APIRouter(prefix="/users")` router-level prefixes
-- `async def` handlers
-- Docstrings as command descriptions
-- Constant propagation for variable paths
+- Async handlers, docstrings, constant propagation
+- Pydantic model schema extraction for response models
 
 **Automatically filters out:**
 
-- FastAPI dependency injection params (`Depends()`, `Annotated[X, Depends()]`)
-- Common DI names (`session`, `db`, `current_user`, `request`, `response`)
+- FastAPI dependency injection (`Depends()`, `Annotated[X, Depends()]`, `*Dep` suffix types)
+- Common DI names (`session`, `db`, `current_user`, `authorization`, `request`, `response`)
 - Framework internals (`Request`, `Response`, `BackgroundTasks`)
 
-### Route Merging
+### Auto-Detection
 
-When both layers produce results, they are merged using route identity `(HTTP method, normalized path)`. If both layers find the same route, the later layer (AST) wins — it has more context from the actual source code.
+| Signal | Source | Priority |
+|---|---|---|
+| Auth type (bearer/api_key) | `.env.example` + code patterns (`HTTPBearer`, `OAuth2`) | Auto-detected |
+| Base URL | `.env.example` (`BASE_URL`, `API_URL`, `PORT`) | Auto-detected |
+| CLI overrides (`--base-url`, `--auth-type`) | User flags | Highest |
+
+### Response Format Detection
+
+Response formats are detected from OpenAPI content-types and FastAPI `response_class`/`response_model`:
+
+| Source | Detected Format |
+|---|---|
+| `application/json` / default | `json` |
+| `text/html` / `HTMLResponse` | `html` |
+| `text/plain` / `PlainTextResponse` | `text` |
+| `FileResponse` | `file` |
+| `StreamingResponse` | `stream` |
+| `response_model=UserOut` | Full schema with field types |
 
 ## Type Mapping
-
-Parameters are automatically mapped from Python type annotations to CLI flag types:
 
 | Python Type | CLI Flag Type | Flag Behavior |
 |---|---|---|
@@ -194,14 +189,23 @@ Parameters are automatically mapped from Python type annotations to CLI flag typ
 
 ## Security
 
-GenAlpha CLI is designed to perform static analysis only — it never executes code from cloned repositories.
+### Parser Security
 
-- **Git hooks disabled**: Clones with `--no-checkout`, sanitizes `.gitattributes` filter drivers, then checks out
-- **No code execution**: Uses `ast.parse()` only — never `import`, `eval`, or `exec`
+- **Git hooks disabled**: `--no-checkout` + `.gitattributes` filter driver sanitization + checkout
+- **No code execution**: `ast.parse()` only — never `import`, `eval`, or `exec`
 - **Repo size cap**: Rejects repositories larger than 500MB
-- **Remote `$ref` blocked**: OpenAPI parser only resolves internal references
-- **URL validation**: Strict validation via `urlparse()` — rejects ports, userinfo, non-ASCII characters
-- **Temp file isolation**: Clone directories under `~/.cache/genalphacli/` with `0700` permissions
+- **Remote `$ref` blocked**: OpenAPI parser uses `RESOLVE_INTERNAL` only
+- **URL validation**: `urlparse()` rejects ports, userinfo, non-ASCII, fragments
+- **Temp file isolation**: `~/.cache/genalphacli/` with `0700` permissions + atexit cleanup
+
+### Generator Security
+
+- **Jinja2 SandboxedEnvironment**: Prevents template injection from malicious graph.json
+- **String sanitization**: All graph values escaped before template rendering
+- **AST safety walk**: Post-generation scan rejects `eval`, `exec`, `os.system`, `subprocess`
+- **`cli_name` validation**: Must match `^[a-z][a-z0-9_]*$` (safe Python identifier)
+- **`base_url` validation**: Rejects private/loopback IPs and `file://` scheme
+- **Token CRLF prevention**: Generated client rejects tokens with `\r\n\0`
 
 ## CLI Reference
 
@@ -209,33 +213,54 @@ GenAlpha CLI is designed to perform static analysis only — it never executes c
 genalphacli [COMMAND] [OPTIONS]
 ```
 
+### Commands
+
 | Command | Description |
 |---|---|
-| `parse <github-url>` | Clone a GitHub repo, parse it, and output the command graph |
+| `parse <github-url>` | Clone a GitHub repo, parse it, output command graph JSON |
 | `parse-local <path>` | Parse a local directory |
-| `detect <github-url>` | Clone a GitHub repo and detect the framework |
+| `detect <github-url>` | Detect the API framework used |
+| `build <graph.json>` | Generate an installable CLI from a command graph |
 
-### Options
+### Parse Options
 
 | Flag | Description |
 |---|---|
-| `--output`, `-o` | Write JSON output to a file instead of stdout |
-| `--verbose`, `-v` | Show progress details and statistics |
-| `--help` | Show help for any command |
+| `--output`, `-o` | Write JSON to a file |
+| `--base-url` | API base URL override |
+| `--auth-type` | Auth type: `bearer`, `api_key`, `none` |
+| `--auth-env-var` | Env var name for auth token |
+| `--verbose`, `-v` | Show progress and statistics |
+
+### Build Options
+
+| Flag | Description |
+|---|---|
+| `--name`, `-n` | CLI command name (required) |
+| `--base-url` | API base URL (required) |
+| `--output-dir`, `-d` | Output directory (default: `dist`) |
+| `--auth-type` | Auth type override |
+| `--auth-env-var` | Auth env var name override |
 
 ## Project Structure
 
 ```
 src/genalphacli/
-  cli.py              # Typer CLI entry point
-  config.py           # Environment variable management
-  github.py           # GitHub API, secure clone, framework detection
-  models.py           # Pydantic data models, enums, type mapping
-  pipeline.py         # Pipeline orchestrator, route merger, graph builder
+  cli.py                    # Typer CLI entry point (parse, build, detect)
+  config.py                 # Environment variable management
+  config_detector.py        # Auto-detect base_url and auth from repo
+  github.py                 # GitHub API, secure clone, framework detection
+  models.py                 # Pydantic data models, enums, type mapping
+  pipeline.py               # Pipeline orchestrator, route merger, graph builder
   parsers/
-    __init__.py       # FrameworkParser protocol + registry
-    openapi_parser.py # Layer 1: OpenAPI/Swagger spec parsing
-    fastapi_parser.py # Layer 2: FastAPI AST-based extraction
+    __init__.py             # FrameworkParser protocol + registry
+    openapi_parser.py       # Layer 1: OpenAPI/Swagger spec parsing
+    fastapi_parser.py       # Layer 2: FastAPI AST-based extraction
+    model_extractor.py      # Pydantic model schema resolution
+  generators/
+    __init__.py             # Jinja2 SandboxedEnvironment factory
+    pip_generator.py        # Generates pip-installable CLI packages
+    templates/pip_package/  # Jinja2 templates (cli.py, client.py, pyproject.toml)
 ```
 
 ## Development
@@ -243,7 +268,7 @@ src/genalphacli/
 ### Setup
 
 ```bash
-git clone https://github.com/your-username/genalphacli.git
+git clone https://github.com/NandishNaik01/genalphacli.git
 cd genalphacli
 uv sync --group dev
 ```
@@ -251,7 +276,7 @@ uv sync --group dev
 ### Run Tests
 
 ```bash
-uv run pytest -v
+uv run pytest -v          # 74 tests, ~0.5s
 ```
 
 ### Lint and Format
@@ -261,20 +286,30 @@ uv run ruff check src/ tests/
 uv run ruff format src/ tests/
 ```
 
-### Run a Specific Test
+### Run Mock Server (for live testing)
 
 ```bash
-uv run pytest tests/parsers/test_fastapi_parser.py -v
+uv run uvicorn tests.mock_server.server:app --port 9999
 ```
+
+## Real-World Test Results
+
+| Repository | Routes Found | Parse Time |
+|---|---|---|
+| `tiangolo/full-stack-fastapi-template` | 23 routes | 39ms |
+| `sai-life-sciences` (6 route files, nested imports) | 17/17 routes | 35ms |
+| `testdrivenio/fastapi-crud-async` | 6 routes | 6ms |
+| Mock server (10 endpoints, live API calls) | 10/10 passing | - |
 
 ## Roadmap
 
+- [x] **Phase 1**: FastAPI + OpenAPI parser pipeline
+- [x] **CLI Generator**: graph.json to installable pip package
+- [x] **Live API Testing**: Mock server + end-to-end verification
 - [ ] **Phase 2**: Flask and Django/DRF support
 - [ ] **Phase 3**: Java (Spring Boot) support via tree-sitter
-- [ ] **Phase 4**: LLM fallback for edge cases (opt-in)
-- [ ] **Thin Client**: Execute CLI commands as actual API calls
-- [ ] **Auth Support**: Bearer token, API key configuration
-- [ ] **MCP Integration**: Expose as an MCP tool for AI agents
+- [ ] **MCP Server Generator**: Expose APIs as MCP tools for AI agents
+- [ ] **Standalone Script**: Zero-dependency single-file CLI option
 
 ## License
 
