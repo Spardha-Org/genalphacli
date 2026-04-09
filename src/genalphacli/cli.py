@@ -28,6 +28,9 @@ app = typer.Typer(
 def parse(
     github_url: str = typer.Argument(help="GitHub repository URL or owner/repo"),
     output: Path | None = typer.Option(None, "--output", "-o", help="Write JSON to file"),
+    base_url: str | None = typer.Option(None, "--base-url", help="API base URL override"),
+    auth_type: str | None = typer.Option(None, "--auth-type", help="bearer|api_key|none"),
+    auth_env_var: str | None = typer.Option(None, "--auth-env-var", help="Env var for auth token"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show progress details"),
 ) -> None:
     """Parse a GitHub repository and generate a command graph JSON."""
@@ -77,7 +80,14 @@ def parse(
             )
 
         # Step 5: Run pipeline
-        graph = run_pipeline(clone_dir, framework=framework, command_name=repo)
+        graph = run_pipeline(
+            clone_dir,
+            framework=framework,
+            command_name=repo,
+            user_base_url=base_url,
+            user_auth_type=auth_type,
+            user_auth_env_var=auth_env_var,
+        )
 
         # Step 6: Output
         result = json.dumps(graph.model_dump(), indent=2, default=str)
@@ -140,6 +150,9 @@ def detect(
 def parse_local(
     path: Path = typer.Argument(help="Local path to a repository"),
     output: Path | None = typer.Option(None, "--output", "-o", help="Write JSON to file"),
+    base_url: str | None = typer.Option(None, "--base-url", help="API base URL override"),
+    auth_type: str | None = typer.Option(None, "--auth-type", help="bearer|api_key|none"),
+    auth_env_var: str | None = typer.Option(None, "--auth-env-var", help="Env var for auth token"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show progress details"),
 ) -> None:
     """Parse a local repository and generate a command graph JSON."""
@@ -151,7 +164,14 @@ def parse_local(
     if verbose:
         typer.echo(f"Detected framework: {framework or 'none'}")
 
-    graph = run_pipeline(path, framework=framework, command_name=path.name)
+    graph = run_pipeline(
+        path,
+        framework=framework,
+        command_name=path.name,
+        user_base_url=base_url,
+        user_auth_type=auth_type,
+        user_auth_env_var=auth_env_var,
+    )
     result = json.dumps(graph.model_dump(), indent=2, default=str)
 
     if output:

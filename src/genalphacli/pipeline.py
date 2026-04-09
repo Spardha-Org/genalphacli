@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 from genalphacli.models import (
+    AuthConfig,
     CommandGraph,
     CommandParam,
     HttpMethod,
@@ -102,6 +103,8 @@ def merge_routes(
 def routes_to_command_graph(
     routes: list[ParsedRoute],
     command_name: str = "api",
+    base_url: str = "",
+    auth: AuthConfig | None = None,
     metadata: ParseMetadata | None = None,
 ) -> CommandGraph:
     """Convert parsed routes into a CommandGraph."""
@@ -138,6 +141,8 @@ def routes_to_command_graph(
 
     return CommandGraph(
         command=command_name,
+        base_url=base_url,
+        auth=auth or AuthConfig(),
         subcommands=subcommands,
         metadata=metadata or ParseMetadata(),
     )
@@ -175,11 +180,15 @@ def run_pipeline(
     repo_root: Path,
     framework: str | None = None,
     command_name: str = "api",
+    user_base_url: str | None = None,
+    user_auth_type: str | None = None,
+    user_auth_env_var: str | None = None,
 ) -> CommandGraph:
     """Run the full parsing pipeline on a cloned repository.
 
     Layer 1: OpenAPI spec parsing
     Layer 2: FastAPI AST parsing (if framework detected)
+    Config detection: base_url and auth from .env files + code patterns
     Merge results, build CommandGraph.
     """
     start_time = time.monotonic()
@@ -226,5 +235,27 @@ def run_pipeline(
         parse_time_ms=elapsed_ms,
     )
 
+    # Detect config (base_url, auth)
+    from genalphacli.config_detector import detect_config, get_base_url, merge_config
+
+    detected = detect_config(repo_root)
+    base_url = get_base_url(detected, user_base_url)
+    auth = merge_config(detected, user_base_url, user_auth_type, user_auth_env_var)
+
+    if detected.detection_sources:
+        for source in detected.detection_sources:
+            all_warnings.append(ParseWarning(message=f"Config detected: {source}", severity="info"))
+
+    # Rebuild metadata with any new warnings
+    metadata = ParseMetadata(
+        warnings=all_warnings,
+        total_routes=len(merged),
+        layer_counts=layer_counts,
+        files_scanned=files_scanned,
+        parse_time_ms=elapsed_ms,
+    )
+
     # Build command graph
-    return routes_to_command_graph(merged, command_name=command_name, metadata=metadata)
+    return routes_to_command_graph(
+        merged, command_name=command_name, base_url=base_url, auth=auth, metadata=metadata
+    )
