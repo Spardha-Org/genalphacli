@@ -43,7 +43,7 @@ def {{ cmd.func_name }}(
     {{ param.name }}: {{ param.python_type }} = typer.Option({{ param.default_value }}, "--{{ param.flag_name }}", help="{{ param.description }}"),
 {% endif %}
 {% endfor %}
-{% if cmd.has_body_params %}
+{% if cmd.show_raw_body %}
     raw_body: str | None = typer.Option(None, "--body", help="Raw JSON body (overrides flags)"),
 {% endif %}
     pretty: bool = typer.Option(False, "--pretty", help="Rich-formatted output"),
@@ -51,6 +51,7 @@ def {{ cmd.func_name }}(
     """{{ cmd.description }}"""
     try:
 {% if cmd.has_body_params %}
+{% if cmd.show_raw_body %}
         if raw_body:
             try:
                 data = json.loads(raw_body)
@@ -59,6 +60,19 @@ def {{ cmd.func_name }}(
                 raise typer.Exit(1)
         else:
             data = { {% for param in cmd.body_params %}"{{ param.name }}": {{ param.name }}, {% endfor %}}
+{% elif cmd.body_is_raw_json %}
+{% for param in cmd.body_params %}
+{% if param.flag_name == "body" %}
+        try:
+            data = json.loads({{ param.name }})
+        except json.JSONDecodeError as e:
+            typer.echo(f"Error: Invalid JSON in --body: {e}", err=True)
+            raise typer.Exit(1)
+{% endif %}
+{% endfor %}
+{% else %}
+        data = { {% for param in cmd.body_params %}"{{ param.name }}": {{ param.name }}, {% endfor %}}
+{% endif %}
         result = api_call("{{ cmd.method }}", f"{{ cmd.endpoint_template }}", json_data=data)
 {% elif cmd.query_params %}
         params: dict[str, Any] = {}
