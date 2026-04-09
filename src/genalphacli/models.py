@@ -9,7 +9,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # ── Enums ──────────────────────────────────────────────────────
 
@@ -243,3 +243,53 @@ class CommandGraph(BaseModel):
     auth: AuthConfig = AuthConfig()
     subcommands: list[Subcommand] = []
     metadata: ParseMetadata = ParseMetadata()
+
+
+# ── Build Config (CLI Generator) ──────────────────────────────
+
+
+class DistributionType(str, Enum):
+    PIP = "pip"
+
+
+class BuildConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cli_name: str
+    base_url: str
+    auth: AuthConfig = AuthConfig()
+    distribution: DistributionType = DistributionType.PIP
+
+    @field_validator("cli_name")
+    @classmethod
+    def validate_cli_name(cls, v: str) -> str:
+        import re
+
+        if not re.match(r"^[a-z][a-z0-9_]*$", v):
+            raise ValueError(
+                "cli_name must be a valid Python identifier "
+                "(lowercase letters, digits, underscores, must start with letter)"
+            )
+        return v
+
+    @field_validator("base_url")
+    @classmethod
+    def validate_base_url(cls, v: str) -> str:
+        import ipaddress
+        from urllib.parse import urlparse
+
+        parsed = urlparse(v)
+        if parsed.scheme not in ("https", "http"):
+            raise ValueError("base_url must use https:// or http://")
+        if not parsed.hostname:
+            raise ValueError("base_url must have a hostname")
+        # Block private/loopback IPs
+        try:
+            ip = ipaddress.ip_address(parsed.hostname)
+            if ip.is_private or ip.is_loopback:
+                raise ValueError(f"base_url cannot target private/loopback IP: {parsed.hostname}")
+        except ValueError as e:
+            if "private" in str(e) or "loopback" in str(e):
+                raise
+            # hostname is a domain name, not an IP — that's fine
+        return v.rstrip("/")

@@ -181,5 +181,74 @@ def parse_local(
         typer.echo(result)
 
 
+@app.command()
+def build(
+    graph_file: Path = typer.Argument(help="Path to command graph JSON"),
+    output_dir: Path = typer.Option("dist", "--output-dir", "-d", help="Output directory"),
+    cli_name: str = typer.Option(..., "--name", "-n", help="CLI command name"),
+    base_url: str = typer.Option(..., "--base-url", help="API base URL"),
+    auth_type: str | None = typer.Option(None, "--auth-type", help="bearer|api_key|none"),
+    auth_env_var: str | None = typer.Option(None, "--auth-env-var", help="Env var for token"),
+) -> None:
+    """Generate an installable CLI from a command graph JSON."""
+    from genalphacli.generators.pip_generator import generate
+    from genalphacli.models import AuthConfig, AuthType, BuildConfig
+
+    # Load graph
+    if not graph_file.is_file():
+        typer.echo(f"Error: {graph_file} not found", err=True)
+        raise typer.Exit(1)
+
+    try:
+        from genalphacli.models import CommandGraph
+
+        graph_data = json.loads(graph_file.read_text())
+        graph = CommandGraph.model_validate(graph_data)
+    except Exception as e:
+        typer.echo(f"Error loading graph: {e}", err=True)
+        raise typer.Exit(1)
+
+    # Build auth config
+    at = AuthType.NONE
+    if auth_type:
+        try:
+            at = AuthType(auth_type)
+        except ValueError:
+            at = graph.auth.type
+    else:
+        at = graph.auth.type
+
+    env_var = auth_env_var or graph.auth.env_var or f"{cli_name.upper()}_TOKEN"
+
+    # Create build config
+    try:
+        config = BuildConfig(
+            cli_name=cli_name,
+            base_url=base_url,
+            auth=AuthConfig(type=at, env_var=env_var),
+        )
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+    # Generate
+    typer.echo(f"Generating CLI '{cli_name}' from {graph_file}...")
+    typer.echo(f"  Base URL: {config.base_url}")
+    typer.echo(f"  Auth: {at.value} via ${env_var}")
+    typer.echo(f"  Routes: {len(graph.subcommands)}")
+
+    try:
+        pkg_path = generate(graph, config, output_dir)
+    except RuntimeError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+    typer.echo(f"\nGenerated at: {pkg_path}")
+    typer.echo("\nTo install:")
+    typer.echo(f"  cd {pkg_path} && pip install .")
+    typer.echo("\nThen use:")
+    typer.echo(f"  {cli_name} --help")
+
+
 if __name__ == "__main__":
     app()
