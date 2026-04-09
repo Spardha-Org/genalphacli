@@ -9,11 +9,13 @@ import logging
 from pathlib import Path
 
 from genalphacli.models import (
+    CONTENT_TYPE_MAP,
     HttpMethod,
     ParamLocation,
     ParamType,
     ParsedRoute,
     ParseWarning,
+    ResponseFormat,
     RouteParam,
     SourceLayer,
 )
@@ -101,6 +103,9 @@ def parse_spec_file(spec_path: Path) -> tuple[list[ParsedRoute], list[ParseWarni
             description = operation.get("summary", "") or operation.get("description", "")
             operation_id = operation.get("operationId", "")
 
+            # Detect response format and schema from responses
+            resp_format, resp_model, resp_schema = _extract_response_info(operation)
+
             try:
                 route = ParsedRoute(
                     method=HttpMethod(method_str.upper()),
@@ -108,6 +113,9 @@ def parse_spec_file(spec_path: Path) -> tuple[list[ParsedRoute], list[ParseWarni
                     function_name=operation_id or _path_to_name(method_str, path_str),
                     description=description,
                     params=params,
+                    response_format=resp_format,
+                    response_model=resp_model,
+                    response_schema=resp_schema,
                     source_file=spec_path,
                     source_layer=SourceLayer.OPENAPI,
                     confidence=1.0,
@@ -193,6 +201,52 @@ def _extract_params(operation: dict, path_item: dict) -> list[RouteParam]:
             break  # Only process first content type
 
     return params
+
+
+def _extract_response_info(
+    operation: dict,
+) -> tuple[ResponseFormat, str, dict | None]:
+    """Extract response format, model name, and schema from an OpenAPI operation.
+
+    Reads the responses section to determine content-type and schema.
+    Returns (format, model_name, schema_dict).
+    """
+    responses = operation.get("responses", {})
+    # Look at success responses (200, 201, 2xx)
+    for status in ("200", "201", "202", "default"):
+        resp = responses.get(status)
+        if not isinstance(resp, dict):
+            continue
+
+        content = resp.get("content", {})
+        for content_type, media_obj in content.items():
+            # Determine format from content-type
+            resp_format = CONTENT_TYPE_MAP.get(content_type, ResponseFormat.JSON)
+
+            # Extract schema info
+            schema = media_obj.get("schema", {}) if isinstance(media_obj, dict) else {}
+            model_name = ""
+            resp_schema = None
+
+            if isinstance(schema, dict):
+                # Get model name from $ref or title
+                ref = schema.get("$ref", "")
+                if ref:
+                    model_name = ref.split("/")[-1]
+                elif schema.get("title"):
+                    model_name = schema["title"]
+                elif schema.get("type") == "array" and isinstance(schema.get("items"), dict):
+                    item_ref = schema["items"].get("$ref", "")
+                    if item_ref:
+                        model_name = f"List[{item_ref.split('/')[-1]}]"
+
+                # Capture schema if it has useful structure
+                if schema.get("properties") or schema.get("$ref") or schema.get("items"):
+                    resp_schema = schema
+
+            return resp_format, model_name, resp_schema
+
+    return ResponseFormat.JSON, "", None
 
 
 def _openapi_type_to_param_type(openapi_type: str) -> ParamType:

@@ -17,6 +17,7 @@ from genalphacli.models import (
     ParsedRoute,
     ParseMetadata,
     ParseWarning,
+    ResponseFormat,
     Subcommand,
 )
 
@@ -135,7 +136,12 @@ def routes_to_command_graph(
                 method=route.method,
                 endpoint=route.path,
                 params=cmd_params,
-                output=OutputConfig(),
+                output=OutputConfig(
+                    format=route.response_format,
+                    content_type=_format_to_content_type(route.response_format),
+                    response_model=route.response_model,
+                    response_schema=route.response_schema,
+                ),
             )
         )
 
@@ -146,6 +152,19 @@ def routes_to_command_graph(
         subcommands=subcommands,
         metadata=metadata or ParseMetadata(),
     )
+
+
+def _format_to_content_type(fmt: ResponseFormat) -> str:
+    """Map ResponseFormat to a standard content-type string."""
+    return {
+        ResponseFormat.JSON: "application/json",
+        ResponseFormat.HTML: "text/html",
+        ResponseFormat.TEXT: "text/plain",
+        ResponseFormat.XML: "application/xml",
+        ResponseFormat.BINARY: "application/octet-stream",
+        ResponseFormat.FILE: "application/octet-stream",
+        ResponseFormat.STREAM: "application/octet-stream",
+    }.get(fmt, "application/json")
 
 
 def _route_to_command_name(route: ParsedRoute) -> str:

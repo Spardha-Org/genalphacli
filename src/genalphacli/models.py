@@ -125,6 +125,39 @@ class RouteParam(BaseModel):
     enum_values: list[str] | None = None
 
 
+class ResponseFormat(str, Enum):
+    JSON = "json"
+    HTML = "html"
+    TEXT = "text"
+    XML = "xml"
+    BINARY = "binary"
+    FILE = "file"
+    STREAM = "stream"
+
+
+# Map content-types and FastAPI response classes to ResponseFormat
+CONTENT_TYPE_MAP: dict[str, ResponseFormat] = {
+    "application/json": ResponseFormat.JSON,
+    "text/html": ResponseFormat.HTML,
+    "text/plain": ResponseFormat.TEXT,
+    "application/xml": ResponseFormat.XML,
+    "text/xml": ResponseFormat.XML,
+    "application/octet-stream": ResponseFormat.BINARY,
+}
+
+RESPONSE_CLASS_MAP: dict[str, ResponseFormat] = {
+    "JSONResponse": ResponseFormat.JSON,
+    "HTMLResponse": ResponseFormat.HTML,
+    "PlainTextResponse": ResponseFormat.TEXT,
+    "FileResponse": ResponseFormat.FILE,
+    "StreamingResponse": ResponseFormat.STREAM,
+    "Response": ResponseFormat.BINARY,
+    "RedirectResponse": ResponseFormat.TEXT,
+    "ORJSONResponse": ResponseFormat.JSON,
+    "UJSONResponse": ResponseFormat.JSON,
+}
+
+
 class ParsedRoute(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -133,6 +166,9 @@ class ParsedRoute(BaseModel):
     function_name: str
     description: str = ""
     params: list[RouteParam] = []
+    response_format: ResponseFormat = ResponseFormat.JSON
+    response_model: str = ""
+    response_schema: dict | None = None
     source_file: Path | None = None
     source_layer: SourceLayer = SourceLayer.UNKNOWN
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
@@ -180,7 +216,10 @@ class CommandParam(BaseModel):
 
 
 class OutputConfig(BaseModel):
-    format: str = "json"
+    format: ResponseFormat = ResponseFormat.JSON
+    content_type: str = ""
+    response_model: str = ""
+    response_schema: dict | None = None
 
 
 class Subcommand(BaseModel):

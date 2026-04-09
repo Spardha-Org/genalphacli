@@ -13,10 +13,12 @@ import re
 from pathlib import Path
 
 from genalphacli.models import (
+    RESPONSE_CLASS_MAP,
     HttpMethod,
     ParamLocation,
     ParsedRoute,
     ParseWarning,
+    ResponseFormat,
     RouteParam,
     SourceLayer,
     resolve_type,
@@ -293,6 +295,13 @@ class _RouteExtractor(ast.NodeVisitor):
             # Get description from docstring
             description = ast.get_docstring(node) or ""
 
+            # Extract response info from decorator kwargs
+            resp_format, resp_model = _extract_response_from_decorator(decorator)
+
+            # Also check return type annotation
+            if not resp_model and node.returns:
+                resp_model = _annotation_to_str(node.returns)
+
             try:
                 http_method = HttpMethod(method_name.upper())
             except ValueError:
@@ -305,6 +314,8 @@ class _RouteExtractor(ast.NodeVisitor):
                     function_name=node.name,
                     description=description,
                     params=params,
+                    response_format=resp_format,
+                    response_model=resp_model,
                     source_file=self.file_path,
                     source_layer=SourceLayer.AST,
                     confidence=0.95,
@@ -441,6 +452,30 @@ def _is_dependency_param(arg: ast.arg, name: str) -> bool:
 
     # Check common DI type names that aren't user params
     return type_name in ("Request", "Response", "BackgroundTasks", "WebSocket")
+
+
+def _extract_response_from_decorator(
+    decorator: ast.Call,
+) -> tuple[ResponseFormat, str]:
+    """Extract response_class and response_model from a FastAPI decorator.
+
+    Handles:
+        @app.get("/path", response_class=HTMLResponse)
+        @app.get("/path", response_model=UserOut)
+        @app.get("/path", response_model=List[User])
+    """
+    resp_format = ResponseFormat.JSON
+    resp_model = ""
+
+    for kw in decorator.keywords:
+        if kw.arg == "response_class":
+            class_name = _annotation_to_str(kw.value)
+            resp_format = RESPONSE_CLASS_MAP.get(class_name, ResponseFormat.JSON)
+
+        elif kw.arg == "response_model":
+            resp_model = _annotation_to_str(kw.value)
+
+    return resp_format, resp_model
 
 
 def _extract_path_params(path: str) -> set[str]:
