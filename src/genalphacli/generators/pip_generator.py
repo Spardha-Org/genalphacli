@@ -44,7 +44,15 @@ _PARAM_TYPE_DEFAULTS: dict[ParamType, str] = {
 
 # Dangerous AST node types to reject in generated code
 _DANGEROUS_CALLS = {"eval", "exec", "__import__", "compile", "globals", "locals"}
-_DANGEROUS_ATTRS = {"system", "popen", "call", "run", "Popen"}
+# (module, method) pairs that are dangerous — check both object and attribute
+_DANGEROUS_MODULE_ATTRS = {
+    ("os", "system"),
+    ("os", "popen"),
+    ("subprocess", "call"),
+    ("subprocess", "run"),
+    ("subprocess", "Popen"),
+    ("subprocess", "check_output"),
+}
 
 
 def generate(graph: CommandGraph, config: BuildConfig, output_dir: Path) -> Path:
@@ -243,8 +251,13 @@ def _validate_generated_code(path: Path) -> None:
             # Check for dangerous function names
             if isinstance(func, ast.Name) and func.id in _DANGEROUS_CALLS:
                 raise RuntimeError(f"Generated code contains dangerous call '{func.id}' in {path}")
-            # Check for dangerous method calls (os.system, subprocess.run, etc.)
-            if isinstance(func, ast.Attribute) and func.attr in _DANGEROUS_ATTRS:
+            # Check for dangerous module.method calls (os.system, subprocess.run, etc.)
+            if (
+                isinstance(func, ast.Attribute)
+                and isinstance(func.value, ast.Name)
+                and (func.value.id, func.attr) in _DANGEROUS_MODULE_ATTRS
+            ):
+                call_name = f"{func.value.id}.{func.attr}"
                 raise RuntimeError(
-                    f"Generated code contains dangerous call '{func.attr}' in {path}"
+                    f"Generated code contains dangerous call '{call_name}' in {path}"
                 )

@@ -252,6 +252,11 @@ class DistributionType(str, Enum):
     PIP = "pip"
 
 
+class OutputType(str, Enum):
+    CLI = "cli"
+    MCP = "mcp"
+
+
 class BuildConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
