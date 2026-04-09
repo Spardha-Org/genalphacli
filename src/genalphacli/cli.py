@@ -187,12 +187,12 @@ def build(
     output_dir: Path = typer.Option("dist", "--output-dir", "-d", help="Output directory"),
     cli_name: str = typer.Option(..., "--name", "-n", help="CLI command name"),
     base_url: str = typer.Option(..., "--base-url", help="API base URL"),
+    build_type: list[str] | None = typer.Option(None, "--type", help="cli|mcp (repeatable)"),
     auth_type: str | None = typer.Option(None, "--auth-type", help="bearer|api_key|none"),
     auth_env_var: str | None = typer.Option(None, "--auth-env-var", help="Env var for token"),
 ) -> None:
-    """Generate an installable CLI from a command graph JSON."""
-    from genalphacli.generators.pip_generator import generate
-    from genalphacli.models import AuthConfig, AuthType, BuildConfig
+    """Generate an installable CLI and/or MCP server from a command graph JSON."""
+    from genalphacli.models import AuthConfig, AuthType, BuildConfig, CommandGraph, OutputType
 
     # Load graph
     if not graph_file.is_file():
@@ -200,13 +200,33 @@ def build(
         raise typer.Exit(1)
 
     try:
-        from genalphacli.models import CommandGraph
-
         graph_data = json.loads(graph_file.read_text())
         graph = CommandGraph.model_validate(graph_data)
     except Exception as e:
         typer.echo(f"Error loading graph: {e}", err=True)
         raise typer.Exit(1)
+
+    # Determine output types
+    output_types: list[OutputType] = []
+    if build_type:
+        for t in build_type:
+            try:
+                output_types.append(OutputType(t))
+            except ValueError:
+                typer.echo(f"Error: Unknown type '{t}'. Use: cli, mcp", err=True)
+                raise typer.Exit(1)
+    else:
+        # Interactive multi-select
+        typer.echo("What would you like to generate?")
+        gen_cli = typer.confirm("  CLI tool?", default=True)
+        gen_mcp = typer.confirm("  MCP server?", default=True)
+        if gen_cli:
+            output_types.append(OutputType.CLI)
+        if gen_mcp:
+            output_types.append(OutputType.MCP)
+        if not output_types:
+            typer.echo("Error: No output type selected.", err=True)
+            raise typer.Exit(1)
 
     # Build auth config
     at = AuthType.NONE
@@ -220,7 +240,6 @@ def build(
 
     env_var = auth_env_var or graph.auth.env_var or f"{cli_name.upper()}_TOKEN"
 
-    # Create build config
     try:
         config = BuildConfig(
             cli_name=cli_name,
@@ -231,23 +250,58 @@ def build(
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
 
-    # Generate
-    typer.echo(f"Generating CLI '{cli_name}' from {graph_file}...")
+    typer.echo(f"Building from {graph_file}...")
+    typer.echo(f"  Name: {cli_name}")
     typer.echo(f"  Base URL: {config.base_url}")
     typer.echo(f"  Auth: {at.value} via ${env_var}")
     typer.echo(f"  Routes: {len(graph.subcommands)}")
+    typer.echo(f"  Output: {', '.join(t.value for t in output_types)}")
 
-    try:
-        pkg_path = generate(graph, config, output_dir)
-    except RuntimeError as e:
-        typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(1)
+    # Generate CLI
+    if OutputType.CLI in output_types:
+        from genalphacli.generators.pip_generator import generate as gen_cli
 
-    typer.echo(f"\nGenerated at: {pkg_path}")
-    typer.echo("\nTo install:")
-    typer.echo(f"  cd {pkg_path} && pip install .")
-    typer.echo("\nThen use:")
-    typer.echo(f"  {cli_name} --help")
+        try:
+            cli_path = gen_cli(graph, config, output_dir)
+            typer.echo(f"\nCLI generated at: {cli_path}")
+            typer.echo(f"  Install: cd {cli_path} && pip install .")
+            typer.echo(f"  Use:     {cli_name} --help")
+        except RuntimeError as e:
+            typer.echo(f"Error generating CLI: {e}", err=True)
+            raise typer.Exit(1)
+
+    # Generate MCP server
+    if OutputType.MCP in output_types:
+        from genalphacli.generators.mcp_generator import (
+            find_claude_desktop_config,
+            get_claude_desktop_config,
+            register_with_claude_desktop,
+        )
+        from genalphacli.generators.mcp_generator import (
+            generate as gen_mcp,
+        )
+
+        try:
+            mcp_path = gen_mcp(graph, config, output_dir)
+            typer.echo(f"\nMCP server generated at: {mcp_path}")
+            typer.echo(f"  Install: cd {mcp_path} && pip install .")
+            typer.echo(f"  Run:     {cli_name}-mcp")
+        except RuntimeError as e:
+            typer.echo(f"Error generating MCP server: {e}", err=True)
+            raise typer.Exit(1)
+
+        # Print Claude Desktop config snippet
+        config_snippet = get_claude_desktop_config(cli_name, config.base_url, env_var)
+        typer.echo("\nClaude Desktop config:")
+        typer.echo(json.dumps(config_snippet, indent=2))
+
+        # Offer auto-register
+        config_path = find_claude_desktop_config()
+        if config_path and typer.confirm(f"\nAuto-register with Claude Desktop ({config_path})?"):
+            if register_with_claude_desktop(config_path, cli_name, config.base_url, env_var):
+                typer.echo("Registered! Restart Claude Desktop to load.")
+            else:
+                typer.echo("Failed to register. Add manually.", err=True)
 
 
 if __name__ == "__main__":
