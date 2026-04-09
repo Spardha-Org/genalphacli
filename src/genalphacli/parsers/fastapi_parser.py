@@ -397,6 +397,8 @@ _DI_PARAM_NAMES = {
     "current_user",
     "background_tasks",
     "token",
+    "authorization",
+    "credentials",
 }
 
 # Type name suffixes/patterns that indicate DI
