@@ -1,0 +1,49 @@
+[project]
+name = "genalphacli"
+version = "0.1.0"
+description = "Convert API repositories into CLI tools automatically"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "shellingham>=1.5.0",
+    "prance[osv]>=23.6.0",
+    "openapi-spec-validator>=0.7.0",
+    "pydantic>=2.0",
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+genalphacli = "genalphacli.cli:app"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.4.0",
+    "hypothesis>=6.0",
+]
+
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/genalphacli"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["B008", "B904"]  # B008: Typer uses function calls in defaults; B904: Typer Exit pattern
