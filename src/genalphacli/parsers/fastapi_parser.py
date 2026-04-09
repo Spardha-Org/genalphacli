@@ -266,8 +266,12 @@ class _RouteExtractor(ast.NodeVisitor):
 
         for arg in node.args.args:
             name = arg.arg
-            # Skip 'self', 'cls', 'request', 'response', 'db'
-            if name in ("self", "cls", "request", "response", "db"):
+            # Skip 'self', 'cls', and common non-API params
+            if name in ("self", "cls"):
+                continue
+
+            # Skip FastAPI dependency injection params
+            if _is_dependency_param(arg, name):
                 continue
 
             # Determine type from annotation
@@ -305,6 +309,72 @@ class _RouteExtractor(ast.NodeVisitor):
             )
 
         return params
+
+
+# Names that are almost always DI-injected, not user-facing
+_DI_PARAM_NAMES = {
+    "request",
+    "response",
+    "db",
+    "session",
+    "current_user",
+    "background_tasks",
+    "token",
+}
+
+# Type name suffixes/patterns that indicate DI
+_DI_TYPE_SUFFIXES = ("Dep", "Dependency")
+
+
+def _is_dependency_param(arg: ast.arg, name: str) -> bool:
+    """Check if a function parameter is a FastAPI dependency injection param.
+
+    Detects:
+    - Known DI param names (session, db, current_user, etc.)
+    - Params annotated with Depends(...)
+    - Params with Annotated[X, Depends(...)] annotations
+    - Type names ending in 'Dep' (convention: SessionDep, TokenDep)
+    """
+    # Check known DI names
+    if name in _DI_PARAM_NAMES:
+        return True
+
+    annotation = arg.annotation
+    if annotation is None:
+        return False
+
+    # Check for direct Depends() annotation: param: Depends(get_db)
+    if isinstance(annotation, ast.Call):
+        func = annotation.func
+        if isinstance(func, ast.Name) and func.id == "Depends":
+            return True
+        if isinstance(func, ast.Attribute) and func.attr == "Depends":
+            return True
+
+    # Check for type names ending in 'Dep' (e.g., SessionDep, CurrentUser)
+    type_name = _annotation_to_str(annotation)
+    if type_name.endswith(_DI_TYPE_SUFFIXES):
+        return True
+
+    # Check for Annotated[X, Depends(...)] pattern
+    if (
+        isinstance(annotation, ast.Subscript)
+        and isinstance(annotation.value, ast.Name)
+        and annotation.value.id == "Annotated"
+    ):
+        # Walk the slice to find Depends() calls
+        slice_node = annotation.slice
+        if isinstance(slice_node, ast.Tuple):
+            for elt in slice_node.elts:
+                if isinstance(elt, ast.Call):
+                    func = elt.func
+                    if isinstance(func, ast.Name) and func.id == "Depends":
+                        return True
+                    if isinstance(func, ast.Attribute) and func.attr == "Depends":
+                        return True
+
+    # Check common DI type names that aren't user params
+    return type_name in ("Request", "Response", "BackgroundTasks", "WebSocket")
 
 
 def _extract_path_params(path: str) -> set[str]:

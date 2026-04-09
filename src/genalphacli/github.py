@@ -210,40 +210,58 @@ def clone_repo(info: RepoInfo, token: str | None = None) -> Path:
     return clone_dir
 
 
+_DEP_FILES = [
+    "requirements.txt",
+    "requirements/base.txt",
+    "requirements/main.txt",
+    "pyproject.toml",
+    "setup.py",
+    "Pipfile",
+    "setup.cfg",
+]
+
+_FRAMEWORK_KEYWORDS = {
+    "fastapi": "fastapi",
+    # Phase 2+:
+    # "flask": "flask",
+    # "django": "django",
+}
+
+
 def detect_framework(repo_path: Path) -> str | None:
     """Detect the API framework used in the repository.
 
-    Currently supports: fastapi. Returns None if no supported framework found.
+    Scans root-level and common subdirectories (backend/, app/, src/, api/)
+    for dependency files. Currently supports: fastapi.
     """
-    # Check requirements.txt
-    for req_file in ["requirements.txt", "requirements/base.txt", "requirements/main.txt"]:
-        path = repo_path / req_file
-        if path.exists():
-            content = path.read_text().lower()
-            if "fastapi" in content:
-                return "fastapi"
+    # Search root and common nested project directories
+    search_roots = [repo_path]
+    for subdir in ("backend", "app", "src", "api", "server", "service"):
+        candidate = repo_path / subdir
+        if candidate.is_dir():
+            search_roots.append(candidate)
 
-    # Check pyproject.toml
-    pyproject = repo_path / "pyproject.toml"
-    if pyproject.exists():
-        content = pyproject.read_text().lower()
-        if "fastapi" in content:
-            return "fastapi"
+    for search_root in search_roots:
+        result = _detect_in_directory(search_root)
+        if result:
+            return result
 
-    # Check setup.py (read only, never execute)
-    setup_py = repo_path / "setup.py"
-    if setup_py.exists():
-        content = setup_py.read_text().lower()
-        if "fastapi" in content:
-            return "fastapi"
+    return None
 
-    # Check Pipfile
-    pipfile = repo_path / "Pipfile"
-    if pipfile.exists():
-        content = pipfile.read_text().lower()
-        if "fastapi" in content:
-            return "fastapi"
 
+def _detect_in_directory(directory: Path) -> str | None:
+    """Check a single directory for framework dependency files."""
+    for dep_file in _DEP_FILES:
+        path = directory / dep_file
+        if not path.exists() or path.is_symlink():
+            continue
+        try:
+            content = path.read_text(errors="ignore").lower()
+        except OSError:
+            continue
+        for keyword, framework in _FRAMEWORK_KEYWORDS.items():
+            if keyword in content:
+                return framework
     return None
 
 

@@ -56,6 +56,7 @@ class AuthType(str, Enum):
 
 TYPE_MAP: dict[str, ParamType] = {
     # Python types
+    # Python primitives
     "str": ParamType.STRING,
     "int": ParamType.INTEGER,
     "bool": ParamType.BOOLEAN,
@@ -64,6 +65,33 @@ TYPE_MAP: dict[str, ParamType] = {
     "List": ParamType.LIST,
     "UploadFile": ParamType.FILE,
     "Optional": ParamType.STRING,
+    # Python stdlib types that map to string
+    "UUID": ParamType.STRING,
+    "uuid": ParamType.STRING,
+    "datetime": ParamType.STRING,
+    "date": ParamType.STRING,
+    "time": ParamType.STRING,
+    "timedelta": ParamType.STRING,
+    "Decimal": ParamType.STRING,
+    "Path": ParamType.STRING,
+    "bytes": ParamType.STRING,
+    "Any": ParamType.STRING,
+    # Common Pydantic / FastAPI types
+    "EmailStr": ParamType.STRING,
+    "HttpUrl": ParamType.STRING,
+    "AnyUrl": ParamType.STRING,
+    "IPvAnyAddress": ParamType.STRING,
+    "SecretStr": ParamType.STRING,
+    # Python numeric types
+    "complex": ParamType.FLOAT,
+    # Python collection types
+    "dict": ParamType.JSON,
+    "Dict": ParamType.JSON,
+    "set": ParamType.LIST,
+    "Set": ParamType.LIST,
+    "tuple": ParamType.LIST,
+    "Tuple": ParamType.LIST,
+    "Sequence": ParamType.LIST,
     # Java types (Phase 3+)
     "String": ParamType.STRING,
     "Integer": ParamType.INTEGER,
