@@ -107,12 +107,8 @@ def _build_command_context(sub: Subcommand) -> dict[str, Any]:
 
     for param in sub.params:
         p = _build_param_context(param)
-        flag_prefix = param.flag.lstrip("-")
-        p["flag_name"] = flag_prefix
 
-        if param.flag == f"--{param.name.replace('_', '-')}" and _is_path_param(
-            param.name, sub.endpoint
-        ):
+        if _is_path_param(param.name, sub.endpoint):
             path_params.append(p)
         elif sub.method.value in ("POST", "PUT", "PATCH") and not _is_path_param(
             param.name, sub.endpoint
@@ -120,6 +116,12 @@ def _build_command_context(sub: Subcommand) -> dict[str, Any]:
             body_params.append(p)
         else:
             query_params.append(p)
+
+    # Check if any body param would collide with our --body raw override flag
+    body_param_names = {p["flag_name"] for p in body_params}
+    has_body_flag_collision = "body" in body_param_names
+    # Only add --body raw override if there's no collision and there are body params
+    show_raw_body = len(body_params) > 0 and not has_body_flag_collision
 
     # Make function name valid Python identifier
     func_name = re.sub(r"[^a-z0-9_]", "_", sub.name.replace("-", "_"))
@@ -136,19 +138,33 @@ def _build_command_context(sub: Subcommand) -> dict[str, Any]:
         "query_params": query_params,
         "body_params": body_params,
         "has_body_params": len(body_params) > 0,
+        "show_raw_body": show_raw_body,
+        # When a body param is the raw body itself (e.g., Pydantic model param named "body")
+        "body_is_raw_json": has_body_flag_collision,
     }
 
 
 def _build_param_context(param: CommandParam) -> dict[str, Any]:
     """Build template context for a single parameter."""
     python_type = _PARAM_TYPE_TO_PYTHON.get(param.type, "str")
-    default_value = _PARAM_TYPE_DEFAULTS.get(param.type, '""')
+
+    # For optional params, use None as default so we can detect "not provided"
+    if not param.required:
+        default_value = "None"
+        python_type = f"{python_type} | None"
+    else:
+        default_value = _PARAM_TYPE_DEFAULTS.get(param.type, '""')
 
     if param.default is not None:
         default_value = repr(param.default)
 
+    python_name = _make_python_name(param.name)
+    # Keep the original CLI flag name — only the Python variable is renamed for collisions
+    flag_name = param.flag.lstrip("-")
+
     return {
-        "name": _make_python_name(param.name),
+        "name": python_name,
+        "flag_name": flag_name,
         "python_type": python_type,
         "required": param.required,
         "description": _sanitize(param.description or param.name),
