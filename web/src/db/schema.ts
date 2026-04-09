@@ -18,37 +18,39 @@ export const users = pgTable("users", {
     .$defaultFn(() => createId()),
   email: varchar("email", { length: 255 }).notNull().unique(),
   name: text("name"),
+  emailVerified: timestamp("emailVerified"),
+  image: text("image"),
   githubId: varchar("github_id", { length: 64 }).unique(),
-  avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// ── Accounts (Auth.js) ──
+// ── Accounts (Auth.js — column names must match adapter expectations) ──
 export const accounts = pgTable("accounts", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => createId()),
-  userId: text("user_id")
+  userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   type: varchar("type", { length: 64 }).notNull(),
   provider: varchar("provider", { length: 64 }).notNull(),
-  providerAccountId: varchar("provider_account_id", { length: 255 }).notNull(),
-  accessToken: text("access_token"),
-  refreshToken: text("refresh_token"),
-  expiresAt: integer("expires_at"),
-  tokenType: varchar("token_type", { length: 64 }),
+  providerAccountId: varchar("providerAccountId", { length: 255 }).notNull(),
+  refresh_token: text("refresh_token"),
+  access_token: text("access_token"),
+  expires_at: integer("expires_at"),
+  token_type: varchar("token_type", { length: 64 }),
   scope: text("scope"),
-  idToken: text("id_token"),
+  id_token: text("id_token"),
+  session_state: text("session_state"),
 });
 
-// ── Sessions (Auth.js) ──
+// ── Sessions (Auth.js — column names must match adapter expectations) ──
 export const sessions = pgTable("sessions", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => createId()),
-  sessionToken: varchar("session_token", { length: 255 }).notNull().unique(),
-  userId: text("user_id")
+  sessionToken: varchar("sessionToken", { length: 255 }).notNull().unique(),
+  userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   expires: timestamp("expires").notNull(),
