@@ -44,16 +44,16 @@ def {{ cmd.func_name }}(
 {% endif %}
 {% endfor %}
 {% if cmd.has_body_params %}
-    body: str | None = typer.Option(None, "--body", help="Raw JSON body (overrides flags)"),
+    raw_body: str | None = typer.Option(None, "--body", help="Raw JSON body (overrides flags)"),
 {% endif %}
     pretty: bool = typer.Option(False, "--pretty", help="Rich-formatted output"),
 ) -> None:
     """{{ cmd.description }}"""
     try:
 {% if cmd.has_body_params %}
-        if body:
+        if raw_body:
             try:
-                data = json.loads(body)
+                data = json.loads(raw_body)
             except json.JSONDecodeError as e:
                 typer.echo(f"Error: Invalid JSON in --body: {e}", err=True)
                 raise typer.Exit(1)

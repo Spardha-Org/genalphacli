@@ -161,11 +161,20 @@ def _is_path_param(name: str, endpoint: str) -> bool:
     return f"{{{name}}}" in endpoint or f"{{{name.replace('_', '-')}}}" in endpoint
 
 
+# Reserved names used by the generated CLI template — params with these names get suffixed
+_RESERVED_PARAM_NAMES = {"raw_body", "pretty", "body", "data", "result", "params"}
+
+
 def _make_python_name(name: str) -> str:
-    """Convert a parameter name to a valid Python identifier."""
+    """Convert a parameter name to a valid Python identifier.
+
+    Avoids collisions with reserved template variable names.
+    """
     name = re.sub(r"[^a-z0-9_]", "_", name.lower())
     if name[0].isdigit() or not name:
         name = f"p_{name}"
+    if name in _RESERVED_PARAM_NAMES:
+        name = f"{name}_val"
     return name
 
 
