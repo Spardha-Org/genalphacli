@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: genalpha
+      POSTGRES_PASSWORD: genalpha_dev
+      POSTGRES_DB: genalpha
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U genalpha"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  temporal:
+    image: temporalio/auto-setup:latest
+    ports:
+      - "7233:7233"
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: genalpha
+      POSTGRES_PWD: genalpha_dev
+      POSTGRES_SEEDS: postgres
+      SKIP_DYNAMIC_CONFIG: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    ports:
+      - "8080:8080"
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      - temporal
+
+volumes:
+  postgres_data:
