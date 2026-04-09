@@ -1,13 +1,15 @@
 """Layer 2: FastAPI AST-based route extraction.
 
 Uses Python's ast module to extract routes from FastAPI decorators,
-resolve function signatures, and handle include_router prefix composition.
+resolve function signatures, and handle include_router prefix composition
+across files via import tracking.
 """
 
 from __future__ import annotations
 
 import ast
 import logging
+import re
 from pathlib import Path
 
 from genalphacli.models import (
@@ -38,8 +40,9 @@ class FastApiParser:
     def parse(self, files: list[Path], repo_root: Path) -> list[ParsedRoute]:
         """Parse all given files and return extracted routes."""
         all_routes: list[ParsedRoute] = []
-        # First pass: collect router prefixes from include_router calls
-        prefix_map = self._collect_router_prefixes(files, repo_root)
+
+        # First pass: build a map of file_path -> prefix from include_router calls
+        file_prefix_map = _build_file_prefix_map(files, repo_root)
 
         for file_path in files:
             try:
@@ -49,45 +52,67 @@ class FastApiParser:
                 logger.warning("Syntax error in %s, skipping", file_path)
                 continue
 
-            extractor = _RouteExtractor(file_path, prefix_map, repo_root)
+            # Determine prefix for this file from include_router mappings
+            file_prefix = file_prefix_map.get(str(file_path.resolve()), "")
+
+            extractor = _RouteExtractor(file_path, file_prefix)
             extractor.visit(tree)
             all_routes.extend(extractor.routes)
 
         return all_routes
 
-    def _collect_router_prefixes(self, files: list[Path], repo_root: Path) -> dict[str, str]:
-        """Collect prefix mappings from include_router calls.
 
-        Returns a dict mapping module-level variable names to their prefixes.
-        This handles patterns like:
-            app.include_router(user_router, prefix="/api/v1/users")
-        """
-        prefixes: dict[str, str] = {}
+def _build_file_prefix_map(files: list[Path], repo_root: Path) -> dict[str, str]:
+    """Build a mapping from source file paths to their include_router prefixes.
 
-        for file_path in files:
-            try:
-                source = file_path.read_text(encoding="utf-8", errors="ignore")
-                tree = ast.parse(source, filename=str(file_path))
-            except SyntaxError:
-                continue
+    Scans all files for include_router() calls, resolves the module.router
+    argument back to a source file using import statements, and maps:
+        resolved_file_path -> prefix
 
-            collector = _PrefixCollector(file_path)
-            collector.visit(tree)
-            prefixes.update(collector.prefixes)
+    Handles patterns like:
+        from app.routes import users
+        app.include_router(users.router, prefix="/api/v1/users")
+    """
+    file_prefix_map: dict[str, str] = {}
 
-        return prefixes
+    for file_path in files:
+        try:
+            source = file_path.read_text(encoding="utf-8", errors="ignore")
+            tree = ast.parse(source, filename=str(file_path))
+        except SyntaxError:
+            continue
+
+        collector = _IncludeRouterCollector(file_path, files, repo_root)
+        collector.visit(tree)
+        file_prefix_map.update(collector.file_prefix_map)
+
+    return file_prefix_map
 
 
-class _PrefixCollector(ast.NodeVisitor):
-    """Collect prefix mappings from include_router and constant assignments."""
+class _IncludeRouterCollector(ast.NodeVisitor):
+    """Collect include_router calls and resolve them to file paths with prefixes."""
 
-    def __init__(self, file_path: Path) -> None:
+    def __init__(self, file_path: Path, all_files: list[Path], repo_root: Path) -> None:
         self.file_path = file_path
-        self.prefixes: dict[str, str] = {}
+        self.all_files = all_files
+        self.repo_root = repo_root
+        self.file_prefix_map: dict[str, str] = {}
+        # Track imports: local_name -> module_path
+        self.imports: dict[str, str] = {}
+        # Track constants for variable prefix resolution
         self.constants: dict[str, str] = {}
 
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        """Track 'from X import Y' statements."""
+        if node.module and node.names:
+            for alias in node.names:
+                local_name = alias.asname or alias.name
+                # Store as module.submodule for resolution
+                self.imports[local_name] = f"{node.module}.{alias.name}"
+        self.generic_visit(node)
+
     def visit_Assign(self, node: ast.Assign) -> None:
-        """Track string constant assignments for prefix resolution."""
+        """Track string constants."""
         if (
             len(node.targets) == 1
             and isinstance(node.targets[0], ast.Name)
@@ -98,27 +123,25 @@ class _PrefixCollector(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Expr(self, node: ast.Expr) -> None:
-        """Look for app.include_router(router, prefix="/path") calls."""
+        """Look for include_router() calls."""
         if isinstance(node.value, ast.Call):
             self._check_include_router(node.value)
+        self.generic_visit(node)
+
+    def visit_Call(self, node: ast.Call) -> None:
+        """Also check calls inside function bodies (e.g., create_app())."""
+        self._check_include_router(node)
         self.generic_visit(node)
 
     def _check_include_router(self, call: ast.Call) -> None:
         if not (isinstance(call.func, ast.Attribute) and call.func.attr == "include_router"):
             return
-
-        # Get the router argument (first positional arg)
         if not call.args:
             return
 
         router_arg = call.args[0]
-        router_name = ""
-        if isinstance(router_arg, ast.Name):
-            router_name = router_arg.id
-        elif isinstance(router_arg, ast.Attribute):
-            router_name = router_arg.attr
 
-        # Get prefix from keyword args
+        # Extract prefix from keyword args
         prefix = ""
         for kw in call.keywords:
             if kw.arg == "prefix":
@@ -127,24 +150,62 @@ class _PrefixCollector(ast.NodeVisitor):
                 elif isinstance(kw.value, ast.Name) and kw.value.id in self.constants:
                     prefix = self.constants[kw.value.id]
 
-        if router_name and prefix:
-            # Key by file:router_name for uniqueness
-            key = f"{self.file_path.stem}:{router_name}"
-            self.prefixes[key] = prefix
+        # Resolve router_arg to a file path
+        resolved_file = self._resolve_router_to_file(router_arg)
+        if resolved_file and prefix:
+            self.file_prefix_map[str(resolved_file.resolve())] = prefix
+
+    def _resolve_router_to_file(self, router_arg: ast.expr) -> Path | None:
+        """Resolve a router argument (like `users.router` or `user_router`) to a file path."""
+
+        # Pattern 1: module.router (e.g., users.router, activities.router)
+        if (
+            isinstance(router_arg, ast.Attribute)
+            and router_arg.attr == "router"
+            and isinstance(router_arg.value, ast.Name)
+        ):
+            module_name = router_arg.value.id
+            # Check if this module was imported
+            if module_name in self.imports:
+                return self._module_to_file(self.imports[module_name])
+            # Try as a relative filename
+            return self._find_file_by_name(module_name)
+
+        # Pattern 2: direct variable name (e.g., user_router)
+        if isinstance(router_arg, ast.Name):
+            var_name = router_arg.id
+            # Check if imported: from routes.users import router as user_router
+            if var_name in self.imports:
+                return self._module_to_file(self.imports[var_name])
+
+        return None
+
+    def _module_to_file(self, module_path: str) -> Path | None:
+        """Convert a dotted module path to a file path.
+
+        e.g., 'app.entrypoints.http.routes.activities' -> find activities.py
+        """
+        # Try converting dots to path separators
+        parts = module_path.split(".")
+        module_name = parts[-1]  # The actual module/file name
+
+        # Search all files for one whose stem matches the module name
+        return self._find_file_by_name(module_name)
+
+    def _find_file_by_name(self, name: str) -> Path | None:
+        """Find a Python file by its stem name among all project files."""
+        for f in self.all_files:
+            if f.stem == name:
+                return f
+        return None
 
 
 class _RouteExtractor(ast.NodeVisitor):
     """Extract routes from FastAPI decorator patterns."""
 
-    def __init__(
-        self,
-        file_path: Path,
-        prefix_map: dict[str, str],
-        repo_root: Path,
-    ) -> None:
+    def __init__(self, file_path: Path, file_prefix: str) -> None:
         self.file_path = file_path
-        self.prefix_map = prefix_map
-        self.repo_root = repo_root
+        self.file_prefix = file_prefix
         self.routes: list[ParsedRoute] = []
         self.constants: dict[str, str] = {}
         self._router_prefix: str = ""
@@ -212,14 +273,19 @@ class _RouteExtractor(ast.NodeVisitor):
             if path is None:
                 continue
 
-            # Apply router prefix
-            full_path = self._router_prefix.rstrip("/") + path if self._router_prefix else path
+            # Build full path: include_router prefix + APIRouter prefix + route path
+            full_path = ""
+            if self.file_prefix:
+                full_path += self.file_prefix.rstrip("/")
+            if self._router_prefix:
+                full_path += self._router_prefix.rstrip("/")
+            full_path += path if path != "" else ""
 
-            # Check prefix_map for include_router prefix
-            for key, prefix in self.prefix_map.items():
-                if key.endswith(f":{self.file_path.stem}_router") or key.endswith(":router"):
-                    full_path = prefix.rstrip("/") + full_path
-                    break
+            # Ensure path starts with /
+            if full_path and not full_path.startswith("/"):
+                full_path = "/" + full_path
+            if not full_path:
+                full_path = "/"
 
             # Extract parameters from function signature
             params = self._extract_params(node, full_path)
@@ -379,8 +445,6 @@ def _is_dependency_param(arg: ast.arg, name: str) -> bool:
 
 def _extract_path_params(path: str) -> set[str]:
     """Extract parameter names from a path string like /users/{user_id}."""
-    import re
-
     return set(re.findall(r"\{(\w+)\}", path))
 
 
