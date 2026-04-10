@@ -1,13 +1,6 @@
-import { auth, signIn } from "@/auth";
-import { redirect } from "next/navigation";
+import Link from "next/link";
 
-export default async function Home() {
-  const session = await auth();
-
-  if (session?.user) {
-    redirect("/dashboard");
-  }
-
+export default function LandingPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 text-zinc-50">
       <div className="max-w-2xl text-center px-6">
@@ -21,19 +14,12 @@ export default async function Home() {
           Parse any GitHub repo, visualize API routes, and download generated
           CLI tools and MCP servers.
         </p>
-        <form
-          action={async () => {
-            "use server";
-            await signIn("github");
-          }}
+        <Link
+          href="/login"
+          className="mt-8 inline-block rounded-lg bg-teal-500 px-6 py-3 text-sm font-medium text-zinc-950 hover:bg-teal-400 transition-colors"
         >
-          <button
-            type="submit"
-            className="mt-8 rounded-lg bg-teal-500 px-6 py-3 text-sm font-medium text-zinc-950 hover:bg-teal-400 transition-colors"
-          >
-            Sign in with GitHub
-          </button>
-        </form>
+          Get Started
+        </Link>
       </div>
     </main>
   );
