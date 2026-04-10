@@ -32,7 +32,7 @@ export function AiSection() {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="grid grid-cols-1 lg:grid-cols-2 items-center gap-16 px-6 lg:px-[60px] py-16 relative z-[1]">
+    <section ref={ref} className="grid grid-cols-1 lg:grid-cols-2 items-center gap-16 px-6 lg:px-[60px] py-16 mb-20 relative z-[1]">
 
       {/* Left: Floating logos with thread connections */}
       <motion.div
