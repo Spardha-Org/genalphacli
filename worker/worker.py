@@ -45,42 +45,25 @@ async def main() -> None:
     # Thread pool for sync activities (clone, parse, generate are all sync)
     activity_executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 
-    # Parse worker — conservative concurrency (clone is I/O heavy)
-    parse_worker = Worker(
+    # Single worker handling both parse and generate workflows
+    worker = Worker(
         client,
         task_queue=PARSE_QUEUE,
-        workflows=[ParseWorkflow],
+        workflows=[ParseWorkflow, GenerateWorkflow],
         activities=[
             clone_repo_activity,
             parse_routes_activity,
             cleanup_clone_activity,
             update_service_status,
-        ],
-        max_concurrent_activities=5,
-        activity_executor=activity_executor,
-    )
-
-    # Generate worker — higher concurrency (generation is lightweight)
-    generate_worker = Worker(
-        client,
-        task_queue=GENERATE_QUEUE,
-        workflows=[GenerateWorkflow],
-        activities=[
             generate_packages_activity,
             package_zip_activity,
         ],
+        max_concurrent_activities=10,
         activity_executor=activity_executor,
-        max_concurrent_activities=20,
     )
 
-    logger.info("Starting workers: parse-queue (max 5), generate-queue (max 20)")
-
-    # Run both workers concurrently
-    async with parse_worker, generate_worker:
-        await asyncio.gather(
-            parse_worker.run(),
-            generate_worker.run(),
-        )
+    logger.info("Starting worker on queue: %s", PARSE_QUEUE)
+    await worker.run()
 
 
 if __name__ == "__main__":
