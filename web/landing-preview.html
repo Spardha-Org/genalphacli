@@ -488,8 +488,7 @@ const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.targ
 document.querySelectorAll('.reveal').forEach(e=>obs.observe(e));
 
 // Counter
-const cObs=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;e.target.querySelectorAll('[data-count]').forEach(el=>{const t=+el.dataset.count,st=performance.now();!function u(n){const p=Math.min((n-st)/1500,1);el.textContent=Math.round((1-Math.pow(1-p,3))*t);p<1&&requestAnimationFrame(u)}(st)});cObs.disconnect()}),{threshold:.5});
-cObs.observe(document.querySelector('.stats-row'));
+// Counter removed with stats section
 
 // ── Horizontal Parallax Flow ──
 const flowTrack = document.getElementById('flow-track');
