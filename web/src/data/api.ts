@@ -119,11 +119,26 @@ export const integrationsApi = {
 
   list: () => apiFetch<Integration[]>("/integrations"),
 
-  install: (appName: string) =>
+  install: (appName: string, formData?: Record<string, unknown>) =>
     apiFetch<{ authorize_url: string; state: string }>(
       `/integrations/${appName}/install`,
-      { method: "POST" },
+      { method: "POST", body: formData ? JSON.stringify({ form_data: formData }) : undefined },
     ),
+
+  exchange: (appName: string, code: string, state: string) =>
+    apiFetch<{ integration_id: string; app_name: string; identifier: string; status: string }>(
+      `/integrations/${appName}/exchange`,
+      { method: "POST", body: JSON.stringify({ code, state }) },
+    ),
+
+  connect: (appName: string, credentials: Record<string, string>) =>
+    apiFetch<{ integration_id: string; app_name: string; identifier: string; status: string }>(
+      `/integrations/${appName}/connect`,
+      { method: "POST", body: JSON.stringify({ credentials }) },
+    ),
+
+  resolveState: (state: string) =>
+    apiFetch<{ app_name: string }>(`/integrations/resolve-state?state=${encodeURIComponent(state)}`),
 
   delete: (id: string) =>
     apiFetch<{ ok: boolean }>(`/integrations/${id}`, { method: "DELETE" }),

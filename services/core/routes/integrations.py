@@ -6,8 +6,6 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from services.core.deps import CurrentWorkspaceDep, DbDep
 from services.core.tps_client import tps_request
-from services.core.models import Workspace
-from sqlmodel import select
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
@@ -25,9 +23,18 @@ async def list_integrations(workspace: CurrentWorkspaceDep):
 
 
 @router.post("/{app_name}/install")
-async def install_app(app_name: str, workspace: CurrentWorkspaceDep):
+async def install_app(
+    app_name: str,
+    workspace: CurrentWorkspaceDep,
+    body: dict | None = None,
+):
     """Start OAuth flow — returns authorize URL for frontend to redirect to."""
-    return await tps_request("POST", f"/integrations/{app_name}/install", workspace_id=workspace.id)
+    return await tps_request(
+        "POST",
+        f"/integrations/{app_name}/install",
+        workspace_id=workspace.id,
+        json=body,
+    )
 
 
 class ExchangeRequest(BaseModel):
@@ -40,31 +47,47 @@ async def exchange_oauth_code(
     app_name: str,
     body: ExchangeRequest,
     workspace: CurrentWorkspaceDep,
-    db: DbDep,
 ):
-    """Exchange OAuth code+state for token. Called by frontend after GitHub redirect.
+    """Exchange OAuth code+state for token.
 
-    Flow: GitHub redirects to frontend callback page → frontend POSTs code+state here
-    → Core forwards to TPS → TPS validates state, exchanges code, stores encrypted token.
+    No longer writes to Workspace.integration_id — multi-app support
+    means integrations are looked up by (workspace_id, app_name) via TPS.
     """
-    result = await tps_request(
+    return await tps_request(
         "POST",
         f"/integrations/{app_name}/exchange",
         workspace_id=workspace.id,
         json={"code": body.code, "state": body.state},
     )
 
-    # Store integration_id on workspace
-    if "integration_id" in result:
-        stmt = select(Workspace).where(Workspace.id == workspace.id)
-        ws_result = await db.exec(stmt)
-        ws = ws_result.first()
-        if ws:
-            ws.integration_id = result["integration_id"]
-            db.add(ws)
-            await db.commit()
 
-    return result
+class ConnectRequest(BaseModel):
+    credentials: dict
+
+
+@router.post("/{app_name}/connect")
+async def connect_app(
+    app_name: str,
+    body: ConnectRequest,
+    workspace: CurrentWorkspaceDep,
+):
+    """Connect a credential-based app (API Key, Basic Auth, mTLS)."""
+    return await tps_request(
+        "POST",
+        f"/integrations/{app_name}/connect",
+        workspace_id=workspace.id,
+        json={"credentials": body.credentials},
+    )
+
+
+@router.get("/resolve-state")
+async def resolve_state(state: str, workspace: CurrentWorkspaceDep):
+    """Resolve an OAuth state to get the app_name for the callback page."""
+    return await tps_request(
+        "GET",
+        f"/integrations/resolve-state?state={state}",
+        workspace_id=workspace.id,
+    )
 
 
 @router.delete("/{integration_id}")
