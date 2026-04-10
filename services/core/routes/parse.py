@@ -96,6 +96,8 @@ async def start_parse(
                 "user_id": workspace.owner_id,
                 "service_id": service.id,
                 "command_name": repo,
+                "workspace_id": workspace.id,
+                "integration_id": workspace.integration_id or "",
             },
             id=workflow_id,
             task_queue="genalpha-parse",

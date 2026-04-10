@@ -32,6 +32,8 @@ class ParseWorkflowInput:
     user_id: str
     service_id: str
     command_name: str
+    workspace_id: str = ""
+    integration_id: str = ""
 
 
 @dataclass
@@ -65,6 +67,8 @@ class ParseWorkflow:
                     repo=input.repo,
                     user_id=input.user_id,
                     service_id=input.service_id,
+                    workspace_id=input.workspace_id,
+                    integration_id=input.integration_id,
                 ),
                 start_to_close_timeout=timedelta(seconds=120),
                 retry_policy=RetryPolicy(

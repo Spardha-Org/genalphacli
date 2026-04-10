@@ -17,6 +17,8 @@ class CloneRepoInput:
     repo: str
     user_id: str
     service_id: str
+    workspace_id: str = ""
+    integration_id: str = ""  # If set, clone via TPS (authenticated)
 
 
 @dataclass
