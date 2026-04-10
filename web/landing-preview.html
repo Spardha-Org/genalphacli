@@ -478,6 +478,9 @@ footer a{color:var(--text-dim);text-decoration:none}footer a:hover{color:var(--a
     <a href="/login" class="btn-main"><span>&#9654;</span> Launch App</a>
     <a href="https://github.com/NandishNaik01/genalphacli" class="btn-ghost">View Source</a>
   </div>
+
+  <!-- ASCII GENALPHA banner -->
+  <div class="reveal rd4" id="bottom-ascii" style="margin-top:60px;text-align:center"></div>
 </section>
 
 <footer>Built by <a href="https://github.com/NandishNaik01">NandishNaik01</a> &middot; <a href="https://github.com/NandishNaik01/genalphacli">GitHub</a> &middot; MIT</footer>
@@ -588,6 +591,24 @@ const codeObs = new IntersectionObserver(es => es.forEach(e => {
   });
 }), { threshold: 0.3 });
 codeBlocks.forEach(b => codeObs.observe(b));
+
+// ── Bottom ASCII banner ──
+const bottomAscii = document.getElementById('bottom-ascii');
+const bottomObs = new IntersectionObserver(es => {
+  if (!es[0].isIntersecting) return;
+  asciiArt.forEach((line, i) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'font-family:var(--mono);font-size:clamp(6px,1.2vw,11px);color:var(--accent);white-space:pre;line-height:1.15;opacity:0;transform:translateY(10px);animation:ascii-reveal .4s ease-out forwards;animation-delay:'+(i*0.12)+'s';
+    div.textContent = line;
+    bottomAscii.appendChild(div);
+  });
+  const sub = document.createElement('div');
+  sub.style.cssText = 'font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-top:12px;letter-spacing:2px;opacity:0;animation:ascii-reveal .4s ease-out forwards;animation-delay:'+(asciiArt.length*0.12+0.2)+'s';
+  sub.textContent = '// v0.1.0 — Turn any API into a CLI & MCP Server';
+  bottomAscii.appendChild(sub);
+  bottomObs.disconnect();
+}, { threshold: 0.3 });
+bottomObs.observe(bottomAscii);
 
 // Auto-play hello on load
 setTimeout(()=>{termI.value='hello';setTimeout(()=>{runCmd('hello');termI.value='';termI.focus()},500)},1500);
