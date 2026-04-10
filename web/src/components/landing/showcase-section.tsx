@@ -21,7 +21,7 @@ export function ShowcaseSection() {
     <section
       id="features"
       ref={ref}
-      className="min-h-screen grid grid-cols-1 lg:grid-cols-2 items-center gap-16 px-6 lg:px-[60px] py-10 relative z-[1]"
+      className="grid grid-cols-1 lg:grid-cols-2 items-center gap-16 px-6 lg:px-[60px] py-16 relative z-[1]"
     >
       {/* Left: Text */}
       <div className="max-w-[480px]">
