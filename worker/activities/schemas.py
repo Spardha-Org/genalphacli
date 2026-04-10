@@ -81,3 +81,21 @@ class PackageZipOutput:
 
     zip_path: str
     zip_size_bytes: int
+
+
+@dataclass
+class UploadArtifactInput:
+    """Input for upload_artifact_activity."""
+
+    zip_path: str
+    service_id: str
+    artifact_type: str  # "cli" or "mcp"
+    filename: str
+
+
+@dataclass
+class UploadArtifactOutput:
+    """Output from upload_artifact_activity."""
+
+    artifact_id: str
+    file_size: int

@@ -31,7 +31,13 @@ export function GeneratePanel({
 
   // Check if generation completed
   if (status?.status === "complete" && !downloadUrl) {
-    setDownloadUrl(`/api/services/${serviceId}/download`);
+    // Use artifact download endpoint if available, fallback to legacy
+    const artifactId = status.metadata?.artifact_id as string | undefined;
+    if (artifactId) {
+      setDownloadUrl(`/api/artifacts/${artifactId}/download`);
+    } else {
+      setDownloadUrl(`/api/services/${serviceId}/download`);
+    }
     onGenerated?.();
   }
 

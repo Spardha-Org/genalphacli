@@ -4,7 +4,7 @@ import secrets
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, LargeBinary
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -114,9 +114,25 @@ class Service(SQLModel, table=True):
     error_message: Optional[str] = None
     parse_workflow_id: Optional[str] = None
     generate_workflow_id: Optional[str] = None
-    download_url: Optional[str] = None
+    download_url: Optional[str] = None  # deprecated — use artifact_id
+    artifact_id: Optional[str] = None
     metadata_json: Optional[dict] = Field(default=None, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 
     project: Optional["Project"] = Relationship(back_populates="services")
+
+
+# ── Artifacts ──
+
+
+class Artifact(SQLModel, table=True):
+    __tablename__ = "core_artifacts"
+
+    id: str = Field(default_factory=generate_cuid, primary_key=True)
+    service_id: str = Field(foreign_key="core_services.id", index=True)
+    artifact_type: str  # "cli" or "mcp"
+    filename: str
+    file_data: bytes = Field(sa_column=Column(LargeBinary))
+    file_size: int = 0
+    created_at: datetime = Field(default_factory=utc_now)

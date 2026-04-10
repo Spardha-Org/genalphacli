@@ -15,6 +15,7 @@ from temporalio.worker import Worker
 from worker.activities.generate_activities import (
     generate_packages_activity,
     package_zip_activity,
+    upload_artifact_activity,
 )
 from worker.activities.github_activities import (
     cleanup_clone_activity,
@@ -57,6 +58,7 @@ async def main() -> None:
             update_service_status,
             generate_packages_activity,
             package_zip_activity,
+            upload_artifact_activity,
         ],
         max_concurrent_activities=10,
         activity_executor=activity_executor,

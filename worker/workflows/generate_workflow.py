@@ -15,11 +15,13 @@ with workflow.unsafe.imports_passed_through():
     from worker.activities.generate_activities import (
         generate_packages_activity,
         package_zip_activity,
+        upload_artifact_activity,
     )
     from worker.activities.status_activities import update_service_status, StatusUpdateInput
     from worker.activities.schemas import (
         GeneratePackagesInput,
         PackageZipInput,
+        UploadArtifactInput,
     )
 
 
@@ -34,8 +36,8 @@ class GenerateWorkflowInput:
 
 @dataclass
 class GenerateWorkflowOutput:
-    zip_path: str
-    zip_size_bytes: int
+    artifact_id: str
+    file_size: int
 
 
 @workflow.defn
@@ -82,20 +84,33 @@ class GenerateWorkflow:
                 retry_policy=RetryPolicy(maximum_attempts=1),
             )
 
-            # Step 3: Update to complete with download URL
+            # Step 3: Upload artifact to Core DB
+            upload_result = await workflow.execute_activity(
+                upload_artifact_activity,
+                UploadArtifactInput(
+                    zip_path=zip_result.zip_path,
+                    service_id=input.service_id,
+                    artifact_type="cli",  # TODO: separate artifacts per output type
+                    filename=f"{input.cli_name}.zip",
+                ),
+                start_to_close_timeout=timedelta(seconds=60),
+                retry_policy=RetryPolicy(maximum_attempts=2),
+            )
+
+            # Step 4: Update to complete
             await workflow.execute_activity(
                 update_service_status,
                 StatusUpdateInput(
                     service_id=input.service_id,
                     status="complete",
-                    metadata={"zip_path": zip_result.zip_path, "zip_size_bytes": zip_result.zip_size_bytes},
+                    metadata={"artifact_id": upload_result.artifact_id, "file_size": upload_result.file_size},
                 ),
                 start_to_close_timeout=timedelta(seconds=10),
             )
 
             return GenerateWorkflowOutput(
-                zip_path=zip_result.zip_path,
-                zip_size_bytes=zip_result.zip_size_bytes,
+                artifact_id=upload_result.artifact_id,
+                file_size=upload_result.file_size,
             )
 
         except Exception as e:

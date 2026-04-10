@@ -41,12 +41,14 @@ export async function proxyToCore(
     body: hasBody ? await request.text() : undefined,
   });
 
-  // Filter response headers — only forward Set-Cookie and Content-Type
+  // Filter response headers — only forward safe headers
   const responseHeaders = new Headers();
   const respContentType = response.headers.get("content-type");
   if (respContentType) responseHeaders.set("content-type", respContentType);
   const setCookie = response.headers.get("set-cookie");
   if (setCookie) responseHeaders.set("set-cookie", setCookie);
+  const contentDisposition = response.headers.get("content-disposition");
+  if (contentDisposition) responseHeaders.set("content-disposition", contentDisposition);
 
   return new Response(response.body, {
     status: response.status,

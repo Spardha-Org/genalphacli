@@ -97,7 +97,7 @@ export default function ServicePage() {
           )}
           {currentStatus === "complete" && (
             <a
-              href={`/api/services/${service.id}/download`}
+              href={service.artifact_id ? `/api/artifacts/${service.artifact_id}/download` : `/api/services/${service.id}/download`}
               className="inline-flex items-center gap-2 bg-teal-500 text-zinc-950 px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-400 transition-colors"
             >
               Download
