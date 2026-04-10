@@ -49,14 +49,10 @@ Redesign all dashboard pages (7 pages) with a clean developer dashboard style in
   - **Generate**: CLI name, base URL, output type selector, generate button, download
   - **Settings**: Delete service, re-parse option
 
-### 5. Settings (/settings)
-- Workspace info (name, slug)
-- Account info (email)
-- Link to integrations
-
-### 6. Integrations (/settings/integrations)
+### 5. Integrations (/integrations)
 - Connected apps list with disconnect
 - Available apps with connect button
+- Workspace info section at bottom (name, slug, email)
 
 ## Design Tokens (shared with landing page)
 
@@ -77,8 +73,7 @@ Font: JetBrains Mono for headings/code, Inter for body
 │ 📁 Projects          │
 │   └ Default Project  │
 │   └ API v2           │
-│ ⚙️ Settings          │
-│   └ Integrations     │
+│ 🔌 Integrations      │
 ├─────────────────────┤
 │ 👤 nandish@...       │
 │    Sign out           │
