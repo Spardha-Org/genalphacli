@@ -93,7 +93,7 @@ export const servicesApi = {
   delete: (id: string) =>
     apiFetch<{ ok: boolean }>(`/services/${id}`, { method: "DELETE" }),
 
-  getStatus: (id: string) => apiFetch<ServiceStatus>(`/services/${id}/status`),
+  getStatus: (id: string) => apiFetch<Service>(`/services/${id}`),
 
   generate: (payload: {
     serviceId: string;

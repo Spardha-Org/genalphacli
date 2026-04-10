@@ -124,11 +124,11 @@ export function useService(id: string) {
 }
 
 export function useServiceStatus(serviceId: string | null) {
-  return useQuery<ServiceStatus>({
+  return useQuery<Service>({
     queryKey: keys.serviceStatus(serviceId!),
     queryFn: () => servicesApi.getStatus(serviceId!),
     enabled: Boolean(serviceId),
-    refetchInterval: (query: { state: { data?: ServiceStatus } }) => {
+    refetchInterval: (query: { state: { data?: Service } }) => {
       const status = query.state.data?.status;
       if (!status) return 3000;
       return TERMINAL_STATUSES.has(status) ? false : 3000;
