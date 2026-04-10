@@ -2,20 +2,15 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from pydantic import BaseModel
-from sqlmodel import select, func
+from sqlmodel import select
 
 from services.core.deps import CurrentUserDep, CurrentWorkspaceDep, DbDep
-from services.core.models import Project, Service
+from services.core.models import Artifact, Project, Service
 
 router = APIRouter(prefix="/services", tags=["services"])
-
-ACTIVE_STATUSES = ["parsed", "generating", "packaging", "complete"]
-MAX_SERVICES_PER_WORKSPACE = 2
 
 
 class CreateServiceRequest(BaseModel):
@@ -83,7 +78,8 @@ async def get_service(
         "status": service.status,
         "route_graph": service.route_graph,
         "error_message": service.error_message,
-        "download_url": service.download_url,
+        "artifact_id": service.artifact_id,
+        "download_url": service.download_url,  # deprecated
         "metadata": service.metadata_json,
         "created_at": service.created_at.isoformat(),
     }
@@ -107,6 +103,13 @@ async def delete_service(
     if not service:
         raise HTTPException(status_code=404, detail="Service not found")
 
+    # Delete associated artifacts first
+    artifact_result = await db.exec(
+        select(Artifact).where(Artifact.service_id == service_id)
+    )
+    for artifact in artifact_result.all():
+        await db.delete(artifact)
+
     await db.delete(service)
     await db.commit()
 
@@ -119,7 +122,7 @@ async def download_service(
     db: DbDep,
     workspace: CurrentWorkspaceDep,
 ):
-    """Download the generated zip for a service."""
+    """Download the generated zip for a service (redirects to artifact)."""
     stmt = (
         select(Service)
         .join(Project)
@@ -131,15 +134,19 @@ async def download_service(
     if not service:
         raise HTTPException(status_code=404, detail="Service not found")
 
-    if service.status != "complete" or not service.download_url:
+    if service.status != "complete" or not service.artifact_id:
         raise HTTPException(status_code=400, detail="Download not available. Generate first.")
 
-    zip_path = Path(service.download_url)
-    if not zip_path.exists():
-        raise HTTPException(status_code=404, detail="Zip file not found. Please regenerate.")
+    # Serve from DB artifact
+    artifact_result = await db.exec(
+        select(Artifact).where(Artifact.id == service.artifact_id)
+    )
+    artifact = artifact_result.first()
+    if not artifact:
+        raise HTTPException(status_code=404, detail="Artifact not found. Please regenerate.")
 
-    return FileResponse(
-        path=str(zip_path),
-        filename=f"{service.name}.zip",
+    return Response(
+        content=artifact.file_data,
         media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{artifact.filename}"'},
     )

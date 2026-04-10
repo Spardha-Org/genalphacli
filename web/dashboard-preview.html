@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GenAlpha Dashboard Preview</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #050507;
+    --surface: #0a0a0e;
+    --elevated: #0f0f14;
+    --border: rgba(255,255,255,0.06);
+    --border-glow: rgba(20, 184, 166, 0.13);
+    --text: #e4e4e7;
+    --text-dim: #71717a;
+    --text-muted: #3f3f46;
+    --accent: #14b8a6;
+    --accent-bright: #2dd4bf;
+    --accent-glow: rgba(20, 184, 166, 0.15);
+    --green: #22c55e;
+    --blue: #3b82f6;
+    --violet: #8b5cf6;
+    --rose: #f43f5e;
+    --amber: #f59e0b;
+    --cyan: #06b6d4;
+    --radius: 10px;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Inter', system-ui, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; min-height: 100vh; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  /* ── Top Bar ── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(12px);
+  }
+  .topbar-logo {
+    font-family: var(--font-mono); font-weight: 800; font-size: 14px;
+    letter-spacing: 0.05em; color: var(--text); text-decoration: none;
+  }
+  .topbar-logo span { color: var(--accent); }
+  .topbar-center { display: flex; align-items: center; gap: 16px; }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .topbar-link {
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);
+    text-decoration: none; transition: color 0.2s;
+  }
+  .topbar-link:hover, .topbar-link.active { color: var(--accent); }
+  .topbar-search {
+    width: 240px; padding: 7px 12px 7px 32px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text);
+    font-family: var(--font-mono); font-size: 12px;
+    outline: none; transition: border-color 0.2s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%233f3f46' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: 10px center;
+  }
+  .topbar-search::placeholder { color: var(--text-muted); }
+  .topbar-search:focus { border-color: var(--accent); }
+  .topbar-btn {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+    background: none; border: none; cursor: pointer; transition: color 0.2s;
+  }
+  .topbar-btn:hover { color: var(--accent); }
+
+  /* ── Main Content ── */
+  .main { padding: 32px 32px; max-width: 1200px; margin: 0 auto; }
+
+  /* ── Breadcrumb ── */
+  .breadcrumb {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);
+    margin-bottom: 24px;
+  }
+  .breadcrumb a { color: var(--text-dim); text-decoration: none; transition: color 0.2s; }
+  .breadcrumb a:hover { color: var(--accent); }
+  .breadcrumb .sep { color: var(--text-muted); }
+
+  /* ── Page Header ── */
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 32px;
+  }
+  .page-header h1 {
+    font-family: var(--font-mono); font-size: 20px; font-weight: 700;
+    color: var(--text);
+  }
+  .page-header p {
+    font-size: 13px; color: var(--text-dim); margin-top: 4px;
+  }
+
+  /* ── Button ── */
+  .btn {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+    padding: 8px 16px; border-radius: var(--radius); cursor: pointer;
+    border: none; transition: all 0.2s; display: inline-flex;
+    align-items: center; gap: 6px;
+  }
+  .btn-primary {
+    background: var(--accent); color: var(--bg);
+  }
+  .btn-primary:hover { background: var(--accent-bright); }
+  .btn-ghost {
+    background: transparent; color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--text-muted); color: var(--text); }
+  .btn-sm { padding: 6px 12px; font-size: 11px; }
+  .btn-destructive {
+    background: rgba(244, 63, 94, 0.1); color: var(--rose);
+    border: 1px solid rgba(244, 63, 94, 0.2);
+  }
+  .btn-destructive:hover { background: rgba(244, 63, 94, 0.2); }
+
+  /* ── Cards Grid ── */
+  .card-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+  }
+
+  /* ── Project Card ── */
+  .project-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 1 / 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+  }
+  .project-card:hover {
+    border-color: rgba(20, 184, 166, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+  .project-card-img {
+    width: 80px; height: 80px; border-radius: 16px;
+    object-fit: cover; margin-bottom: 16px; opacity: 0.7;
+  }
+  .project-card-name {
+    font-family: var(--font-mono); font-size: 14px; font-weight: 600;
+    color: var(--text);
+  }
+  .project-card .badge {
+    position: absolute; top: 12px; right: 12px;
+  }
+
+  /* ── Service Card ── */
+  .service-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    aspect-ratio: 1 / 1;
+    display: flex; flex-direction: column; justify-content: flex-start;
+  }
+  .service-card:hover {
+    border-color: rgba(20, 184, 166, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+  .service-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .service-card-name {
+    font-family: var(--font-mono); font-size: 14px; font-weight: 600;
+    color: var(--text); display: flex; align-items: center; gap: 8px;
+  }
+  .service-card-url {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+    margin-bottom: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .service-card-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+
+  /* ── Badge ── */
+  .badge {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    padding: 3px 8px; border-radius: 6px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .badge-green { background: rgba(34, 197, 94, 0.12); color: var(--green); }
+  .badge-blue { background: rgba(59, 130, 246, 0.12); color: var(--blue); }
+  .badge-violet { background: rgba(139, 92, 246, 0.12); color: var(--violet); }
+  .badge-amber { background: rgba(245, 158, 11, 0.12); color: var(--amber); }
+  .badge-cyan { background: rgba(6, 182, 212, 0.12); color: var(--cyan); }
+  .badge-muted { background: rgba(63, 63, 70, 0.3); color: var(--text-dim); }
+  .badge-accent { background: var(--accent-glow); color: var(--accent); }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex; gap: 0; border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .tab {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 500;
+    color: var(--text-dim); padding: 12px 20px;
+    background: none; border: none; cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Table ── */
+  .table-wrap {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    color: var(--text-muted); text-align: left;
+    padding: 10px 16px; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  td {
+    font-size: 13px; color: var(--text-dim); padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .method-badge {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 4px;
+    text-transform: uppercase;
+  }
+  .method-get { background: rgba(34, 197, 94, 0.12); color: var(--green); }
+  .method-post { background: rgba(59, 130, 246, 0.12); color: var(--blue); }
+  .method-put { background: rgba(245, 158, 11, 0.12); color: var(--amber); }
+  .method-delete { background: rgba(244, 63, 94, 0.12); color: var(--rose); }
+
+  /* ── Empty State ── */
+  .empty-state {
+    text-align: center; padding: 64px 24px;
+    border: 1px dashed var(--border); border-radius: var(--radius);
+  }
+  .empty-state-icon {
+    font-size: 32px; margin-bottom: 16px; opacity: 0.4;
+  }
+  .empty-state h3 {
+    font-family: var(--font-mono); font-size: 14px; color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .empty-state p {
+    font-size: 12px; color: var(--text-muted); margin-bottom: 20px;
+  }
+
+  /* ── Modal Overlay ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100; backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    width: 480px; max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal h2 {
+    font-family: var(--font-mono); font-size: 16px; font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .modal .modal-desc {
+    font-size: 12px; color: var(--text-dim); margin-bottom: 24px;
+  }
+
+  /* ── Form ── */
+  .form-group { margin-bottom: 16px; }
+  .form-label {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    color: var(--text-dim); display: block; margin-bottom: 6px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .form-input {
+    width: 100%; padding: 10px 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text);
+    font-family: var(--font-mono); font-size: 13px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .form-input::placeholder { color: var(--text-muted); }
+  .form-select {
+    width: 100%; padding: 10px 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text);
+    font-family: var(--font-mono); font-size: 13px;
+    outline: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+    cursor: pointer;
+  }
+  .form-select:focus { border-color: var(--accent); }
+  .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; }
+  .form-divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 20px 0; color: var(--text-muted); font-size: 11px;
+    font-family: var(--font-mono);
+  }
+  .form-divider::before, .form-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .coming-soon-option {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 8px; opacity: 0.5;
+  }
+  .coming-soon-option span { font-size: 13px; color: var(--text-dim); }
+
+  /* ── Service Detail Header ── */
+  .service-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .service-header h1 {
+    font-family: var(--font-mono); font-size: 20px; font-weight: 700;
+  }
+  .service-meta {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);
+    margin-bottom: 24px;
+  }
+  .service-meta a { color: var(--text-dim); text-decoration: none; }
+  .service-meta a:hover { color: var(--accent); }
+
+  /* ── Generate Panel ── */
+  .generate-panel {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+  }
+  .generate-config {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px;
+  }
+  .generate-output {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px;
+  }
+  .generate-output pre {
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);
+    background: var(--bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; margin-top: 12px; line-height: 1.6;
+  }
+
+  /* ── Mindmap ── */
+  .mindmap {
+    height: 500px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    position: relative; overflow: hidden;
+  }
+  .mindmap-node {
+    position: absolute; padding: 8px 14px;
+    border-radius: 8px; font-family: var(--font-mono); font-size: 11px;
+    font-weight: 600; white-space: nowrap;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+    transition: box-shadow 0.2s;
+  }
+  .mindmap-node:hover { box-shadow: 0 0 12px rgba(20, 184, 166, 0.3); }
+  .mindmap-node.root {
+    background: var(--accent); color: var(--bg);
+    border-color: var(--accent); font-size: 13px; font-weight: 700;
+  }
+  .mindmap-node.group {
+    background: var(--elevated); color: var(--text);
+    border-color: rgba(255,255,255,0.1);
+  }
+  .mindmap-node.endpoint {
+    background: var(--bg); color: var(--text-dim);
+    border-color: var(--border); font-size: 10px;
+  }
+  .mindmap-node .method {
+    font-size: 9px; font-weight: 700; padding: 1px 5px;
+    border-radius: 3px; text-transform: uppercase;
+  }
+  .mindmap svg.edges {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  .mindmap svg.edges path {
+    fill: none; stroke: rgba(20, 184, 166, 0.25); stroke-width: 1.5;
+  }
+  .mindmap svg.edges path.dim {
+    stroke: rgba(255,255,255,0.06);
+  }
+  .mindmap-controls {
+    position: absolute; bottom: 12px; right: 12px;
+    display: flex; gap: 4px; z-index: 10;
+  }
+  .mindmap-controls button {
+    width: 32px; height: 32px; border-radius: 6px;
+    background: var(--elevated); border: 1px solid var(--border);
+    color: var(--text-dim); font-family: var(--font-mono); font-size: 14px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .mindmap-controls button:hover { color: var(--text); border-color: var(--text-muted); }
+  .mindmap-inner {
+    width: 100%; height: 100%; transition: transform 0.2s ease;
+    transform-origin: center center; position: relative;
+  }
+
+  /* ── Settings Panel ── */
+  .settings-section {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px; margin-bottom: 16px;
+  }
+  .settings-section h3 {
+    font-family: var(--font-mono); font-size: 14px; font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .settings-section p { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; }
+  .danger-zone {
+    border-color: rgba(244, 63, 94, 0.2);
+  }
+  .danger-zone h3 { color: var(--rose); }
+
+  /* ── App Store ── */
+  .integration-card-sq {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+    aspect-ratio: 1 / 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+  }
+  .integration-card-sq:hover {
+    border-color: rgba(20, 184, 166, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+  .integration-card-sq.connected { border-color: rgba(34, 197, 94, 0.2); }
+  .integration-card-sq.coming-soon { opacity: 0.5; cursor: default; }
+  .integration-card-sq.coming-soon:hover { transform: none; box-shadow: none; border-color: var(--border); }
+  .integration-card-sq .status-tag {
+    position: absolute; top: 12px; right: 12px;
+  }
+  .integration-icon-lg {
+    width: auto; height: auto;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px; opacity: 0.7;
+  }
+  .integration-name { font-family: var(--font-mono); font-size: 14px; font-weight: 600; }
+
+  /* ── Host App Buttons ── */
+  .host-app-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; transition: all 0.2s;
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);
+  }
+  .host-app-btn:hover { border-color: var(--text-muted); color: var(--text); }
+  .host-app-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+
+  /* ── Slot Indicator ── */
+  .slot-indicator {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .slot-bar {
+    width: 60px; height: 4px; background: var(--border); border-radius: 2px;
+    overflow: hidden;
+  }
+  .slot-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+
+  /* ── View nav ── */
+  .view-nav {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 4px; background: var(--elevated);
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 6px; z-index: 100;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .view-nav button {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    padding: 8px 16px; border-radius: 8px;
+    background: none; border: none; color: var(--text-dim);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .view-nav button:hover { color: var(--text); }
+  .view-nav button.active { background: var(--accent); color: var(--bg); }
+
+  /* ── Transitions ── */
+  .view { display: none; animation: fadeIn 0.3s ease; }
+  .view.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<nav class="topbar">
+  <a href="#" class="topbar-logo" onclick="showView('projects')"><span>//</span> GenAlpha</a>
+  <div class="topbar-right">
+    <button class="topbar-btn">Sign out</button>
+  </div>
+</nav>
+
+<!-- ============================================================ -->
+<!-- VIEW 1: Projects List -->
+<!-- ============================================================ -->
+<div class="view active" id="view-projects">
+  <div class="main">
+    <div class="page-header">
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <h1>Projects</h1>
+        <input type="text" class="topbar-search" placeholder="Search projects..." />
+      </div>
+      <button class="btn btn-primary" onclick="openModal('new-project-modal')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        New Project
+      </button>
+    </div>
+
+    <div class="card-grid">
+      <!-- Project 1 -->
+      <div class="project-card" onclick="showView('project-detail')">
+        <span class="badge badge-accent">3 services</span>
+        <img class="project-card-img" src="https://picsum.photos/seed/proj1/200/200" alt="" />
+        <div class="project-card-name">Default Project</div>
+      </div>
+
+      <!-- Project 2 -->
+      <div class="project-card" onclick="showView('project-detail')">
+        <span class="badge badge-muted">0 services</span>
+        <img class="project-card-img" src="https://picsum.photos/seed/proj2/200/200" alt="" />
+        <div class="project-card-name">API v2 Migration</div>
+      </div>
+
+      <!-- Empty Project Card (create) -->
+      <div class="project-card" onclick="openModal('new-project-modal')" style="border-style: dashed;">
+        <div style="font-size: 28px; color: var(--text-muted); margin-bottom: 8px;">+</div>
+        <div style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);">New Project</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- VIEW 2: Project Detail (Services) -->
+<!-- ============================================================ -->
+<div class="view" id="view-project-detail">
+  <div class="main">
+    <div class="breadcrumb">
+      <a href="#" onclick="showView('projects')">Projects</a>
+      <span class="sep">/</span>
+      <span>Default Project</span>
+    </div>
+
+    <div class="page-header">
+      <div>
+        <h1>Default Project</h1>
+        <p>Main project for API parsing and CLI generation experiments.</p>
+      </div>
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <div class="slot-indicator">
+          <span>1/2 slots</span>
+          <div class="slot-bar"><div class="slot-bar-fill" style="width: 50%;"></div></div>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('add-service-modal')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Add Service
+        </button>
+      </div>
+    </div>
+
+    <div class="card-grid">
+      <!-- Service 1: Parsed -->
+      <div class="service-card" onclick="showView('service-detail')">
+        <div class="service-card-header">
+          <div class="service-card-name">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            tiangolo/fastapi
+          </div>
+          <span class="badge badge-green">parsed</span>
+        </div>
+        <div class="service-card-url">github.com/tiangolo/fastapi</div>
+        <div class="service-card-tags">
+          <span class="badge badge-violet">FastAPI</span>
+          <span class="badge badge-cyan">572 routes</span>
+        </div>
+      </div>
+
+      <!-- Service 2: Parsing -->
+      <div class="service-card" style="opacity: 0.7;">
+        <div class="service-card-header">
+          <div class="service-card-name">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            encode/starlette
+          </div>
+          <span class="badge badge-amber">parsing...</span>
+        </div>
+        <div class="service-card-url">github.com/encode/starlette</div>
+        <div class="service-card-tags">
+          <span class="badge badge-muted">detecting framework...</span>
+        </div>
+      </div>
+
+      <!-- Empty state card -->
+      <div class="service-card" onclick="openModal('add-service-modal')" style="border-style: dashed; align-items: center; justify-content: center;">
+        <div style="text-align: center;">
+          <div style="font-size: 20px; color: var(--text-muted); margin-bottom: 6px;">+</div>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">Parse a repo</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- VIEW 3: Service Detail (Tabbed) -->
+<!-- ============================================================ -->
+<div class="view" id="view-service-detail">
+  <div class="main">
+    <div class="breadcrumb">
+      <a href="#" onclick="showView('projects')">Projects</a>
+      <span class="sep">/</span>
+      <a href="#" onclick="showView('project-detail')">Default Project</a>
+      <span class="sep">/</span>
+      <span>tiangolo/fastapi</span>
+    </div>
+
+    <div class="service-header">
+      <h1>tiangolo/fastapi</h1>
+      <button class="btn btn-destructive btn-sm">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Delete
+      </button>
+    </div>
+    <div class="service-meta">
+      <span class="badge badge-green">parsed</span>
+      <span class="badge badge-violet">FastAPI</span>
+      <a href="#">github.com/tiangolo/fastapi</a>
+      <span>572 routes</span>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('mindmap')">Mindmap</button>
+      <button class="tab" onclick="switchTab('routes')">Routes</button>
+      <button class="tab" onclick="switchTab('generate')">Generate</button>
+      <button class="tab" onclick="switchTab('config')">Config</button>
+      <button class="tab" onclick="switchTab('host')">Host</button>
+    </div>
+
+    <!-- Mindmap Tab -->
+    <div class="tab-panel active" id="panel-mindmap">
+      <div class="mindmap">
+        <div class="mindmap-controls">
+          <button onclick="zoomMindmap(0.1)" title="Zoom in">+</button>
+          <button onclick="zoomMindmap(-0.1)" title="Zoom out">&minus;</button>
+          <button onclick="resetMindmap()" title="Fit to view" style="font-size: 11px;">[ ]</button>
+        </div>
+        <div class="mindmap-inner" id="mindmap-inner">
+        <!-- Edges SVG -->
+        <svg class="edges">
+          <!-- Root → Groups -->
+          <path d="M 310,240 C 380,240 380,100 440,100" />
+          <path d="M 310,240 C 380,240 380,240 440,240" />
+          <path d="M 310,240 C 380,240 380,380 440,380" />
+          <!-- /users group → endpoints -->
+          <path class="dim" d="M 540,100 C 590,100 590,50 640,50" />
+          <path class="dim" d="M 540,100 C 590,100 590,100 640,100" />
+          <path class="dim" d="M 540,100 C 590,100 590,150 640,150" />
+          <!-- /items group → endpoints -->
+          <path class="dim" d="M 540,240 C 590,240 590,200 640,200" />
+          <path class="dim" d="M 540,240 C 590,240 590,240 640,240" />
+          <path class="dim" d="M 540,240 C 590,240 590,280 640,280" />
+          <!-- /auth group → endpoints -->
+          <path class="dim" d="M 530,380 C 590,380 590,345 640,345" />
+          <path class="dim" d="M 530,380 C 590,380 590,380 640,380" />
+          <path class="dim" d="M 530,380 C 590,380 590,415 640,415" />
+        </svg>
+
+        <!-- Root Node -->
+        <div class="mindmap-node root" style="left: 200px; top: 228px;">
+          fastapi
+        </div>
+
+        <!-- Group: /users -->
+        <div class="mindmap-node group" style="left: 440px; top: 88px;">
+          /users
+        </div>
+        <!-- /users endpoints -->
+        <div class="mindmap-node endpoint" style="left: 640px; top: 38px;">
+          <span class="method" style="background: rgba(34,197,94,0.15); color: var(--green);">GET</span>
+          /users
+        </div>
+        <div class="mindmap-node endpoint" style="left: 640px; top: 88px;">
+          <span class="method" style="background: rgba(59,130,246,0.15); color: var(--blue);">POST</span>
+          /users
+        </div>
+        <div class="mindmap-node endpoint" style="left: 640px; top: 138px;">
+          <span class="method" style="background: rgba(34,197,94,0.15); color: var(--green);">GET</span>
+          /users/{id}
+        </div>
+
+        <!-- Group: /items -->
+        <div class="mindmap-node group" style="left: 440px; top: 228px;">
+          /items
+        </div>
+        <!-- /items endpoints -->
+        <div class="mindmap-node endpoint" style="left: 640px; top: 188px;">
+          <span class="method" style="background: rgba(34,197,94,0.15); color: var(--green);">GET</span>
+          /items
+        </div>
+        <div class="mindmap-node endpoint" style="left: 640px; top: 228px;">
+          <span class="method" style="background: rgba(59,130,246,0.15); color: var(--blue);">POST</span>
+          /items
+        </div>
+        <div class="mindmap-node endpoint" style="left: 640px; top: 268px;">
+          <span class="method" style="background: rgba(245,158,11,0.15); color: var(--amber);">PUT</span>
+          /items/{id}
+        </div>
+
+        <!-- Group: /auth -->
+        <div class="mindmap-node group" style="left: 440px; top: 368px;">
+          /auth
+        </div>
+        <!-- /auth endpoints -->
+        <div class="mindmap-node endpoint" style="left: 640px; top: 333px;">
+          <span class="method" style="background: rgba(59,130,246,0.15); color: var(--blue);">POST</span>
+          /auth/login
+        </div>
+        <div class="mindmap-node endpoint" style="left: 640px; top: 368px;">
+          <span class="method" style="background: rgba(59,130,246,0.15); color: var(--blue);">POST</span>
+          /auth/register
+        </div>
+        <div class="mindmap-node endpoint" style="left: 640px; top: 403px;">
+          <span class="method" style="background: rgba(244,63,94,0.15); color: var(--rose);">DEL</span>
+          /auth/logout
+        </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Routes Tab -->
+    <div class="tab-panel" id="panel-routes">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Path</th>
+              <th>Params</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="method-badge method-get">GET</span></td>
+              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text);">/users</td>
+              <td style="font-family: var(--font-mono); font-size: 12px;">0</td>
+              <td>List all users</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-post">POST</span></td>
+              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text);">/users</td>
+              <td style="font-family: var(--font-mono); font-size: 12px;">3</td>
+              <td>Create a new user</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-get">GET</span></td>
+              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text);">/users/{user_id}</td>
+              <td style="font-family: var(--font-mono); font-size: 12px;">1</td>
+              <td>Get user by ID</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-put">PUT</span></td>
+              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text);">/users/{user_id}</td>
+              <td style="font-family: var(--font-mono); font-size: 12px;">4</td>
+              <td>Update user</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-delete">DEL</span></td>
+              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text);">/users/{user_id}</td>
+              <td style="font-family: var(--font-mono); font-size: 12px;">1</td>
+              <td>Delete user</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-get">GET</span></td>
+              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text);">/items</td>
+              <td style="font-family: var(--font-mono); font-size: 12px;">2</td>
+              <td>List items with pagination</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-post">POST</span></td>
+              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text);">/items</td>
+              <td style="font-family: var(--font-mono); font-size: 12px;">5</td>
+              <td>Create item</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-get">GET</span></td>
+              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text);">/health</td>
+              <td style="font-family: var(--font-mono); font-size: 12px;">0</td>
+              <td>Health check endpoint</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Generate Tab -->
+    <div class="tab-panel" id="panel-generate">
+      <div class="generate-panel">
+        <div class="generate-config">
+          <h3 style="font-family: var(--font-mono); font-size: 14px; font-weight: 600; margin-bottom: 20px;">Configuration</h3>
+          <div class="form-group">
+            <label class="form-label">Output Type</label>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; transition: border-color 0.2s;">
+                <input type="checkbox" checked style="accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer;" />
+                <span style="font-family: var(--font-mono); font-size: 13px; color: var(--text);">CLI (pip package)</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; transition: border-color 0.2s;">
+                <input type="checkbox" style="accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer;" />
+                <span style="font-family: var(--font-mono); font-size: 13px; color: var(--text);">MCP Server</span>
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">CLI Name</label>
+            <input class="form-input" value="fastapi-cli" />
+          </div>
+          <button class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            Generate
+          </button>
+        </div>
+        <div class="generate-output">
+          <h3 style="font-family: var(--font-mono); font-size: 14px; font-weight: 600; margin-bottom: 4px;">Output</h3>
+          <p style="font-size: 12px; color: var(--text-dim);">Generated CLI will appear here</p>
+          <pre>
+# After generation:
+pip install ./fastapi-cli.zip
+
+# Usage:
+fastapi-cli users list
+fastapi-cli users create --name "John"
+fastapi-cli items list --limit 10
+
+# 30+ commands generated from 572 routes</pre>
+          <button class="btn btn-ghost" style="width: 100%; justify-content: center; margin-top: 12px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Download ZIP
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Config Tab -->
+    <div class="tab-panel" id="panel-config">
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <h3 style="font-family: var(--font-mono); font-size: 14px; font-weight: 600;">Detected Variables</h3>
+          <span class="badge badge-amber">4 detected</span>
+        </div>
+        <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 20px;">These environment variables were detected from the parsed routes. Please add values if anything is missing.</p>
+
+        <!-- Detected env vars -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input class="form-input" value="BASE_URL" style="width: 200px; font-size: 12px;" readonly />
+            <input class="form-input" placeholder="https://api.example.com" style="flex: 1; font-size: 12px;" />
+            <span class="badge badge-green" style="white-space: nowrap;">detected</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input class="form-input" value="API_KEY" style="width: 200px; font-size: 12px;" readonly />
+            <input class="form-input" placeholder="Enter value..." style="flex: 1; font-size: 12px;" />
+            <span class="badge badge-green" style="white-space: nowrap;">detected</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input class="form-input" value="DATABASE_URL" style="width: 200px; font-size: 12px;" readonly />
+            <input class="form-input" placeholder="Enter value..." style="flex: 1; font-size: 12px;" />
+            <span class="badge badge-green" style="white-space: nowrap;">detected</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input class="form-input" value="SECRET_KEY" style="width: 200px; font-size: 12px;" readonly />
+            <input class="form-input" placeholder="Enter value..." style="flex: 1; font-size: 12px;" />
+            <span class="badge badge-green" style="white-space: nowrap;">detected</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <h3 style="font-family: var(--font-mono); font-size: 14px; font-weight: 600;">Custom Variables</h3>
+          <button class="btn btn-ghost btn-sm" onclick="addEnvRow()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            Add
+          </button>
+        </div>
+        <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 20px;">Add any additional key-value pairs your CLI or MCP server needs.</p>
+
+        <div id="custom-env-rows" style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input class="form-input" placeholder="KEY" style="width: 200px; font-size: 12px; text-transform: uppercase;" />
+            <input class="form-input" placeholder="value" style="flex: 1; font-size: 12px;" />
+            <button class="topbar-btn" style="color: var(--rose); font-size: 16px; padding: 0 8px;">&times;</button>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input class="form-input" placeholder="KEY" style="width: 200px; font-size: 12px; text-transform: uppercase;" />
+            <input class="form-input" placeholder="value" style="flex: 1; font-size: 12px;" />
+            <button class="topbar-btn" style="color: var(--rose); font-size: 16px; padding: 0 8px;">&times;</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+        <button class="btn btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+          Save Config
+        </button>
+      </div>
+    </div>
+
+    <!-- Host Tab -->
+    <div class="tab-panel" id="panel-host">
+      <div class="generate-panel">
+        <div class="generate-config">
+          <h3 style="font-family: var(--font-mono); font-size: 14px; font-weight: 600; margin-bottom: 6px;">Deploy</h3>
+          <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 20px;">Deploy to a connected hosting platform or publish to a package registry.</p>
+
+          <div class="form-group">
+            <label class="form-label">Deploy To</label>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <div class="host-app-btn active" onclick="selectHost('cloudflare', this)">
+                <img src="https://cdn.simpleicons.org/cloudflare/F38020" width="24" height="24" alt="" />
+                <span>Cloudflare</span>
+              </div>
+              <div class="host-app-btn" onclick="selectHost('pypi', this)">
+                <img src="https://cdn.simpleicons.org/pypi/3775A9" width="24" height="24" alt="" />
+                <span>PyPI</span>
+              </div>
+            </div>
+            <a href="#" onclick="showView('integrations'); return false;" style="font-family: var(--font-mono); font-size: 11px; color: var(--text); text-decoration: none; margin-top: 6px;">
+              Connect more at App Store &rarr;
+            </a>
+          </div>
+
+          <div id="host-fields-cloudflare">
+            <div class="form-group">
+              <label class="form-label">Subdomain</label>
+              <div style="display: flex; align-items: center; gap: 0;">
+                <input class="form-input" value="fastapi" style="border-radius: 8px 0 0 8px; border-right: none;" />
+                <span style="padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 0 8px 8px 0; font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); white-space: nowrap;">.genalpha.dev</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Base URL</label>
+              <input class="form-input" value="https://api.example.com" />
+            </div>
+          </div>
+
+          <div id="host-fields-pypi" style="display: none;">
+            <div class="form-group">
+              <label class="form-label">Package Name</label>
+              <input class="form-input" value="fastapi-genalpha-mcp" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Version</label>
+              <input class="form-input" value="0.1.0" />
+            </div>
+          </div>
+
+          <button class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 8px;" id="host-deploy-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            <span id="host-deploy-text">Deploy to Cloudflare</span>
+          </button>
+
+        </div>
+
+        <div class="generate-output">
+          <div id="host-output-cloudflare">
+            <h3 style="font-family: var(--font-mono); font-size: 14px; font-weight: 600; margin-bottom: 4px;">Hosted Endpoint</h3>
+            <p style="font-size: 12px; color: var(--text-dim);">Your MCP server will be live at:</p>
+            <pre>
+https://fastapi.genalpha.dev/mcp
+
+# Add to Claude Desktop config:
+{
+  "mcpServers": {
+    "fastapi": {
+      "url": "https://fastapi.genalpha.dev/mcp"
+    }
+  }
+}</pre>
+          </div>
+
+          <div id="host-output-pypi" style="display: none;">
+            <h3 style="font-family: var(--font-mono); font-size: 14px; font-weight: 600; margin-bottom: 4px;">Install &amp; Run</h3>
+            <p style="font-size: 12px; color: var(--text-dim);">Your stdio MCP server via pip:</p>
+            <pre>
+pip install fastapi-genalpha-mcp
+
+# Add to Claude Desktop config:
+{
+  "mcpServers": {
+    "fastapi": {
+      "command": "fastapi-genalpha-mcp",
+      "args": ["--base-url", "https://api.example.com"]
+    }
+  }
+}
+
+# Or run directly:
+fastapi-genalpha-mcp serve</pre>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button class="btn btn-ghost" style="flex: 1; justify-content: center;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy Config
+            </button>
+            <button class="btn btn-ghost" style="flex: 1; justify-content: center;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              Share
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- VIEW 4: App Store -->
+<!-- ============================================================ -->
+<div class="view" id="view-integrations">
+  <div class="main">
+    <div class="page-header">
+      <div>
+        <h1>App Store</h1>
+        <p>Connect your code hosting platforms</p>
+      </div>
+    </div>
+
+    <h3 style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">Source Control</h3>
+    <div class="card-grid" style="margin-bottom: 32px;">
+      <!-- GitHub — Connected -->
+      <div class="integration-card-sq connected" onclick="openModal('disconnect-modal')">
+        <span class="badge badge-green status-tag">connected</span>
+        <div class="integration-icon-lg">
+          <img src="https://cdn.simpleicons.org/github/white" width="56" height="56" alt="GitHub" />
+        </div>
+        <div class="integration-name">GitHub</div>
+      </div>
+
+      <!-- GitLab — Form-based OAuth (needs tenant URL first) -->
+      <div class="integration-card-sq" onclick="openModal('connect-form-oauth-modal')">
+        <div class="integration-icon-lg">
+          <img src="https://cdn.simpleicons.org/gitlab/FC6D26" width="56" height="56" alt="GitLab" />
+        </div>
+        <div class="integration-name">GitLab</div>
+      </div>
+    </div>
+
+    <h3 style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">Hosting &amp; Distribution</h3>
+    <div class="card-grid" style="margin-bottom: 32px;">
+      <!-- Cloudflare Workers — Connected (was cred-based) -->
+      <div class="integration-card-sq connected" onclick="openModal('disconnect-modal')">
+        <span class="badge badge-green status-tag">connected</span>
+        <div class="integration-icon-lg">
+          <img src="https://cdn.simpleicons.org/cloudflare/F38020" width="56" height="56" alt="Cloudflare" />
+        </div>
+        <div class="integration-name">Cloudflare</div>
+      </div>
+
+      <!-- Railway — Credential-based (API token) -->
+      <div class="integration-card-sq" onclick="openModal('connect-cred-modal')">
+        <div class="integration-icon-lg">
+          <img src="https://cdn.simpleicons.org/railway/white" width="56" height="56" alt="Railway" />
+        </div>
+        <div class="integration-name">Railway</div>
+      </div>
+
+      <!-- Fly.io — OAuth (no fields) -->
+      <div class="integration-card-sq" onclick="openModal('connect-oauth-modal')">
+        <div class="integration-icon-lg">
+          <img src="https://cdn.simpleicons.org/flydotio/8B5CF6" width="56" height="56" alt="Fly.io" />
+        </div>
+        <div class="integration-name">Fly.io</div>
+      </div>
+
+      <!-- PyPI — Basic Auth (username + password) -->
+      <div class="integration-card-sq" onclick="openModal('connect-basic-modal')">
+        <div class="integration-icon-lg">
+          <img src="https://cdn.simpleicons.org/pypi/3775A9" width="56" height="56" alt="PyPI" />
+        </div>
+        <div class="integration-name">PyPI</div>
+      </div>
+    </div>
+
+    <h3 style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">Coming Soon</h3>
+    <div class="card-grid">
+      <!-- Bitbucket -->
+      <div class="integration-card-sq coming-soon">
+        <div class="integration-icon-lg">
+          <img src="https://cdn.simpleicons.org/bitbucket/0052CC" width="56" height="56" alt="Bitbucket" />
+        </div>
+        <div class="integration-name">Bitbucket</div>
+      </div>
+
+      <!-- Vercel -->
+      <div class="integration-card-sq coming-soon">
+        <div class="integration-icon-lg">
+          <img src="https://cdn.simpleicons.org/vercel/white" width="56" height="56" alt="Vercel" />
+        </div>
+        <div class="integration-name">Vercel</div>
+      </div>
+
+      <!-- AWS Lambda -->
+      <div class="integration-card-sq coming-soon">
+        <div class="integration-icon-lg">
+          <img src="https://cdn.simpleicons.org/awslambda/FF9900" width="56" height="56" alt="AWS Lambda" />
+        </div>
+        <div class="integration-name">AWS Lambda</div>
+      </div>
+
+      <!-- npm -->
+      <div class="integration-card-sq coming-soon">
+        <div class="integration-icon-lg">
+          <img src="https://cdn.simpleicons.org/npm/CB3837" width="56" height="56" alt="npm" />
+        </div>
+        <div class="integration-name">npm</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL: New Project -->
+<!-- ============================================================ -->
+<div class="modal-overlay" id="new-project-modal" onclick="if(event.target===this)closeModal('new-project-modal')">
+  <div class="modal">
+    <h2>New Project</h2>
+    <div class="modal-desc">Create a project to organize your parsed services.</div>
+    <div class="form-group">
+      <label class="form-label">Project Name</label>
+      <input class="form-input" placeholder="e.g. API v2 Migration" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <input class="form-input" placeholder="Optional description" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('new-project-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('new-project-modal')">Create Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL: Add Service -->
+<!-- ============================================================ -->
+<div class="modal-overlay" id="add-service-modal" onclick="if(event.target===this)closeModal('add-service-modal')">
+  <div class="modal">
+    <h2>Add Service</h2>
+    <div class="modal-desc">Parse a repository to extract API routes.</div>
+
+    <div class="form-group">
+      <label class="form-label">Source</label>
+      <select class="form-select">
+        <option>GitHub (connected)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Repository URL</label>
+      <input class="form-input" placeholder="https://github.com/owner/repo" />
+    </div>
+
+    <div class="form-divider">or</div>
+
+    <div class="coming-soon-option">
+      <span>Upload ZIP</span>
+      <span class="badge badge-muted">coming soon</span>
+    </div>
+    <div class="coming-soon-option">
+      <span>Paste OpenAPI Spec</span>
+      <span class="badge badge-muted">coming soon</span>
+    </div>
+
+    <div style="margin-top: 16px;">
+      <div class="slot-indicator">
+        <span>1/2 service slots used</span>
+        <div class="slot-bar"><div class="slot-bar-fill" style="width: 50%;"></div></div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('add-service-modal')">Cancel</button>
+      <button class="btn btn-primary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Parse
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL: Disconnect Integration -->
+<!-- ============================================================ -->
+<div class="modal-overlay" id="disconnect-modal" onclick="if(event.target===this)closeModal('disconnect-modal')">
+  <div class="modal">
+    <h2>Disconnect GitHub</h2>
+    <div class="modal-desc">This will revoke access to your GitHub repositories. You can reconnect anytime.</div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('disconnect-modal')">Cancel</button>
+      <button class="btn btn-destructive" onclick="closeModal('disconnect-modal')">Disconnect</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL: OAuth (no fields — just redirect) e.g. GitHub, Fly.io -->
+<!-- ============================================================ -->
+<div class="modal-overlay" id="connect-oauth-modal" onclick="if(event.target===this)closeModal('connect-oauth-modal')">
+  <div class="modal">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+      <img src="https://cdn.simpleicons.org/flydotio/8B5CF6" width="28" height="28" alt="" />
+      <h2>Connect Fly.io</h2>
+    </div>
+    <div class="modal-desc">You'll be redirected to Fly.io to authorize access. No credentials needed.</div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('connect-oauth-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('connect-oauth-modal')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+        Connect with Fly.io
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL: Form-based OAuth (tenant/instance URL before redirect) e.g. GitLab -->
+<!-- ============================================================ -->
+<div class="modal-overlay" id="connect-form-oauth-modal" onclick="if(event.target===this)closeModal('connect-form-oauth-modal')">
+  <div class="modal">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+      <img src="https://cdn.simpleicons.org/gitlab/FC6D26" width="28" height="28" alt="" />
+      <h2>Connect GitLab</h2>
+    </div>
+    <div class="modal-desc">Enter your GitLab instance URL, then authorize via OAuth.</div>
+    <div class="form-group">
+      <label class="form-label">Instance URL</label>
+      <input class="form-input" placeholder="https://gitlab.com" value="https://gitlab.com" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Group / Namespace (optional)</label>
+      <input class="form-input" placeholder="e.g. my-org" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('connect-form-oauth-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('connect-form-oauth-modal')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+        Continue to GitLab
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL: Credential-based (API key / token) e.g. Railway, Cloudflare -->
+<!-- ============================================================ -->
+<div class="modal-overlay" id="connect-cred-modal" onclick="if(event.target===this)closeModal('connect-cred-modal')">
+  <div class="modal">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+      <img src="https://cdn.simpleicons.org/railway/white" width="28" height="28" alt="" />
+      <h2>Connect Railway</h2>
+    </div>
+    <div class="modal-desc">Enter your API token to connect. Tokens are encrypted at rest.</div>
+    <div class="form-group">
+      <label class="form-label">API Token</label>
+      <input class="form-input" type="password" placeholder="railway_token_xxxx..." />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Project ID (optional)</label>
+      <input class="form-input" placeholder="e.g. abc123-def456" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('connect-cred-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('connect-cred-modal')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Save &amp; Connect
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL: Basic Auth (username + password/token) e.g. PyPI -->
+<!-- ============================================================ -->
+<div class="modal-overlay" id="connect-basic-modal" onclick="if(event.target===this)closeModal('connect-basic-modal')">
+  <div class="modal">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+      <img src="https://cdn.simpleicons.org/pypi/3775A9" width="28" height="28" alt="" />
+      <h2>Connect PyPI</h2>
+    </div>
+    <div class="modal-desc">Enter your PyPI credentials to publish packages. We recommend using an API token.</div>
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input class="form-input" placeholder="__token__" value="__token__" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password / API Token</label>
+      <input class="form-input" type="password" placeholder="pypi-xxxx..." />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Registry URL (optional)</label>
+      <input class="form-input" placeholder="https://upload.pypi.org/legacy/" value="https://upload.pypi.org/legacy/" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('connect-basic-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('connect-basic-modal')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Save &amp; Connect
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Nav for Preview -->
+<div class="view-nav">
+  <button class="active" id="btn-projects" onclick="showView('projects')">Projects</button>
+  <button id="btn-integrations" onclick="showView('integrations')">App Store</button>
+</div>
+
+<script>
+  function showView(name) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + name).classList.add('active');
+
+    document.querySelectorAll('.view-nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-' + name).classList.add('active');
+
+    // Update topbar active link
+    document.querySelectorAll('.topbar-link').forEach(l => l.classList.remove('active'));
+    if (name === 'integrations') {
+      document.getElementById('nav-integrations').classList.add('active');
+    } else {
+      document.getElementById('nav-projects').classList.add('active');
+    }
+
+    window.scrollTo(0, 0);
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+  }
+
+  function openModal(id) {
+    document.getElementById(id).classList.add('open');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+  }
+
+  let mindmapZoom = 1;
+  function zoomMindmap(delta) {
+    mindmapZoom = Math.min(2, Math.max(0.4, mindmapZoom + delta));
+    document.getElementById('mindmap-inner').style.transform = 'scale(' + mindmapZoom + ')';
+  }
+  function resetMindmap() {
+    mindmapZoom = 1;
+    document.getElementById('mindmap-inner').style.transform = 'scale(1)';
+  }
+
+  function selectHost(val, el) {
+    document.querySelectorAll('.host-app-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('host-fields-cloudflare').style.display = val === 'cloudflare' ? 'block' : 'none';
+    document.getElementById('host-fields-pypi').style.display = val === 'pypi' ? 'block' : 'none';
+    document.getElementById('host-output-cloudflare').style.display = val === 'cloudflare' ? 'block' : 'none';
+    document.getElementById('host-output-pypi').style.display = val === 'pypi' ? 'block' : 'none';
+    const labels = { cloudflare: 'Deploy to Cloudflare', pypi: 'Publish to PyPI' };
+    document.getElementById('host-deploy-text').textContent = labels[val] || 'Deploy';
+  }
+
+  function addEnvRow() {
+    const container = document.getElementById('custom-env-rows');
+    const row = document.createElement('div');
+    row.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+    row.innerHTML = '<input class="form-input" placeholder="KEY" style="width: 200px; font-size: 12px; text-transform: uppercase;" /><input class="form-input" placeholder="value" style="flex: 1; font-size: 12px;" /><button class="topbar-btn" style="color: var(--rose); font-size: 16px; padding: 0 8px;" onclick="this.parentElement.remove()">&times;</button>';
+    container.appendChild(row);
+  }
+
+  // Escape to close modals
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open'));
+    }
+  });
+</script>
+
+</body>
+</html>

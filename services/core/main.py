@@ -46,6 +46,7 @@ from services.core.routes.services import router as services_router
 from services.core.routes.integrations import router as integrations_router
 from services.core.routes.parse import router as parse_router
 from services.core.routes.generate import router as generate_router
+from services.core.routes.artifacts import router as artifacts_router
 
 app.include_router(auth_router)
 app.include_router(projects_router)
@@ -53,6 +54,7 @@ app.include_router(services_router)
 app.include_router(integrations_router)
 app.include_router(parse_router)
 app.include_router(generate_router)
+app.include_router(artifacts_router)
 
 
 @app.get("/health")

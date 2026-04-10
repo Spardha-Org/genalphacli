@@ -14,12 +14,18 @@ from temporalio import activity
 from genalphacli.generators.mcp_generator import generate as gen_mcp
 from genalphacli.generators.pip_generator import generate as gen_cli
 from genalphacli.models import AuthConfig, BuildConfig, CommandGraph
+import httpx
+
 from worker.activities.schemas import (
     GeneratePackagesInput,
     GeneratePackagesOutput,
     PackageZipInput,
     PackageZipOutput,
+    UploadArtifactInput,
+    UploadArtifactOutput,
 )
+
+CORE_URL = os.environ.get("CORE_URL", "http://localhost:8000")
 
 logger = logging.getLogger(__name__)
 
@@ -75,4 +81,26 @@ def package_zip_activity(input: PackageZipInput) -> PackageZipOutput:
     return PackageZipOutput(
         zip_path=str(zip_path),
         zip_size_bytes=zip_size,
+    )
+
+
+@activity.defn
+def upload_artifact_activity(input: UploadArtifactInput) -> UploadArtifactOutput:
+    """Read ZIP from disk and upload to Core as multipart/form-data."""
+    zip_bytes = Path(input.zip_path).read_bytes()
+
+    with httpx.Client(timeout=60.0) as client:
+        response = client.post(
+            f"{CORE_URL}/services/{input.service_id}/artifacts",
+            files={"file": (input.filename, zip_bytes, "application/zip")},
+            data={"artifact_type": input.artifact_type},
+        )
+        response.raise_for_status()
+
+    result = response.json()
+    logger.info("Uploaded artifact %s for service %s (%d bytes)", result["artifact_id"], input.service_id, result["file_size"])
+
+    return UploadArtifactOutput(
+        artifact_id=result["artifact_id"],
+        file_size=result["file_size"],
     )

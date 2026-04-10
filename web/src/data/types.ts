@@ -72,7 +72,8 @@ export interface Service {
   status: ServiceStatusValue;
   route_graph: RouteGraph | null;
   error_message: string | null;
-  download_url: string | null;
+  artifact_id: string | null;
+  download_url: string | null;  // deprecated
   metadata: Record<string, unknown> | null;
   created_at: string;
 }

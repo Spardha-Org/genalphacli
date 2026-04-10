@@ -7,7 +7,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from sqlmodel import select, func
+from sqlmodel import select
 
 from services.core.deps import CurrentWorkspaceDep, DbDep
 from services.core.models import Project, Service
@@ -17,8 +17,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["parse"])
 
 GITHUB_URL_RE = re.compile(r"^https://github\.com/([a-zA-Z0-9._-]+)/([a-zA-Z0-9._-]+?)(?:\.git)?/?$")
-MAX_SERVICES_PER_WORKSPACE = 2
-ACTIVE_STATUSES = ["parsed", "generating", "packaging", "complete"]
 
 
 class ParseRequest(BaseModel):
@@ -54,24 +52,6 @@ async def start_parse(
     project = project_result.first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-
-    # Check service limit
-    active_count_result = await db.exec(
-        select(func.count())
-        .select_from(Service)
-        .join(Project)
-        .where(
-            Project.workspace_id == workspace.id,
-            Service.status.in_(ACTIVE_STATUSES),
-        )
-    )
-    active_count = active_count_result.first() or 0
-
-    if active_count >= MAX_SERVICES_PER_WORKSPACE:
-        raise HTTPException(
-            status_code=429,
-            detail="Service limit reached (2 per workspace). Delete a service to free up a slot.",
-        )
 
     # Create service record
     service = Service(
@@ -159,9 +139,9 @@ async def update_service_status(
     if body.route_graph is not None:
         service.route_graph = body.route_graph
     if body.metadata is not None:
-        # Extract zip_path as download_url if present
-        if "zip_path" in body.metadata:
-            service.download_url = body.metadata["zip_path"]
+        # Extract artifact_id if present (set by upload_artifact_activity)
+        if "artifact_id" in body.metadata:
+            service.artifact_id = body.metadata["artifact_id"]
         service.metadata_json = body.metadata
 
     db.add(service)
