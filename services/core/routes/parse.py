@@ -11,6 +11,7 @@ from sqlmodel import select, func
 
 from services.core.deps import CurrentWorkspaceDep, DbDep
 from services.core.models import Project, Service
+from services.core.temporal_client import get_temporal_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["parse"])
@@ -33,7 +34,7 @@ async def start_parse(
 ):
     """Validate GitHub URL, check limits, create service record, start parse workflow."""
 
-    # Validate GitHub URL (SSRF prevention)
+    # Validate GitHub URL
     match = GITHUB_URL_RE.match(body.repoUrl.strip())
     if not match:
         raise HTTPException(
@@ -44,13 +45,13 @@ async def start_parse(
     owner, repo = match.group(1), match.group(2)
 
     # Validate project belongs to workspace
-    project = await db.exec(
+    project_result = await db.exec(
         select(Project).where(
             Project.id == body.projectId,
             Project.workspace_id == workspace.id,
         )
     )
-    project = project.first()
+    project = project_result.first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -83,13 +84,83 @@ async def start_parse(
     await db.commit()
     await db.refresh(service)
 
-    # TODO: Start Temporal ParseWorkflow here
-    # For now, just set status to "parsed" with a placeholder
-    # This will be wired to Temporal when the worker integration is complete
-    logger.info("Parse requested for %s/%s (service %s)", owner, repo, service.id)
+    # Start Temporal ParseWorkflow
+    workflow_id = f"parse-{service.id}"
+    try:
+        client = await get_temporal_client()
+        await client.start_workflow(
+            "ParseWorkflow",
+            {
+                "owner": owner,
+                "repo": repo,
+                "user_id": workspace.owner_id,
+                "service_id": service.id,
+                "command_name": repo,
+            },
+            id=workflow_id,
+            task_queue="genalpha-parse",
+        )
+
+        service.parse_workflow_id = workflow_id
+        db.add(service)
+        await db.commit()
+
+        logger.info("Started ParseWorkflow %s for %s/%s", workflow_id, owner, repo)
+    except Exception as e:
+        logger.error("Failed to start ParseWorkflow: %s", e)
+        service.status = "failed"
+        service.error_message = f"Failed to start parse: {e}"
+        db.add(service)
+        await db.commit()
+
+        return {
+            "serviceId": service.id,
+            "workflowId": workflow_id,
+            "status": "failed",
+            "error": str(e),
+        }
 
     return {
         "serviceId": service.id,
-        "workflowId": f"parse-{service.id}",
+        "workflowId": workflow_id,
         "status": "cloning",
     }
+
+
+class StatusUpdateRequest(BaseModel):
+    """Called by the Temporal worker to update service status in Core DB."""
+    status: str
+    error_message: str | None = None
+    framework: str | None = None
+    route_graph: dict | None = None
+    metadata: dict | None = None
+
+
+@router.post("/services/{service_id}/status")
+async def update_service_status(
+    service_id: str,
+    body: StatusUpdateRequest,
+    db: DbDep,
+):
+    """Update service status — called by Temporal worker activities."""
+    result = await db.exec(select(Service).where(Service.id == service_id))
+    service = result.first()
+
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+
+    service.status = body.status
+    if body.error_message is not None:
+        service.error_message = body.error_message
+    if body.framework is not None:
+        service.framework = body.framework
+    if body.route_graph is not None:
+        service.route_graph = body.route_graph
+    if body.metadata is not None:
+        service.metadata_json = body.metadata
+
+    db.add(service)
+    await db.commit()
+
+    logger.info("Service %s status updated to %s", service_id, body.status)
+    return {"ok": True}

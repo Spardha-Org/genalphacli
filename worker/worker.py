@@ -21,6 +21,7 @@ from worker.activities.github_activities import (
     clone_repo_activity,
 )
 from worker.activities.parse_activities import parse_routes_activity
+from worker.activities.status_activities import update_service_status
 from worker.workflows.generate_workflow import GenerateWorkflow
 from worker.workflows.parse_workflow import ParseWorkflow
 
@@ -48,6 +49,7 @@ async def main() -> None:
             clone_repo_activity,
             parse_routes_activity,
             cleanup_clone_activity,
+            update_service_status,
         ],
         max_concurrent_activities=5,
     )
