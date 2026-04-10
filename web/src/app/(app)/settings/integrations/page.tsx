@@ -11,12 +11,15 @@ export default function IntegrationsPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   async function handleConnect(appName: string) {
-    installApp.mutate(appName, {
-      onSuccess: (data) => {
-        // Redirect to OAuth provider
+    try {
+      const data = await installApp.mutateAsync(appName);
+      // Redirect to OAuth provider
+      if (data.authorize_url) {
         window.location.href = data.authorize_url;
-      },
-    });
+      }
+    } catch (err) {
+      console.error("Install failed:", err);
+    }
   }
 
   async function handleDisconnect(integrationId: string) {
