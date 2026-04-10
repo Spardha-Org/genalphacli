@@ -76,23 +76,32 @@ web/src/components/ui/  (shadcn generated)
 - [ ] Create project dialog works
 - [ ] Empty state guides new users
 
-### Phase 4: Project Detail (services + parse)
+### Phase 4: Project Detail (services + add service modal)
 
 **Tasks:**
 
 - [ ] Redesign `(app)/projects/[id]/page.tsx`:
   - Breadcrumb: Dashboard > Workspace > Project Name
-  - Parse form: shadcn Input + Button, cleaner layout
-  - Service cards: shadcn Card with Badge for status, framework tag
+  - PageHeader with project name + "+ Add Service" button
+  - Service cards grid: shadcn Card with Badge for status, framework tag, route count
   - Delete service: shadcn AlertDialog confirmation
-  - Service limit: progress bar or "X/2 slots used" badge
+  - Empty state: "No services yet. Click + to parse your first repo."
+  - Service limit indicator: "X/2 slots used" badge
 - [ ] Build `components/dashboard/service-card.tsx`
-- [ ] Build `components/dashboard/parse-form.tsx` (restyled with shadcn)
+- [ ] Build `components/dashboard/add-service-dialog.tsx` (shadcn Dialog modal):
+  - Source dropdown (shadcn Select): shows only connected integrations (GitHub, GitLab, etc.)
+  - URL input for the selected source
+  - "Or" divider with alternative options: Upload ZIP, Paste OpenAPI Spec (disabled for MVP, coming soon badges)
+  - Service limit indicator in the modal
+  - Parse button triggers workflow, modal closes, card appears with progress
+- [ ] The dialog takes `source_type` + `source_value` + `integration_id` — extensible for future sources
 
 **Success criteria:**
-- [ ] Service cards with status badges (color-coded)
-- [ ] Parse form with validation feedback
+- [ ] "+ Add Service" button opens modal
+- [ ] Source dropdown shows connected integrations only
+- [ ] Parse starts from modal → service card appears with live status
 - [ ] Delete confirmation dialog
+- [ ] Upload ZIP / Paste OpenAPI show as "coming soon"
 
 ### Phase 5: Service Detail (tabbed view)
 
