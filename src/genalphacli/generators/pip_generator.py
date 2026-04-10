@@ -136,12 +136,28 @@ def _build_command_context(sub: Subcommand) -> dict[str, Any]:
     if func_name[0].isdigit():
         func_name = f"cmd_{func_name}"
 
+    # Sanitize endpoint template: replace {$param} with {python_safe_param}
+    endpoint_template = sub.endpoint
+    for p in path_params:
+        # Replace the original {param_name} with {python_name} in the endpoint
+        original_name = p.get("original_name", p["python_name"])
+        endpoint_template = endpoint_template.replace(
+            f"{{{original_name}}}", f"{{{p['python_name']}}}"
+        )
+    # Also catch any remaining invalid chars in path params (e.g., $)
+    import re as _re
+    endpoint_template = _re.sub(
+        r"\{([^}]*)\}",
+        lambda m: "{" + _re.sub(r"[^a-z0-9_]", "_", m.group(1).lower()) + "}",
+        endpoint_template,
+    )
+
     return {
         "cli_name": sub.name,
         "func_name": func_name,
         "description": _sanitize(sub.description or f"{sub.method.value} {sub.endpoint}"),
         "method": sub.method.value,
-        "endpoint_template": sub.endpoint,
+        "endpoint_template": endpoint_template,
         "path_params": path_params,
         "query_params": query_params,
         "body_params": body_params,
@@ -172,6 +188,8 @@ def _build_param_context(param: CommandParam) -> dict[str, Any]:
 
     return {
         "name": python_name,
+        "python_name": python_name,
+        "original_name": param.name,
         "flag_name": flag_name,
         "python_type": python_type,
         "required": param.required,
