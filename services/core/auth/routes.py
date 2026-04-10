@@ -38,18 +38,45 @@ async def request_magic_link(body: MagicLinkRequest, db: DbDep):
     """Send a magic link to the user's email.
 
     Always returns 200 regardless of whether the email exists (prevents enumeration).
-    For MVP: logs the link to console instead of sending email.
+    Uses Resend for email delivery. Falls back to console logging if no API key.
     """
     token = create_magic_token(body.email)
     link = f"{settings.app_url}/auth/verify?token={token}"
 
-    # MVP: log to console instead of sending email
-    logger.info("=== MAGIC LINK ===")
-    logger.info("Email: %s", body.email)
-    logger.info("Link: %s", link)
-    logger.info("==================")
+    if settings.resend_api_key:
+        # Send via Resend
+        import resend
 
-    # TODO: Replace with actual email sending (Resend, SES, etc.)
+        resend.api_key = settings.resend_api_key
+        try:
+            resend.Emails.send(
+                {
+                    "from": settings.email_from,
+                    "to": body.email,
+                    "subject": "Your GenAlpha login link",
+                    "html": (
+                        '<div style="font-family: monospace; max-width: 480px; margin: 0 auto; padding: 40px 20px;">'
+                        '<h2 style="color: #e4e4e7;">Sign in to GenAlpha</h2>'
+                        '<p style="color: #a1a1aa;">Click the button below to sign in. This link expires in 15 minutes.</p>'
+                        f'<a href="{link}" style="display: inline-block; background: #14b8a6; color: #09090b; '
+                        'padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; '
+                        'margin-top: 16px;">Sign in to GenAlpha</a>'
+                        '<p style="color: #71717a; font-size: 12px; margin-top: 24px;">'
+                        "If you didn't request this link, you can safely ignore this email.</p>"
+                        "</div>"
+                    ),
+                }
+            )
+            logger.info("Magic link sent via Resend to %s", body.email)
+        except Exception as e:
+            logger.error("Resend email failed: %s — falling back to console", e)
+            logger.info("Link: %s", link)
+    else:
+        # Fallback: log to console (local dev without Resend key)
+        logger.info("=== MAGIC LINK (no Resend key, logging to console) ===")
+        logger.info("Email: %s", body.email)
+        logger.info("Link: %s", link)
+        logger.info("=====================================================")
 
     return MagicLinkResponse(message="If that email exists, a login link was sent.")
 
