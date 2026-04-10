@@ -91,20 +91,34 @@ async def exchange_oauth_code(
     redirect_uri = settings.github_redirect_uri
     try:
         config = await handler.exchange_code(body.code, redirect_uri)
+        logger.info("Token exchange successful for %s", app_name)
     except ValueError as e:
+        logger.error("Token exchange failed: %s", e)
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("Token exchange unexpected error: %s", e)
+        raise HTTPException(status_code=500, detail=f"Token exchange failed: {e}")
 
     # Fetch user info for display
-    user_info = await handler.get_user_info(config)
+    try:
+        user_info = await handler.get_user_info(config)
+        logger.info("User info fetched: %s", user_info.get("login"))
+    except Exception as e:
+        logger.error("Failed to fetch user info: %s", e)
+        user_info = {"login": "unknown"}
 
     # Store encrypted integration
-    integration = await create_integration(
-        db,
-        workspace_id=workspace_id,
-        app_name=app_name,
-        config=config,
-        github_username=user_info.get("login"),
-    )
+    try:
+        integration = await create_integration(
+            db,
+            workspace_id=workspace_id,
+            app_name=app_name,
+            config=config,
+            github_username=user_info.get("login"),
+        )
+    except Exception as e:
+        logger.error("Failed to create integration: %s", e)
+        raise HTTPException(status_code=500, detail=f"Failed to store integration: {e}")
 
     logger.info(
         "Integration created: %s for workspace %s (user: %s)",
