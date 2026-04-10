@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlmodel import select
 
 from services.core.deps import CurrentUserDep, CurrentWorkspaceDep, DbDep
-from services.core.models import Project
+from services.core.models import Artifact, Project, Service
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -75,6 +75,14 @@ async def delete_project(
 
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+
+    # Delete services and their artifacts first (no DB-level cascade)
+    svc_result = await db.exec(select(Service).where(Service.project_id == project_id))
+    for svc in svc_result.all():
+        art_result = await db.exec(select(Artifact).where(Artifact.service_id == svc.id))
+        for art in art_result.all():
+            await db.delete(art)
+        await db.delete(svc)
 
     await db.delete(project)
     await db.commit()
