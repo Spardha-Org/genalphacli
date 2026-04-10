@@ -1,26 +1,34 @@
-"""Integration routes — OAuth install, callback, management."""
+"""Integration routes — OAuth install, credential connect, management."""
 
 from __future__ import annotations
 
 import logging
-from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import select
 
 from services.tps.config import settings
 from services.tps.deps import DbDep, TpsAuthDep, WorkspaceIdDep
-from services.tps.handlers import get_handler
+from services.tps.handlers import get_handler, get_oauth_handler, get_credential_handler
+from services.tps.handlers.base import OAuthHandler
 from services.tps.integration_service import (
+    cleanup_expired_states,
     create_integration,
     delete_integration,
     get_or_refresh,
 )
-from services.tps.models import Integration, OAuthState
+from services.tps.models import AppMarketplace, Integration, OAuthState
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/integrations", tags=["integrations"])
+
+
+# ── OAuth Flow ──
+
+
+class InstallRequest(BaseModel):
+    form_data: dict | None = None  # For form-based OAuth2 (tenant URL, etc.)
 
 
 @router.post("/{app_name}/install")
@@ -29,18 +37,43 @@ async def install_app(
     db: DbDep,
     workspace_id: WorkspaceIdDep,
     _auth: TpsAuthDep,
+    body: InstallRequest | None = None,
 ):
-    """Start the OAuth installation flow. Returns the authorization URL."""
-    try:
-        handler = get_handler(app_name)
-    except ValueError:
+    """Start the OAuth installation flow. Returns the authorization URL.
+
+    For Form-based OAuth2 apps, body.form_data contains user-provided fields
+    (e.g., tenant URL) needed to construct the authorize URL.
+    """
+    # Validate app exists and requires install
+    app_result = await db.exec(
+        select(AppMarketplace).where(AppMarketplace.app_name == app_name, AppMarketplace.active == True)  # noqa: E712
+    )
+    app = app_result.first()
+    if not app:
         raise HTTPException(status_code=404, detail=f"App '{app_name}' not found")
+    if not app.is_install_required:
+        raise HTTPException(status_code=400, detail=f"App '{app_name}' uses credential flow, not OAuth install")
 
-    redirect_uri = settings.github_redirect_uri
-    authorize_url, state = handler.get_authorize_url(redirect_uri)
+    try:
+        handler = get_oauth_handler(app_name)
+    except ValueError:
+        raise HTTPException(status_code=404, detail=f"No handler for app: {app_name}")
 
-    # Persist state in DB (survives process restarts / uvicorn reload)
-    oauth_state = OAuthState(state=state, workspace_id=workspace_id, app_name=app_name)
+    # Clean up expired states while we're here
+    await cleanup_expired_states(db)
+
+    # Build redirect URI — generic callback, not per-app
+    redirect_uri = settings.github_redirect_uri  # TODO: make generic per-app
+    form_data = body.form_data if body else None
+    authorize_url, state = handler.get_authorize_url(redirect_uri, form_data)
+
+    # Persist state in DB with form_data for Form-based OAuth2
+    oauth_state = OAuthState(
+        state=state,
+        workspace_id=workspace_id,
+        app_name=app_name,
+        meta=form_data,
+    )
     db.add(oauth_state)
     await db.commit()
 
@@ -63,76 +96,148 @@ async def exchange_oauth_code(
     workspace_id: WorkspaceIdDep,
     _auth: TpsAuthDep,
 ):
-    """Exchange OAuth code+state for token. Called by Core (not browser).
-
-    Validates state from DB, exchanges code for token, encrypts and stores.
-    """
-    # Look up state from DB (CSRF protection)
+    """Exchange OAuth code+state for token. Validates state, stores encrypted token."""
+    # Look up and validate state
     stmt = select(OAuthState).where(OAuthState.state == body.state)
     result = await db.exec(stmt)
     oauth_state = result.first()
 
     if not oauth_state:
         raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
-
     if oauth_state.app_name != app_name:
         raise HTTPException(status_code=400, detail="App name mismatch")
 
     # Delete the used state (single-use)
+    form_data = oauth_state.meta
     await db.delete(oauth_state)
     await db.commit()
 
     try:
-        handler = get_handler(app_name)
+        handler = get_oauth_handler(app_name)
     except ValueError:
-        raise HTTPException(status_code=404, detail=f"App '{app_name}' not found")
+        raise HTTPException(status_code=404, detail=f"No handler for app: {app_name}")
 
     # Exchange code for token
-    redirect_uri = settings.github_redirect_uri
+    redirect_uri = settings.github_redirect_uri  # TODO: make generic per-app
     try:
-        config = await handler.exchange_code(body.code, redirect_uri)
-        logger.info("Token exchange successful for %s", app_name)
+        config = await handler.exchange_code(body.code, redirect_uri, form_data)
     except ValueError as e:
-        logger.error("Token exchange failed: %s", e)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error("Token exchange unexpected error: %s", e)
-        raise HTTPException(status_code=500, detail=f"Token exchange failed: {e}")
+        logger.error("Token exchange failed for %s: %s", app_name, e)
+        raise HTTPException(status_code=500, detail="Token exchange failed")
 
     # Fetch user info for display
     try:
         user_info = await handler.get_user_info(config)
-        logger.info("User info fetched: %s", user_info.get("login"))
     except Exception as e:
-        logger.error("Failed to fetch user info: %s", e)
-        user_info = {"login": "unknown"}
+        logger.warning("Failed to fetch user info for %s: %s", app_name, e)
+        user_info = {}
 
     # Store encrypted integration
-    try:
-        integration = await create_integration(
-            db,
-            workspace_id=workspace_id,
-            app_name=app_name,
-            config=config,
-            github_username=user_info.get("login"),
-        )
-    except Exception as e:
-        logger.error("Failed to create integration: %s", e)
-        raise HTTPException(status_code=500, detail=f"Failed to store integration: {e}")
+    identifier = user_info.get("login") or user_info.get("email")
+    expires_at = config.get("expires_at")
 
-    logger.info(
-        "Integration created: %s for workspace %s (user: %s)",
-        integration.id,
-        workspace_id,
-        user_info.get("login"),
+    integration = await create_integration(
+        db,
+        workspace_id=workspace_id,
+        app_name=app_name,
+        config=config,
+        identifier=identifier,
+        expires_at=expires_at,
     )
 
     return {
         "integration_id": integration.id,
         "app_name": app_name,
-        "username": user_info.get("login"),
+        "identifier": identifier,
         "status": "active",
     }
+
+
+# ── Credential Flow (API Key, Basic Auth, mTLS) ──
+
+
+class ConnectRequest(BaseModel):
+    credentials: dict  # fields matching app.meta.form_fields
+
+
+@router.post("/{app_name}/connect")
+async def connect_app(
+    app_name: str,
+    body: ConnectRequest,
+    db: DbDep,
+    workspace_id: WorkspaceIdDep,
+    _auth: TpsAuthDep,
+):
+    """Connect a credential-based app (API Key, Basic Auth, mTLS).
+
+    Credentials are validated, encrypted, and stored.
+    """
+    # Validate app exists and does NOT require install
+    app_result = await db.exec(
+        select(AppMarketplace).where(AppMarketplace.app_name == app_name, AppMarketplace.active == True)  # noqa: E712
+    )
+    app = app_result.first()
+    if not app:
+        raise HTTPException(status_code=404, detail=f"App '{app_name}' not found")
+    if app.is_install_required:
+        raise HTTPException(status_code=400, detail=f"App '{app_name}' uses OAuth flow, not credential connect")
+
+    # Validate required fields from meta
+    form_fields = app.meta.get("form_fields", [])
+    for field in form_fields:
+        if field.get("required") and field["reference_key"] not in body.credentials:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing required field: {field['display_name']}",
+            )
+
+    # Optional: validate credentials with the handler
+    try:
+        handler = get_credential_handler(app_name)
+        is_valid = await handler.validate_credentials(body.credentials)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail="Credentials are invalid")
+    except ValueError:
+        # No handler — store credentials without validation
+        pass
+
+    # Store encrypted integration
+    integration = await create_integration(
+        db,
+        workspace_id=workspace_id,
+        app_name=app_name,
+        config=body.credentials,
+        identifier=body.credentials.get("email") or body.credentials.get("username"),
+    )
+
+    return {
+        "integration_id": integration.id,
+        "app_name": app_name,
+        "identifier": integration.identifier,
+        "status": "active",
+    }
+
+
+# ── State Resolution (for callback page) ──
+
+
+@router.get("/resolve-state")
+async def resolve_state(
+    state: str,
+    db: DbDep,
+    _auth: TpsAuthDep,
+):
+    """Resolve an OAuth state to get the app_name. Used by the callback page."""
+    result = await db.exec(select(OAuthState).where(OAuthState.state == state))
+    oauth_state = result.first()
+    if not oauth_state:
+        raise HTTPException(status_code=404, detail="State not found or expired")
+    return {"app_name": oauth_state.app_name}
+
+
+# ── List / Delete / Clone ──
 
 
 @router.get("")
@@ -141,7 +246,7 @@ async def list_integrations(
     workspace_id: WorkspaceIdDep,
     _auth: TpsAuthDep,
 ):
-    """List all integrations for a workspace."""
+    """List all active integrations for a workspace."""
     stmt = select(Integration).where(
         Integration.workspace_id == workspace_id,
         Integration.status == "active",
@@ -153,7 +258,7 @@ async def list_integrations(
         {
             "id": i.id,
             "app_name": i.app_name,
-            "github_username": i.github_username,
+            "identifier": i.identifier,
             "status": i.status,
             "created_at": i.created_at.isoformat(),
         }
@@ -168,11 +273,10 @@ async def remove_integration(
     workspace_id: WorkspaceIdDep,
     _auth: TpsAuthDep,
 ):
-    """Disconnect an integration."""
+    """Disconnect an integration — revokes token and wipes credentials."""
     deleted = await delete_integration(db, integration_id, workspace_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Integration not found")
-
     return {"ok": True}
 
 
