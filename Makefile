@@ -3,70 +3,60 @@
 # ── Configuration ──
 SHELL := /bin/bash
 ENV_FILE := .env
-
-# Colors
-GREEN  := \033[0;32m
-YELLOW := \033[0;33m
-CYAN   := \033[0;36m
-DIM    := \033[2m
-BOLD   := \033[1m
-NC     := \033[0m
-
-# Box drawing
-LINE   := ─────────────────────────────────────────────────────
+LINE := ─────────────────────────────────────────────────────
 
 # ── Help ──
 help: ## Show this help
 	@echo ""
-	@echo "  $(BOLD)GenAlpha CLI$(NC) — Development Commands"
-	@echo "  $(DIM)$(LINE)$(NC)"
+	@printf "  \033[1mGenAlpha CLI\033[0m — Development Commands\n"
+	@printf "  \033[2m$(LINE)\033[0m\n"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-15s$(NC) %s\n", $$1, $$2}'
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[0;36m%-15s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 
 # ── Infrastructure ──
 infra: ## Start PostgreSQL + Temporal + Temporal UI (Docker)
 	@echo ""
-	@echo "  $(DIM)$(LINE)$(NC)"
-	@echo "  $(BOLD)Infrastructure$(NC)"
-	@echo "  $(DIM)$(LINE)$(NC)"
+	@printf "  \033[2m$(LINE)\033[0m\n"
+	@printf "  \033[1mInfrastructure\033[0m\n"
+	@printf "  \033[2m$(LINE)\033[0m\n"
 	@docker compose up -d 2>&1 | grep -v "^$$"
 	@echo ""
-	@printf "  $(DIM)Waiting for Postgres"
+	@printf "  \033[2mWaiting for Postgres"
 	@until docker compose exec -T postgres pg_isready -U genalpha > /dev/null 2>&1; do printf "."; sleep 1; done
-	@echo " $(GREEN)ready$(NC)"
+	@printf " \033[0;32mready\033[0m\n"
 	@echo ""
-	@echo "  $(GREEN)●$(NC) Postgres      $(DIM)localhost:5432$(NC)"
-	@echo "  $(GREEN)●$(NC) Temporal       $(DIM)localhost:7233$(NC)"
-	@echo "  $(GREEN)●$(NC) Temporal UI    $(DIM)http://localhost:8080$(NC)"
+	@printf "  \033[0;32m●\033[0m Postgres      \033[2mlocalhost:5432\033[0m\n"
+	@printf "  \033[0;32m●\033[0m Temporal       \033[2mlocalhost:7233\033[0m\n"
+	@printf "  \033[0;32m●\033[0m Temporal UI    \033[2mhttp://localhost:8080\033[0m\n"
 	@echo ""
 
 # ── Backend Services ──
 core: ## Start Core service (:8000)
-	@echo "  $(GREEN)●$(NC) Core starting on :8000..."
+	@printf "  \033[0;32m●\033[0m Core starting on :8000...\n"
 	set -a && source $(ENV_FILE) && set +a && \
 		PYTHONPATH=.:src uv run uvicorn services.core.main:app --port 8000 --reload --log-level info
 
 tps: ## Start TPS service (:8001)
-	@echo "  $(GREEN)●$(NC) TPS starting on :8001..."
+	@printf "  \033[0;32m●\033[0m TPS starting on :8001...\n"
 	set -a && source $(ENV_FILE) && set +a && \
 		PYTHONPATH=.:src uv run uvicorn services.tps.main:app --port 8001 --reload --log-level info
 
 worker: ## Start Temporal worker
-	@echo "  $(GREEN)●$(NC) Worker starting..."
+	@printf "  \033[0;32m●\033[0m Worker starting...\n"
 	set -a && source $(ENV_FILE) && set +a && \
 		PYTHONPATH=.:src uv run python -m worker.worker
 
 # ── Frontend ──
 web: ## Start Next.js frontend (:3000)
-	@echo "  $(GREEN)●$(NC) Next.js starting on :3000..."
+	@printf "  \033[0;32m●\033[0m Next.js starting on :3000...\n"
 	cd web && npm run dev
 
 # ── All-in-One ──
 dev: infra ## Start everything (infra + core + tps + worker + web)
-	@echo "  $(DIM)$(LINE)$(NC)"
-	@echo "  $(BOLD)Services$(NC)"
-	@echo "  $(DIM)$(LINE)$(NC)"
+	@printf "  \033[2m$(LINE)\033[0m\n"
+	@printf "  \033[1mServices\033[0m\n"
+	@printf "  \033[2m$(LINE)\033[0m\n"
 	@echo ""
 	@mkdir -p .logs
 	@# Start Core
@@ -74,30 +64,30 @@ dev: infra ## Start everything (infra + core + tps + worker + web)
 		PYTHONPATH=.:src uv run uvicorn services.core.main:app --port 8000 --reload --log-level info \
 		> .logs/core.log 2>&1 & echo $$! > .pids/core.pid
 	@sleep 1
-	@printf "  $(GREEN)●$(NC) Core API       $(DIM)http://localhost:8000/docs$(NC)\n"
+	@printf "  \033[0;32m●\033[0m Core API       \033[2mhttp://localhost:8000/docs\033[0m\n"
 	@# Start TPS
 	@set -a && source $(ENV_FILE) && set +a && \
 		PYTHONPATH=.:src uv run uvicorn services.tps.main:app --port 8001 --reload --log-level info \
 		> .logs/tps.log 2>&1 & echo $$! > .pids/tps.pid
 	@sleep 1
-	@printf "  $(GREEN)●$(NC) TPS API        $(DIM)http://localhost:8001/docs$(NC)\n"
+	@printf "  \033[0;32m●\033[0m TPS API        \033[2mhttp://localhost:8001/docs\033[0m\n"
 	@# Start Worker
 	@set -a && source $(ENV_FILE) && set +a && \
 		PYTHONPATH=.:src uv run python -m worker.worker \
 		> .logs/worker.log 2>&1 & echo $$! > .pids/worker.pid
 	@sleep 1
-	@printf "  $(GREEN)●$(NC) Worker         $(DIM)parse + generate queues$(NC)\n"
+	@printf "  \033[0;32m●\033[0m Worker         \033[2mparse + generate queues\033[0m\n"
 	@# Start Next.js
 	@cd web && npm run dev > ../.logs/web.log 2>&1 & echo $$! > .pids/web.pid
 	@sleep 2
-	@printf "  $(GREEN)●$(NC) Frontend       $(DIM)http://localhost:3000$(NC)\n"
+	@printf "  \033[0;32m●\033[0m Frontend       \033[2mhttp://localhost:3000\033[0m\n"
 	@echo ""
-	@echo "  $(DIM)$(LINE)$(NC)"
+	@printf "  \033[2m$(LINE)\033[0m\n"
 	@echo ""
-	@echo "  $(BOLD)$(GREEN)Ready!$(NC)  Open $(CYAN)http://localhost:3000$(NC)"
+	@printf "  \033[1m\033[0;32mReady!\033[0m  Open \033[0;36mhttp://localhost:3000\033[0m\n"
 	@echo ""
-	@echo "  $(DIM)make logs$(NC)    View service logs"
-	@echo "  $(DIM)make stop$(NC)    Stop everything"
+	@printf "  \033[2mmake logs\033[0m    View service logs\n"
+	@printf "  \033[2mmake stop\033[0m    Stop everything\n"
 	@echo ""
 
 # ── Lifecycle ──
@@ -114,25 +104,25 @@ stop: ## Stop all background services
 	@-lsof -ti:3001 2>/dev/null | xargs kill -9 2>/dev/null || true
 	@docker compose stop 2>/dev/null || true
 	@rm -f .logs/*.log
-	@printf " $(GREEN)done$(NC)\n\n"
+	@printf " \033[0;32mdone\033[0m\n\n"
 
 logs: ## Tail all service logs
 	@echo ""
-	@echo "  $(BOLD)Core$(NC) $(DIM)(last 15 lines)$(NC)"
-	@echo "  $(DIM)$(LINE)$(NC)"
-	@tail -15 .logs/core.log 2>/dev/null || echo "  $(DIM)not running$(NC)"
+	@printf "  \033[1mCore\033[0m \033[2m(last 15 lines)\033[0m\n"
+	@printf "  \033[2m$(LINE)\033[0m\n"
+	@tail -15 .logs/core.log 2>/dev/null || printf "  \033[2mnot running\033[0m\n"
 	@echo ""
-	@echo "  $(BOLD)TPS$(NC) $(DIM)(last 15 lines)$(NC)"
-	@echo "  $(DIM)$(LINE)$(NC)"
-	@tail -15 .logs/tps.log 2>/dev/null || echo "  $(DIM)not running$(NC)"
+	@printf "  \033[1mTPS\033[0m \033[2m(last 15 lines)\033[0m\n"
+	@printf "  \033[2m$(LINE)\033[0m\n"
+	@tail -15 .logs/tps.log 2>/dev/null || printf "  \033[2mnot running\033[0m\n"
 	@echo ""
-	@echo "  $(BOLD)Worker$(NC) $(DIM)(last 15 lines)$(NC)"
-	@echo "  $(DIM)$(LINE)$(NC)"
-	@tail -15 .logs/worker.log 2>/dev/null || echo "  $(DIM)not running$(NC)"
+	@printf "  \033[1mWorker\033[0m \033[2m(last 15 lines)\033[0m\n"
+	@printf "  \033[2m$(LINE)\033[0m\n"
+	@tail -15 .logs/worker.log 2>/dev/null || printf "  \033[2mnot running\033[0m\n"
 	@echo ""
-	@echo "  $(BOLD)Web$(NC) $(DIM)(last 15 lines)$(NC)"
-	@echo "  $(DIM)$(LINE)$(NC)"
-	@tail -15 .logs/web.log 2>/dev/null || echo "  $(DIM)not running$(NC)"
+	@printf "  \033[1mWeb\033[0m \033[2m(last 15 lines)\033[0m\n"
+	@printf "  \033[2m$(LINE)\033[0m\n"
+	@tail -15 .logs/web.log 2>/dev/null || printf "  \033[2mnot running\033[0m\n"
 	@echo ""
 
 logs-core: ## Tail Core service logs
@@ -157,29 +147,29 @@ lint: ## Run ruff linter
 # ── Utilities ──
 setup: ## First-time setup: install deps, start infra
 	@echo ""
-	@echo "  $(BOLD)GenAlpha CLI$(NC) — First Time Setup"
-	@echo "  $(DIM)$(LINE)$(NC)"
+	@printf "  \033[1mGenAlpha CLI\033[0m — First Time Setup\n"
+	@printf "  \033[2m$(LINE)\033[0m\n"
 	@echo ""
-	@echo "  $(DIM)Installing Python dependencies...$(NC)"
+	@printf "  \033[2mInstalling Python dependencies...\033[0m\n"
 	@uv sync --group services --group worker --group dev
-	@echo "  $(GREEN)●$(NC) Python deps installed"
+	@printf "  \033[0;32m●\033[0m Python deps installed\n"
 	@echo ""
-	@echo "  $(DIM)Installing frontend dependencies...$(NC)"
+	@printf "  \033[2mInstalling frontend dependencies...\033[0m\n"
 	@cd web && npm install
-	@echo "  $(GREEN)●$(NC) Frontend deps installed"
+	@printf "  \033[0;32m●\033[0m Frontend deps installed\n"
 	@echo ""
 	$(MAKE) infra
-	@echo "  $(BOLD)$(GREEN)Setup complete!$(NC)"
+	@printf "  \033[1m\033[0;32mSetup complete!\033[0m\n"
 	@echo ""
-	@echo "  Next steps:"
-	@echo "  1. Copy $(CYAN).env.example$(NC) to $(CYAN).env$(NC) and fill in secrets"
-	@echo "  2. Run $(CYAN)make dev$(NC)"
+	@printf "  Next steps:\n"
+	@printf "  1. Copy \033[0;36m.env.example\033[0m to \033[0;36m.env\033[0m and fill in secrets\n"
+	@printf "  2. Run \033[0;36mmake dev\033[0m\n"
 	@echo ""
 
 clean: ## Remove logs, pids, and stop Docker
 	@rm -rf .logs .pids
 	@docker compose down -v 2>/dev/null || true
-	@echo "  $(GREEN)●$(NC) Cleaned up"
+	@printf "  \033[0;32m●\033[0m Cleaned up\n"
 
 # Create dirs on first run
 $(shell mkdir -p .pids .logs)
