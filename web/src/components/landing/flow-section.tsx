@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { FlowCard } from "./flow-card";
 
@@ -43,11 +43,30 @@ export function FlowSection() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end end"] });
 
-  // Map vertical scroll to horizontal movement
-  const x = useTransform(scrollYProgress, [0, 1], ["0%", "-65%"]);
+  // Allow horizontal trackpad/wheel to drive vertical scroll within this section
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const handler = (e: WheelEvent) => {
+      const rect = el.getBoundingClientRect();
+      const inSection = rect.top <= 0 && rect.bottom >= window.innerHeight;
+      if (inSection && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        // Convert horizontal scroll into vertical
+        window.scrollBy({ top: e.deltaX, behavior: "instant" as ScrollBehavior });
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener("wheel", handler, { passive: false });
+    return () => window.removeEventListener("wheel", handler);
+  }, []);
+
+  // Map vertical scroll to horizontal movement — release at 70% so 3rd card is ~40% visible when section ends
+  const x = useTransform(scrollYProgress, [0, 0.7], ["0%", "-65%"]);
 
   return (
-    <section ref={containerRef} id="flow" className="relative z-[1]" style={{ height: "500vh" }}>
+    <section ref={containerRef} id="flow" className="relative z-[1]" style={{ height: "350vh" }}>
       <div className="sticky top-0 h-screen flex items-center overflow-hidden">
         <motion.div className="flex items-center gap-0 pl-[60px]" style={{ x }}>
 
