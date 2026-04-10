@@ -2,6 +2,7 @@ import { GridBackground } from "@/components/landing/grid-background";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { HeroSection } from "@/components/landing/hero-section";
 import { FlowSection } from "@/components/landing/flow-section";
+import { ShowcaseSection } from "@/components/landing/showcase-section";
 import { SectionDivider } from "@/components/landing/section-divider";
 
 export default function LandingPage() {
@@ -18,9 +19,7 @@ export default function LandingPage() {
       {/* Sections 2-5: placeholders for Phases 3-6 */}
       <FlowSection />
       <SectionDivider />
-      <section id="features" className="min-h-screen flex items-center justify-center relative z-[1] px-[60px] py-10">
-        <p className="font-[family-name:var(--font-jetbrains-mono)] text-[var(--text-muted)] text-sm">// feature showcase (Phase 4)</p>
-      </section>
+      <ShowcaseSection />
       <SectionDivider />
       <section className="min-h-screen flex items-center justify-center relative z-[1] px-[60px] py-10">
         <p className="font-[family-name:var(--font-jetbrains-mono)] text-[var(--text-muted)] text-sm">// AI integrations (Phase 5)</p>
