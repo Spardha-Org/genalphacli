@@ -20,9 +20,9 @@ def get_engine() -> AsyncEngine:
     return _engine
 
 
-async def get_db() -> AsyncSession:
+async def get_db():
     engine = get_engine()
-    async with AsyncSession(engine) as session:
+    async with AsyncSession(engine, expire_on_commit=False) as session:
         yield session
 
 
