@@ -12,3 +12,6 @@ build/
 repos/*
 !repos/.gitkeep
 graph.json
+.logs/
+.pids/
+*.pid
