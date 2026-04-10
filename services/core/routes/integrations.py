@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import httpx
 from fastapi import APIRouter, Request
-from services.core.deps import CurrentUserDep, CurrentWorkspaceDep, DbDep
+from fastapi.responses import RedirectResponse
+from services.core.deps import CurrentWorkspaceDep
 from services.core.tps_client import tps_request
+from services.core.config import settings
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
@@ -28,26 +31,44 @@ async def install_app(app_name: str, workspace: CurrentWorkspaceDep):
 
 
 @router.get("/{app_name}/callback")
-async def oauth_callback(app_name: str, request: Request, workspace: CurrentWorkspaceDep):
-    """Handle OAuth callback — forward code and state to TPS."""
+async def oauth_callback(app_name: str, request: Request):
+    """Handle OAuth callback from GitHub.
+
+    This is a browser redirect — no session cookie available.
+    We forward to TPS which validates via the stored OAuth state (DB-backed).
+    Then redirect the user back to the integrations settings page.
+    """
     code = request.query_params.get("code", "")
     state = request.query_params.get("state", "")
-    result = await tps_request(
-        "GET",
-        f"/integrations/{app_name}/callback?code={code}&state={state}",
-        workspace_id=workspace.id,
+
+    # Call TPS directly — no workspace_id header needed,
+    # TPS gets it from the stored OAuth state
+    tps_url = settings.tps_url
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{tps_url}/integrations/{app_name}/callback",
+                params={"code": code, "state": state},
+                headers={"X-TPS-Secret": settings.tps_secret},
+            )
+            response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        # Redirect to settings with error
+        return RedirectResponse(
+            url=f"{settings.app_url}/settings/integrations?error=oauth_failed",
+            status_code=302,
+        )
+    except Exception:
+        return RedirectResponse(
+            url=f"{settings.app_url}/settings/integrations?error=service_unavailable",
+            status_code=302,
+        )
+
+    # Success — redirect to integrations page
+    return RedirectResponse(
+        url=f"{settings.app_url}/settings/integrations?connected={app_name}",
+        status_code=302,
     )
-
-    # Store integration_id on workspace if returned
-    if "integration_id" in result:
-        from services.core.models import Workspace
-        from sqlmodel import select
-
-        # This needs db access — get it from a dependency
-        # For now, return the result and let frontend handle it
-        pass
-
-    return result
 
 
 @router.delete("/{integration_id}")

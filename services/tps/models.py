@@ -29,6 +29,17 @@ class AppMarketplace(SQLModel, table=True):
     active: bool = Field(default=True)
 
 
+class OAuthState(SQLModel, table=True):
+    """Stores OAuth state parameters for CSRF validation. DB-backed so it survives process restarts."""
+
+    __tablename__ = "tps_oauth_states"
+
+    state: str = Field(primary_key=True)
+    workspace_id: str
+    app_name: str
+    created_at: datetime = Field(default_factory=utc_now)
+
+
 class Integration(SQLModel, table=True):
     __tablename__ = "tps_integrations"
 
