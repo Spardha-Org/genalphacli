@@ -32,7 +32,7 @@ export function AiSection() {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="grid grid-cols-1 lg:grid-cols-2 items-center gap-16 px-6 lg:px-[60px] py-16 mb-20 relative z-[1]">
+    <section ref={ref} className="grid grid-cols-1 lg:grid-cols-2 items-center gap-16 px-6 lg:px-[60px] py-16 mt-42 -mb-28 relative z-[1]">
 
       {/* Left: Floating logos with thread connections */}
       <motion.div
@@ -114,7 +114,7 @@ export function AiSection() {
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.7, delay: 0.5 }}
         >
-          // One parse. Every AI agent. No GUI needed.
+           One parse. Every AI agent. No GUI needed.
         </motion.p>
 
         <motion.div
