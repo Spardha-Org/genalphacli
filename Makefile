@@ -78,7 +78,13 @@ stop: ## Stop all background services
 	@-kill $$(cat .pids/core.pid 2>/dev/null) 2>/dev/null; rm -f .pids/core.pid
 	@-kill $$(cat .pids/tps.pid 2>/dev/null) 2>/dev/null; rm -f .pids/tps.pid
 	@-kill $$(cat .pids/web.pid 2>/dev/null) 2>/dev/null; rm -f .pids/web.pid
+	@# Also kill by port in case services were started outside make
+	@-lsof -ti:8000 2>/dev/null | xargs kill -9 2>/dev/null || true
+	@-lsof -ti:8001 2>/dev/null | xargs kill -9 2>/dev/null || true
+	@-lsof -ti:3000 2>/dev/null | xargs kill -9 2>/dev/null || true
+	@-lsof -ti:3001 2>/dev/null | xargs kill -9 2>/dev/null || true
 	@docker compose stop 2>/dev/null || true
+	@rm -f .logs/*.log
 	@echo "$(GREEN)All services stopped$(NC)"
 
 logs: ## Tail all service logs
