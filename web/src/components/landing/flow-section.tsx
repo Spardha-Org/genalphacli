@@ -66,7 +66,7 @@ export function FlowSection() {
 
   // Horizontal scroll stops when 3rd card reaches center, then section releases
   // [0, 0.6] = horizontal scroll phase, [0.6, 1] = section releases (page continues)
-  const x = useTransform(scrollYProgress, [0, 0.6], ["0%", "-55%"]);
+  const x = useTransform(scrollYProgress, [0, 0.6], ["0%", "-48%"]);
 
   return (
     <section ref={containerRef} id="flow" className="relative z-[1]" style={{ height: "300vh" }}>
