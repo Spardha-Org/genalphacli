@@ -43,10 +43,12 @@ app = FastAPI(
 from services.core.auth.routes import router as auth_router
 from services.core.routes.projects import router as projects_router
 from services.core.routes.services import router as services_router
+from services.core.routes.integrations import router as integrations_router
 
 app.include_router(auth_router)
 app.include_router(projects_router)
 app.include_router(services_router)
+app.include_router(integrations_router)
 
 
 @app.get("/health")

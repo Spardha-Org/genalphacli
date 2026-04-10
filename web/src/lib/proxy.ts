@@ -8,7 +8,7 @@
 const CORE_URL = process.env.CORE_API_URL || "http://localhost:8000";
 
 interface ProxyParams {
-  path: string[];
+  path?: string[];
 }
 
 export async function proxyToCore(
@@ -16,12 +16,13 @@ export async function proxyToCore(
   params: Promise<ProxyParams>,
   basePath: string,
 ): Promise<Response> {
-  const { path } = await params;
-  const pathString = path.join("/");
+  const resolved = await params;
+  const pathString = resolved.path?.join("/") || "";
 
   // Build target URL preserving query params
   const requestUrl = new URL(request.url);
-  const targetUrl = new URL(`${basePath}/${pathString}`, CORE_URL);
+  const suffix = pathString ? `/${pathString}` : "";
+  const targetUrl = new URL(`${basePath}${suffix}`, CORE_URL);
   targetUrl.search = requestUrl.search;
 
   // Header ALLOWLIST — only forward safe headers
