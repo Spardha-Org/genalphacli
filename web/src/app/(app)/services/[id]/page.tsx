@@ -87,12 +87,12 @@ export default function ServicePage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {currentStatus === "parsed" && (
+          {["parsed", "complete"].includes(currentStatus) && (
             <button
               onClick={() => setShowGenerate(!showGenerate)}
-              className="bg-teal-500 text-zinc-950 px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-400 transition-colors"
+              className="bg-zinc-800 text-zinc-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 transition-colors border border-zinc-700"
             >
-              Generate
+              {showGenerate ? "Close" : "Generate"}
             </button>
           )}
           {currentStatus === "complete" && (
@@ -157,7 +157,7 @@ export default function ServicePage() {
         )}
 
         {/* Generate panel */}
-        {showGenerate && currentStatus === "parsed" && (
+        {showGenerate && ["parsed", "complete"].includes(currentStatus) && (
           <GeneratePanel
             serviceId={service.id}
             serviceName={service.name}
