@@ -33,6 +33,16 @@ worker = [
     "temporalio>=1.25.0",
     "psycopg2-binary>=2.9.0",
 ]
+services = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+    "sqlmodel>=0.0.22",
+    "asyncpg>=0.30.0",
+    "itsdangerous>=2.2.0",
+    "cryptography>=44.0.0",
+    "httpx>=0.28.0",
+    "pydantic-settings>=2.7.0",
+]
 
 [tool.uv]
 package = true
@@ -46,7 +56,7 @@ packages = ["src/genalphacli"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 
 [tool.ruff]
 target-version = "py310"
