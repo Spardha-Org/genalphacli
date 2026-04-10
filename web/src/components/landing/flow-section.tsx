@@ -43,16 +43,18 @@ export function FlowSection() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end end"] });
 
-  // Allow horizontal trackpad/wheel to drive vertical scroll within this section
+  // Allow horizontal trackpad/wheel to drive vertical scroll within the horizontal phase only
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
     const handler = (e: WheelEvent) => {
       const rect = el.getBoundingClientRect();
-      const inSection = rect.top <= 0 && rect.bottom >= window.innerHeight;
-      if (inSection && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        // Convert horizontal scroll into vertical
+      const sectionHeight = el.offsetHeight - window.innerHeight;
+      const progress = sectionHeight > 0 ? Math.abs(rect.top) / sectionHeight : 0;
+      const inHorizontalPhase = rect.top <= 0 && progress < 0.6;
+
+      if (inHorizontalPhase && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         window.scrollBy({ top: e.deltaX, behavior: "instant" as ScrollBehavior });
         e.preventDefault();
       }
@@ -62,11 +64,12 @@ export function FlowSection() {
     return () => window.removeEventListener("wheel", handler);
   }, []);
 
-  // Map vertical scroll to horizontal movement — release at 70% so 3rd card is ~40% visible when section ends
-  const x = useTransform(scrollYProgress, [0, 0.7], ["0%", "-65%"]);
+  // Horizontal scroll stops when 3rd card reaches center, then section releases
+  // [0, 0.6] = horizontal scroll phase, [0.6, 1] = section releases (page continues)
+  const x = useTransform(scrollYProgress, [0, 0.6], ["0%", "-55%"]);
 
   return (
-    <section ref={containerRef} id="flow" className="relative z-[1]" style={{ height: "350vh" }}>
+    <section ref={containerRef} id="flow" className="relative z-[1]" style={{ height: "300vh" }}>
       <div className="sticky top-0 h-screen flex items-center overflow-hidden">
         <motion.div className="flex items-center gap-0 pl-[60px]" style={{ x }}>
 
