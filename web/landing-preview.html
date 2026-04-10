@@ -9,7 +9,7 @@
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
   --bg:#050507;--surface:#0a0a0e;--elevated:#0f0f14;--card:#111116;
-  --border:#1a1a22;--border-glow:#14b8a620;
+  --border:#1a1a22;
   --text:#e4e4e7;--text-dim:#71717a;--text-muted:#3f3f46;
   --accent:#14b8a6;--accent-bright:#2dd4bf;--accent-glow:rgba(20,184,166,0.15);
   --green:#22c55e;--blue:#3b82f6;--violet:#8b5cf6;--rose:#f43f5e;--amber:#f59e0b;--cyan:#06b6d4;
@@ -18,7 +18,6 @@
 html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);overflow-x:hidden;-webkit-font-smoothing:antialiased}
 
-/* Grid BG */
 .grid-bg{position:fixed;inset:0;pointer-events:none;z-index:0;perspective:600px;overflow:hidden}
 .grid-plane{position:absolute;width:200%;height:200%;left:-50%;top:0;background:linear-gradient(var(--accent)10 1px,transparent 1px),linear-gradient(90deg,var(--accent)10 1px,transparent 1px);background-size:80px 80px;transform:rotateX(60deg) translateY(-40%);transform-origin:center top;mask-image:linear-gradient(to bottom,rgba(0,0,0,0.25) 0%,transparent 50%);animation:grid-scroll 20s linear infinite}
 @keyframes grid-scroll{from{background-position:0 0}to{background-position:0 80px}}
@@ -26,74 +25,97 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);overflow-x:h
 
 @keyframes fadeUp{from{opacity:0;transform:translateY(60px)}to{opacity:1;transform:translateY(0)}}
 @keyframes gradient-x{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-@keyframes pulse-dot{0%,100%{r:3;opacity:.8}50%{r:5;opacity:1}}
-@keyframes flow-dot{0%{offset-distance:0%}100%{offset-distance:100%}}
-@keyframes dash-draw{from{stroke-dashoffset:1000}to{stroke-dashoffset:0}}
-@keyframes code-line{from{width:0;opacity:0}to{width:100%;opacity:1}}
-@keyframes blink-cursor{0%,100%{opacity:1}50%{opacity:0}}
-@keyframes float-y{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-@keyframes glow-breathe{0%,100%{filter:drop-shadow(0 0 6px var(--accent)40)}50%{filter:drop-shadow(0 0 16px var(--accent)80)}}
-@keyframes spin-slow{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-@keyframes orbit{from{transform:rotate(0) translateX(60px) rotate(0)}to{transform:rotate(360deg) translateX(60px) rotate(-360deg)}}
+@keyframes ascii-reveal{to{opacity:1;transform:translateY(0)}}
+@keyframes pulse-node{0%,100%{box-shadow:0 0 8px var(--accent-glow)}50%{box-shadow:0 0 24px var(--accent-glow),0 0 48px rgba(20,184,166,.08)}}
+@keyframes flow-dash{from{stroke-dashoffset:12}to{stroke-dashoffset:0}}
+@keyframes float-y{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
 
-.reveal{opacity:0;transform:translateY(60px);transition:all 1s cubic-bezier(.16,1,.3,1)}.reveal.vis{opacity:1;transform:translateY(0)}.rd1{transition-delay:.1s}.rd2{transition-delay:.2s}.rd3{transition-delay:.3s}.rd4{transition-delay:.4s}
+.reveal{opacity:0;transform:translateY(60px);transition:all 1s cubic-bezier(.16,1,.3,1)}.reveal.vis{opacity:1;transform:translateY(0)}.rd1{transition-delay:.1s}.rd2{transition-delay:.2s}.rd3{transition-delay:.3s}
 
-/* Nav */
+/* ── Nav ── */
 nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:14px 40px;background:rgba(5,5,7,0.5);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid var(--border)}
 .logo{font-family:var(--mono);font-weight:800;font-size:18px;color:var(--text);text-decoration:none;letter-spacing:1px;text-transform:uppercase}.logo span{color:var(--accent)}
 .nav-r{display:flex;gap:24px;align-items:center}
 .nav-r a{font-family:var(--mono);font-size:11px;color:var(--text-dim);text-decoration:none;letter-spacing:1px;text-transform:uppercase;transition:color .2s}.nav-r a:hover{color:var(--accent)}
 .nav-btn{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:var(--accent);color:var(--bg);padding:8px 20px;border-radius:2px;text-decoration:none;border:1px solid var(--accent);transition:all .2s}.nav-btn:hover{background:transparent;color:var(--accent)}
 
-/* Hero */
-.hero{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:40px;padding:120px 60px 80px;position:relative;z-index:1}
+/* ═══════════════════════════════════════════
+   SECTION 1: HERO (text left + terminal right)
+   ═══════════════════════════════════════════ */
+.hero{min-height:100vh;display:grid;grid-template-columns:1fr 1.1fr;align-items:center;gap:48px;padding:100px 60px 0;position:relative;z-index:1;margin-bottom:-200px}
 .hero-left{animation:fadeUp .9s ease-out .2s both}
 .hero-right{animation:fadeUp .9s ease-out .5s both}
-.hero-status{font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-bottom:40px;line-height:2.2}
-.hero-status .on{color:var(--green)}.hero-status .sy{color:var(--cyan)}.hero-status .ac{color:var(--accent)}
-.hero h1{font-family:var(--mono);font-size:clamp(36px,4.5vw,64px);font-weight:800;line-height:.95;letter-spacing:-2px;margin-bottom:28px}
+.hero-status{font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-bottom:32px;line-height:2.2}
+.hero-status .on{color:var(--green)}.hero-status .ac{color:var(--accent)}
+.hero h1{font-family:var(--mono);font-size:clamp(32px,4vw,56px);font-weight:800;line-height:.95;letter-spacing:-2px;margin-bottom:24px}
 .hero h1 .glow{background:linear-gradient(135deg,var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .hero h1 .dim{color:var(--text-muted);font-weight:300}
-.hero-sub{color:var(--text-dim);font-size:15px;max-width:440px;line-height:1.7;margin-bottom:32px}
+.hero-sub{color:var(--text-dim);font-size:15px;max-width:420px;line-height:1.7;margin-bottom:28px}
 .hero-cta{display:flex;gap:12px}
-.cta-main{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:2px;text-transform:uppercase;background:var(--accent);color:var(--bg);padding:14px 28px;text-decoration:none;border:1px solid var(--accent);display:flex;align-items:center;gap:10px;transition:all .3s;position:relative;overflow:hidden}
-.cta-main:hover{box-shadow:0 0 40px var(--accent-glow),0 0 80px rgba(20,184,166,.1);transform:translateY(-2px)}
-.cta-main::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.1),transparent);transition:left .5s}.cta-main:hover::after{left:100%}
-.cta-ghost{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);padding:14px 28px;text-decoration:none;border:1px solid var(--border);transition:all .3s;display:flex;align-items:center;gap:10px}
-.cta-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn-main{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:2px;text-transform:uppercase;background:var(--accent);color:var(--bg);padding:13px 26px;text-decoration:none;border:1px solid var(--accent);display:flex;align-items:center;gap:10px;transition:all .3s;position:relative;overflow:hidden}
+.btn-main:hover{box-shadow:0 0 40px var(--accent-glow);transform:translateY(-2px)}
+.btn-main::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.1),transparent);transition:left .5s}.btn-main:hover::after{left:100%}
+.btn-ghost{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);padding:13px 26px;text-decoration:none;border:1px solid var(--border);transition:all .3s;display:flex;align-items:center;gap:10px}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
 
-/* ── Animated Conversion Scene (Hero Right) ── */
-.conversion-scene{width:100%;max-width:520px;margin:0 auto}
-.conversion-scene svg{width:100%;height:auto}
-
-/* ── Interactive Terminal Section ── */
-.live-term-section{padding:80px 60px;position:relative;z-index:1;display:flex;justify-content:center}
-.live-term-wrap{width:100%;max-width:900px}
+/* Interactive Terminal */
 .live-term{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.02) inset}
-.live-term .term-bar{display:flex;align-items:center;gap:8px;padding:14px 18px;background:var(--elevated);border-bottom:1px solid var(--border)}
-.live-term .term-dot{width:12px;height:12px;border-radius:50%;opacity:.7}
-.live-term .term-dot.r{background:#ef4444}.live-term .term-dot.y{background:#eab308}.live-term .term-dot.g{background:#22c55e}
-.live-term .term-tab{font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-left:auto;letter-spacing:1px}
-.live-term-body{padding:24px;font-family:var(--mono);font-size:13px;min-height:380px;max-height:500px;overflow-y:auto;position:relative}
-.live-term-body .prompt-line{display:flex;align-items:center;gap:0}
-.live-term-body .prompt-user{color:var(--green)}
-.live-term-body .prompt-at{color:var(--text-muted)}
-.live-term-body .prompt-host{color:var(--cyan)}
-.live-term-body .prompt-dir{color:var(--violet)}
-.live-term-body .prompt-symbol{color:var(--accent);margin-right:8px}
-.live-term-body .input-area{background:none;border:none;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;flex:1;caret-color:var(--accent)}
-.live-term-body .output{color:var(--text-dim);white-space:pre;line-height:1.3;margin-top:12px}
-.live-term-body .ascii-art{color:var(--accent);white-space:pre;line-height:1.15;font-size:10px;overflow-x:auto}
-.live-term-body .ascii-sub{color:var(--text-dim);font-size:11px;margin-top:8px;letter-spacing:1px}
-.live-term-body .hello-text{color:var(--text);font-size:14px;margin-bottom:8px}
-/* ASCII reveal animation */
-.ascii-line{opacity:0;transform:translateY(10px);animation:ascii-reveal .4s ease-out forwards}
-@keyframes ascii-reveal{to{opacity:1;transform:translateY(0)}}
-.cursor-blink{animation:blink-cursor 1s step-end infinite;color:var(--accent)}
+.term-bar{display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--elevated);border-bottom:1px solid var(--border)}
+.td{width:11px;height:11px;border-radius:50%;opacity:.7}.td-r{background:#ef4444}.td-y{background:#eab308}.td-g{background:#22c55e}
+.term-tab{font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-left:auto;letter-spacing:1px}
+.live-term-body{padding:20px;font-family:var(--mono);font-size:12px;min-height:340px;max-height:440px;overflow-y:auto;position:relative}
+.prompt-line{display:flex;align-items:center;gap:0}
+.prompt-user{color:var(--green)}.prompt-at{color:var(--text-muted)}.prompt-host{color:var(--cyan)}.prompt-dir{color:var(--violet)}
+.prompt-symbol{color:var(--accent);margin-right:8px}
+.input-area{background:none;border:none;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;flex:1;caret-color:var(--accent)}
+.output{color:var(--text-dim);white-space:pre;line-height:1.35;margin-top:10px;margin-bottom:10px}
+.ascii-art{color:var(--accent);white-space:pre;line-height:1.1;font-size:9px;overflow-x:auto}
+.ascii-sub{color:var(--text-dim);font-size:10px;margin-top:6px;letter-spacing:1px}
+.hello-text{color:var(--text);font-size:13px;margin-bottom:6px;font-weight:600}
+.ascii-line{opacity:0;transform:translateY(8px);animation:ascii-reveal .35s ease-out forwards}
 
-/* ── Sections ── */
-.fs{min-height:100vh;display:flex;align-items:center;position:relative;z-index:1;padding:100px 60px}
+/* ═══════════════════════════════════════════
+   SECTION 2: HORIZONTAL PARALLAX FLOW
+   ═══════════════════════════════════════════ */
+.flow-section{position:relative;z-index:1;overflow:clip;padding:0}
+.flow-sticky{position:sticky;top:0;height:100vh;display:flex;align-items:center}
+.flow-track{display:flex;gap:0;align-items:center;will-change:transform;padding:0 60px}
+
+/* Flow cards */
+.flow-card{flex-shrink:0;width:440px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:36px;position:relative;transition:all .4s}
+.flow-card:hover{border-color:var(--accent);box-shadow:0 0 40px var(--accent-glow);transform:translateY(-4px)}
+.flow-card-tag{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;margin-bottom:16px}
+.flow-card h3{font-family:var(--mono);font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-1px}
+.flow-card p{color:var(--text-dim);font-size:13px;line-height:1.7}
+.flow-card-code{background:var(--elevated);border:1px solid var(--border);border-radius:4px;padding:14px;margin-top:16px;font-family:var(--mono);font-size:10px;line-height:1.6;color:var(--text-dim);white-space:pre-wrap;word-break:break-all;overflow:hidden}
+.flow-card-code .hl{color:var(--accent)}.flow-card-code .gr{color:var(--green)}.flow-card-code .bl{color:var(--blue)}.flow-card-code .vi{color:var(--violet)}
+
+/* Flow connector arrows */
+.flow-connector{flex-shrink:0;width:80px;display:flex;align-items:center;justify-content:center;position:relative}
+.flow-connector svg{overflow:visible}
+.flow-arrow-line{stroke:var(--border);stroke-width:2;stroke-dasharray:6 4;animation:flow-dash 1s linear infinite}
+.flow-arrow-dot{fill:var(--accent);animation:float-y 2s ease-in-out infinite}
+
+/* ═══════════════════════════════════════════
+   SECTION 3: FEATURE SHOWCASE (text + SVG scene)
+   ═══════════════════════════════════════════ */
+.showcase{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:60px;padding:120px 60px;position:relative;z-index:1}
+.showcase-text{max-width:480px}
+.showcase .tag{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:20px}
+.showcase h2{font-family:var(--mono);font-size:clamp(28px,4vw,48px);font-weight:800;letter-spacing:-2px;line-height:1;margin-bottom:20px}
+.showcase h2 .glow{background:linear-gradient(135deg,var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.showcase p{color:var(--text-dim);font-size:14px;line-height:1.7;margin-bottom:20px}
+.showcase-features{list-style:none;margin-top:24px}
+.showcase-features li{font-family:var(--mono);font-size:12px;color:var(--text-dim);padding:10px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;transition:color .2s}
+.showcase-features li:hover{color:var(--text)}
+.showcase-features li .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* ── Remaining Sections ── */
 .section-divider{height:1px;max-width:1200px;margin:0 auto;background:linear-gradient(90deg,transparent,var(--border),var(--accent)40,var(--border),transparent);background-size:200% 100%;animation:gradient-x 4s ease-in-out infinite;opacity:.5}
+.fs{min-height:100vh;display:flex;align-items:center;position:relative;z-index:1;padding:100px 60px}
+.tag{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:20px}
+.big-h{font-family:var(--mono);font-size:clamp(28px,4vw,52px);font-weight:800;letter-spacing:-2px;line-height:1;margin-bottom:16px}
+.sub-p{color:var(--text-dim);font-size:15px;max-width:500px;margin-bottom:60px;line-height:1.7}
 
 /* Stats */
 .stats-section{justify-content:center}.stats-inner{text-align:center;width:100%}
@@ -104,46 +126,38 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:cen
 .stat-box::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0;transition:opacity .3s}.stat-box:hover::before{opacity:1}
 .stat-val{font-family:var(--mono);font-size:48px;font-weight:800;color:var(--accent)}.stat-lbl{font-family:var(--mono);font-size:10px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;margin-top:8px}
 
-/* How / Features */
+/* Features */
 .how-section{flex-direction:column;justify-content:center;align-items:flex-start}
-.tag{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:20px}
-.big-h{font-family:var(--mono);font-size:clamp(32px,5vw,64px);font-weight:800;letter-spacing:-2px;line-height:1;margin-bottom:16px}
-.sub-p{color:var(--text-dim);font-size:15px;max-width:500px;margin-bottom:60px;line-height:1.7}
-.steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;width:100%;background:var(--border);border-radius:4px;overflow:hidden}
-.step-card{background:var(--surface);padding:40px;position:relative;transition:all .5s cubic-bezier(.16,1,.3,1)}
-.step-card:hover{background:var(--elevated);transform:translateY(-8px);z-index:2;box-shadow:0 30px 60px rgba(0,0,0,.5)}
-.step-n{font-family:var(--mono);font-size:64px;font-weight:800;color:var(--border);line-height:1;margin-bottom:24px;transition:color .3s}
-.step-card:hover .step-n{color:var(--accent);opacity:.4}
-.step-card h3{font-family:var(--mono);font-size:16px;font-weight:700;margin-bottom:12px;letter-spacing:-.5px}
-.step-card p{color:var(--text-dim);font-size:13px;line-height:1.7}
-.step-arrow{position:absolute;right:-14px;top:50%;transform:translateY(-50%);width:28px;height:28px;background:var(--bg);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:12px;z-index:3;transition:all .3s}
-.step-card:hover .step-arrow{border-color:var(--accent);color:var(--accent)}
-
 .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;margin-top:56px}
 .feat-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:32px;position:relative;overflow:hidden;transition:all .4s cubic-bezier(.16,1,.3,1)}
 .feat-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at top left,var(--accent-glow),transparent 60%);opacity:0;transition:opacity .4s}
-.feat-card:hover{transform:translateY(-6px);border-color:var(--accent)30;box-shadow:0 20px 50px rgba(0,0,0,.3)}.feat-card:hover::before{opacity:1}
+.feat-card:hover{transform:translateY(-6px);border-color:rgba(20,184,166,.2);box-shadow:0 20px 50px rgba(0,0,0,.3)}.feat-card:hover::before{opacity:1}
 .feat-icon{width:44px;height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:20px;position:relative;transition:transform .3s}.feat-card:hover .feat-icon{transform:scale(1.15)}
 .feat-card h3{font-family:var(--mono);font-size:13px;font-weight:600;margin-bottom:8px;letter-spacing:.5px;position:relative}
 .feat-card p{color:var(--text-dim);font-size:12px;line-height:1.7;position:relative}
 
-/* Frameworks */
-.fw-section{flex-direction:column;align-items:center;text-align:center}
-.fw-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:48px}
-.fw-chip{font-family:var(--mono);font-size:12px;color:var(--text-dim);background:var(--surface);border:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:10px;transition:all .3s}
-.fw-chip:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
-.fw-dot{width:8px;height:8px;border-radius:50%}
-
-/* CTA end */
+/* CTA */
 .cta-end{flex-direction:column;align-items:center;text-align:center;position:relative}
 .cta-end-glow{position:absolute;width:600px;height:300px;background:radial-gradient(ellipse,var(--accent-glow),transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none}
-.cta-end h2{font-family:var(--mono);font-size:clamp(32px,5vw,56px);font-weight:800;letter-spacing:-2px;margin-bottom:16px;position:relative}
+.cta-end h2{font-family:var(--mono);font-size:clamp(28px,4vw,52px);font-weight:800;letter-spacing:-2px;margin-bottom:16px;position:relative}
 .cta-end p{color:var(--text-dim);font-size:15px;margin-bottom:40px;position:relative}
+.cta-end .hero-cta{justify-content:center;position:relative}
 
 footer{border-top:1px solid var(--border);padding:24px 60px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--text-muted);letter-spacing:1px;z-index:1;position:relative}
 footer a{color:var(--text-dim);text-decoration:none}footer a:hover{color:var(--accent)}
 
-@media(max-width:900px){.hero{grid-template-columns:1fr;padding:120px 20px 40px}.hero-right{display:none}.fs{padding:60px 20px;min-height:auto}.steps-grid,.feat-grid{grid-template-columns:1fr}.step-arrow{display:none}.stats-row{flex-direction:column}.stat-box{border-radius:0!important}.stat-box:first-child{border-radius:4px 4px 0 0!important}.stat-box:last-child{border-radius:0 0 4px 4px!important}nav{padding:12px 20px}}
+@media(max-width:900px){
+  .hero,.showcase{grid-template-columns:1fr;padding:120px 20px 60px}
+  .hero-right{max-width:100%}
+  .fs{padding:60px 20px;min-height:auto}
+  .feat-grid{grid-template-columns:1fr}
+  .stats-row{flex-direction:column}
+  .stat-box{border-radius:0!important}
+  .stat-box:first-child{border-radius:4px 4px 0 0!important}
+  .stat-box:last-child{border-radius:0 0 4px 4px!important}
+  nav{padding:12px 20px}
+  .flow-section{display:none}
+}
 </style>
 </head>
 <body>
@@ -153,14 +167,14 @@ footer a{color:var(--text-dim);text-decoration:none}footer a:hover{color:var(--a
 <nav>
   <a href="/" class="logo"><span>//</span> GenAlpha</a>
   <div class="nav-r">
-    <a href="#how">System</a>
+    <a href="#flow">Pipeline</a>
     <a href="#features">Capabilities</a>
     <a href="https://github.com/NandishNaik01/genalphacli">GitHub</a>
     <a href="/login" class="nav-btn">Launch App</a>
   </div>
 </nav>
 
-<!-- Hero: Split layout with animated conversion scene -->
+<!-- ═══ SECTION 1: HERO ═══ -->
 <section class="hero">
   <div class="hero-left">
     <div class="hero-status">
@@ -171,123 +185,177 @@ footer a{color:var(--text-dim);text-decoration:none}footer a:hover{color:var(--a
     <h1><span class="dim">SEE YOUR API.</span><br><span class="glow">BUILD WHAT'S NEXT.</span></h1>
     <p class="hero-sub">Paste a GitHub repo. We parse every route via static analysis. You get a CLI and an MCP server for AI agents — automatically.</p>
     <div class="hero-cta">
-      <a href="/login" class="cta-main"><span>&#9654;</span> Launch App</a>
-      <a href="https://github.com/NandishNaik01/genalphacli" class="cta-ghost">
+      <a href="/login" class="btn-main"><span>&#9654;</span> Launch App</a>
+      <a href="https://github.com/NandishNaik01/genalphacli" class="btn-ghost">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
         View Source
       </a>
     </div>
   </div>
 
-  <!-- Animated Conversion Scene: Code → Parse → CLI/MCP -->
+  <!-- Interactive Terminal (right side) -->
   <div class="hero-right">
-    <div class="conversion-scene">
-      <svg viewBox="0 0 520 400" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- Code Panel (left) -->
-        <rect x="10" y="30" width="200" height="340" rx="6" fill="#0a0a0e" stroke="#1a1a22"/>
-        <rect x="10" y="30" width="200" height="28" rx="6" fill="#0f0f14"/>
-        <circle cx="26" cy="44" r="4" fill="#ef4444" opacity=".7"/><circle cx="38" cy="44" r="4" fill="#eab308" opacity=".7"/><circle cx="50" cy="44" r="4" fill="#22c55e" opacity=".7"/>
-        <text x="80" y="48" font-family="JetBrains Mono" font-size="8" fill="#3f3f46">api.py</text>
-        <!-- Animated code lines -->
-        <g font-family="JetBrains Mono" font-size="9">
-          <text x="22" y="80" fill="#8b5cf6" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.5s" fill="freeze"/>@app.get</text>
-          <text x="22" y="95" fill="#71717a" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.8s" fill="freeze"/>def list_users():</text>
-          <text x="22" y="110" fill="#22c55e" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.1s" fill="freeze"/>&nbsp;&nbsp;return db.all()</text>
-          <text x="22" y="135" fill="#3b82f6" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.5s" fill="freeze"/>@app.post</text>
-          <text x="22" y="150" fill="#71717a" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.8s" fill="freeze"/>def create_user(body):</text>
-          <text x="22" y="165" fill="#22c55e" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.1s" fill="freeze"/>&nbsp;&nbsp;return db.create()</text>
-          <text x="22" y="190" fill="#f59e0b" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.5s" fill="freeze"/>@app.delete</text>
-          <text x="22" y="205" fill="#71717a" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.8s" fill="freeze"/>def del_user(id):</text>
-          <text x="22" y="220" fill="#22c55e" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="3.1s" fill="freeze"/>&nbsp;&nbsp;return db.delete()</text>
-          <text x="22" y="250" fill="#3f3f46" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="3.5s" fill="freeze"/>// 23 more routes...</text>
-        </g>
-
-        <!-- Flow arrows (animated dots flowing right) -->
-        <path id="flow1" d="M220,120 C260,120 270,100 310,100" stroke="none" fill="none"/>
-        <path id="flow2" d="M220,180 C260,180 270,200 310,200" stroke="none" fill="none"/>
-        <path id="flow3" d="M220,240 C260,240 270,300 310,300" stroke="none" fill="none"/>
-        <!-- Visible flow lines -->
-        <path d="M220,120 C260,120 270,100 310,100" stroke="#14b8a6" stroke-width="1" opacity=".2" stroke-dasharray="4 4"><animate attributeName="stroke-dashoffset" from="8" to="0" dur="1s" repeatCount="indefinite"/></path>
-        <path d="M220,180 C260,180 270,200 310,200" stroke="#3b82f6" stroke-width="1" opacity=".2" stroke-dasharray="4 4"><animate attributeName="stroke-dashoffset" from="8" to="0" dur="1s" repeatCount="indefinite"/></path>
-        <path d="M220,240 C260,240 270,300 310,300" stroke="#8b5cf6" stroke-width="1" opacity=".2" stroke-dasharray="4 4"><animate attributeName="stroke-dashoffset" from="8" to="0" dur="1s" repeatCount="indefinite"/></path>
-        <!-- Flowing dots -->
-        <circle r="3" fill="#14b8a6" opacity=".9"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#flow1"/></animateMotion></circle>
-        <circle r="3" fill="#3b82f6" opacity=".9"><animateMotion dur="2.2s" repeatCount="indefinite" begin="0.3s"><mpath href="#flow2"/></animateMotion></circle>
-        <circle r="3" fill="#8b5cf6" opacity=".9"><animateMotion dur="2.4s" repeatCount="indefinite" begin="0.6s"><mpath href="#flow3"/></animateMotion></circle>
-
-        <!-- GenAlpha Parser (center) -->
-        <rect x="245" y="140" width="70" height="70" rx="4" fill="#0f0f14" stroke="#14b8a6" stroke-width="1.5" opacity="0">
-          <animate attributeName="opacity" values="0;1" dur="0.5s" begin="1.5s" fill="freeze"/>
-        </rect>
-        <text x="255" y="172" font-family="JetBrains Mono" font-size="7" fill="#14b8a6" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="1.5s" fill="freeze"/>GENALPHA</text>
-        <text x="260" y="184" font-family="JetBrains Mono" font-size="6" fill="#3f3f46" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="1.8s" fill="freeze"/>PARSER</text>
-        <!-- Spinning indicator -->
-        <circle cx="280" cy="196" r="6" fill="none" stroke="#14b8a6" stroke-width="1" stroke-dasharray="8 20" opacity="0">
-          <animate attributeName="opacity" values="0;.6" dur="0.3s" begin="2s" fill="freeze"/>
-          <animateTransform attributeName="transform" type="rotate" from="0 280 196" to="360 280 196" dur="2s" repeatCount="indefinite"/>
-        </circle>
-
-        <!-- Output Panels (right) -->
-        <!-- CLI Panel -->
-        <rect x="320" y="60" width="190" height="130" rx="6" fill="#0a0a0e" stroke="#22c55e" stroke-width="1" opacity="0">
-          <animate attributeName="opacity" values="0;1" dur="0.5s" begin="3s" fill="freeze"/>
-        </rect>
-        <rect x="320" y="60" width="190" height="24" rx="6" fill="#0f0f14" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3s" fill="freeze"/></rect>
-        <text x="334" y="76" font-family="JetBrains Mono" font-size="8" font-weight="bold" fill="#22c55e" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3s" fill="freeze"/>CLI OUTPUT</text>
-        <g font-family="JetBrains Mono" font-size="8" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3.3s" fill="freeze"/>
-          <text x="330" y="100" fill="#14b8a6">$</text><text x="340" y="100" fill="#e4e4e7">myapi --help</text>
-          <text x="330" y="115" fill="#71717a">list-users</text>
-          <text x="330" y="128" fill="#71717a">create-user</text>
-          <text x="330" y="141" fill="#71717a">delete-user</text>
-          <text x="330" y="154" fill="#3f3f46">+ 20 more commands</text>
-        </g>
-
-        <!-- MCP Panel -->
-        <rect x="320" y="210" width="190" height="130" rx="6" fill="#0a0a0e" stroke="#8b5cf6" stroke-width="1" opacity="0">
-          <animate attributeName="opacity" values="0;1" dur="0.5s" begin="3.5s" fill="freeze"/>
-        </rect>
-        <rect x="320" y="210" width="190" height="24" rx="6" fill="#0f0f14" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3.5s" fill="freeze"/></rect>
-        <text x="334" y="226" font-family="JetBrains Mono" font-size="8" font-weight="bold" fill="#8b5cf6" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3.5s" fill="freeze"/>MCP SERVER</text>
-        <g font-family="JetBrains Mono" font-size="8" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3.8s" fill="freeze"/>
-          <text x="330" y="250" fill="#8b5cf6">@mcp.tool()</text>
-          <text x="330" y="265" fill="#71717a">list_users()</text>
-          <text x="330" y="278" fill="#8b5cf6">@mcp.tool()</text>
-          <text x="330" y="293" fill="#71717a">create_user()</text>
-          <text x="330" y="308" fill="#3f3f46">+ 20 more tools</text>
-        </g>
-
-        <!-- Labels -->
-        <text x="80" y="20" font-family="JetBrains Mono" font-size="9" fill="#3f3f46" letter-spacing="2" opacity="0"><animate attributeName="opacity" values="0;.6" dur="0.5s" begin="0.3s" fill="freeze"/>YOUR API CODE</text>
-        <text x="370" y="50" font-family="JetBrains Mono" font-size="9" fill="#3f3f46" letter-spacing="2" opacity="0"><animate attributeName="opacity" values="0;.6" dur="0.5s" begin="2.8s" fill="freeze"/>GENERATED OUTPUT</text>
-
-        <!-- Glow effects -->
-        <circle cx="280" cy="175" r="40" fill="url(#glow-center)" opacity="0"><animate attributeName="opacity" values="0;1" dur="1s" begin="2s" fill="freeze"/></circle>
-        <defs>
-          <radialGradient id="glow-center"><stop offset="0%" stop-color="#14b8a6" stop-opacity=".15"/><stop offset="100%" stop-color="#14b8a6" stop-opacity="0"/></radialGradient>
-        </defs>
-      </svg>
-    </div>
-  </div>
-</section>
-
-<!-- Interactive Terminal -->
-<div class="live-term-section reveal">
-  <div class="live-term-wrap">
     <div class="live-term">
       <div class="term-bar">
-        <div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div>
+        <div class="td td-r"></div><div class="td td-y"></div><div class="td td-g"></div>
         <span class="term-tab">nandish@genalpha ~/projects</span>
       </div>
       <div class="live-term-body" id="live-term">
         <div id="term-history"></div>
         <div class="prompt-line">
           <span class="prompt-user">nandish</span><span class="prompt-at">@</span><span class="prompt-host">genalpha</span><span class="prompt-at">:</span><span class="prompt-dir">~</span><span class="prompt-symbol">$&nbsp;</span>
-          <input type="text" class="input-area" id="term-input" placeholder="type a command..." autocomplete="off" spellcheck="false">
+          <input type="text" class="input-area" id="term-input" placeholder="try: hello, genalpha --help, make dev" autocomplete="off" spellcheck="false">
         </div>
       </div>
     </div>
   </div>
-</div>
+</section>
+
+<!-- ═══ SECTION 2: HORIZONTAL PARALLAX FLOW ═══ -->
+<section class="flow-section" id="flow">
+  <!-- Height = total scroll distance. The page stays "locked" on this section until you scroll through all of it -->
+  <div style="height:500vh;position:relative">
+    <div class="flow-sticky">
+      <div class="flow-track" id="flow-track">
+
+        <!-- Intro text -->
+        <div style="flex-shrink:0;width:360px;padding-right:40px">
+          <div class="tag">Pipeline</div>
+          <h2 style="font-family:var(--mono);font-size:36px;font-weight:800;letter-spacing:-1.5px;line-height:1.05;margin-bottom:16px">ONE PIPELINE.<br><span style="color:var(--accent)">THREE OUTPUTS.</span></h2>
+          <p style="color:var(--text-dim);font-size:14px;line-height:1.7">Scroll to explore the full GenAlpha pipeline — from your repo to installable tools.</p>
+        </div>
+
+        <!-- Arrow -->
+        <div class="flow-connector">
+          <svg width="60" height="40"><line x1="0" y1="20" x2="50" y2="20" class="flow-arrow-line"/><polygon points="50,14 60,20 50,26" class="flow-arrow-dot"/></svg>
+        </div>
+
+        <!-- PARSE card -->
+        <div class="flow-card">
+          <div class="flow-card-tag" style="color:var(--green)">Step 01 — Parse</div>
+          <h3>Clone + Detect + Extract</h3>
+          <p>We clone your repo, detect the framework automatically, and extract every API route via two-layer static analysis.</p>
+          <div class="flow-card-code">
+            <span class="hl">$</span> genalpha parse https://github.com/you/api<br>
+            <span class="gr">&#10003;</span> Cloned repository<br>
+            <span class="gr">&#10003;</span> Detected <span class="hl">FastAPI</span> framework<br>
+            <span class="gr">&#10003;</span> OpenAPI spec: <span class="bl">12 routes</span><br>
+            <span class="gr">&#10003;</span> AST extraction: <span class="vi">23 routes</span><br>
+            <span class="gr">&#10003;</span> Merged: <span class="hl">23 unique routes</span> in 39ms
+          </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="flow-connector">
+          <svg width="60" height="40"><line x1="0" y1="20" x2="50" y2="20" class="flow-arrow-line"/><polygon points="50,14 60,20 50,26" class="flow-arrow-dot"/></svg>
+        </div>
+
+        <!-- BUILD card -->
+        <div class="flow-card">
+          <div class="flow-card-tag" style="color:var(--blue)">Step 02 — Build</div>
+          <h3>Generate CLI + MCP</h3>
+          <p>Choose your output: a Typer CLI, a FastMCP server for AI agents, or both. Pip-installable packages, ready to ship.</p>
+          <div class="flow-card-code">
+            <span class="hl">$</span> genalpha build graph.json --type cli --type mcp<br><br>
+            <span class="gr">&#10003;</span> Generated CLI tool<br>
+            &nbsp;&nbsp;&#x2514; <span class="bl">myapi list-users</span><br>
+            &nbsp;&nbsp;&#x2514; <span class="bl">myapi create-user --body '{...}'</span><br>
+            &nbsp;&nbsp;&#x2514; <span class="bl">myapi --help</span> (23 commands)<br><br>
+            <span class="gr">&#10003;</span> Generated MCP server<br>
+            &nbsp;&nbsp;&#x2514; <span class="vi">@mcp.tool("list_users")</span><br>
+            &nbsp;&nbsp;&#x2514; <span class="vi">@mcp.tool("create_user")</span><br>
+            &nbsp;&nbsp;&#x2514; Auto-registered with Claude Desktop
+          </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="flow-connector">
+          <svg width="60" height="40"><line x1="0" y1="20" x2="50" y2="20" class="flow-arrow-line"/><polygon points="50,14 60,20 50,26" class="flow-arrow-dot"/></svg>
+        </div>
+
+        <!-- USE card -->
+        <div class="flow-card">
+          <div class="flow-card-tag" style="color:var(--violet)">Step 03 — Use</div>
+          <h3>Ship Instantly</h3>
+          <p>Install the CLI with pip. MCP auto-registers with Claude Desktop. Your API is now accessible from terminal and AI agents.</p>
+          <div class="flow-card-code">
+            <span style="color:var(--text-muted)"># CLI</span><br>
+            <span class="hl">$</span> cd dist/myapi && pip install .<br>
+            <span class="hl">$</span> myapi list-users --pretty<br>
+            <span class="gr">[{"id": 1, "name": "Alice"}, ...]</span><br><br>
+            <span style="color:var(--text-muted)"># MCP (Claude Desktop)</span><br>
+            <span class="vi">User:</span> "list all users from the API"<br>
+            <span class="vi">Claude:</span> <span class="gr">Calling list_users()...</span><br>
+            <span class="gr">[{"id": 1, "name": "Alice"}, ...]</span>
+          </div>
+        </div>
+
+        <!-- End spacer -->
+        <div style="flex-shrink:0;width:200px"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══ SECTION 3: FEATURE SHOWCASE ═══ -->
+<section class="showcase">
+  <div class="showcase-text reveal">
+    <div class="tag">Under The Hood</div>
+    <h2>NOT JUST A<br><span class="glow">CODE GENERATOR.</span></h2>
+    <p>GenAlpha understands your API at a deep level. Two-layer static analysis, cross-file router resolution, Pydantic model extraction, and intelligent parameter classification.</p>
+    <ul class="showcase-features">
+      <li><span class="dot" style="background:var(--green)"></span>OpenAPI spec detection + Python AST extraction</li>
+      <li><span class="dot" style="background:var(--blue)"></span>Cross-file include_router prefix resolution</li>
+      <li><span class="dot" style="background:var(--violet)"></span>Dependency injection param filtering</li>
+      <li><span class="dot" style="background:var(--amber)"></span>Full Pydantic model schema extraction</li>
+      <li><span class="dot" style="background:var(--accent)"></span>Response format detection from decorators</li>
+      <li><span class="dot" style="background:var(--rose)"></span>GitHub OAuth for private repo access</li>
+    </ul>
+  </div>
+
+  <!-- Animated SVG conversion scene -->
+  <div class="reveal rd2">
+    <svg viewBox="0 0 520 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="30" width="200" height="340" rx="6" fill="#0a0a0e" stroke="#1a1a22"/>
+      <rect x="10" y="30" width="200" height="28" rx="6" fill="#0f0f14"/>
+      <circle cx="26" cy="44" r="4" fill="#ef4444" opacity=".7"/><circle cx="38" cy="44" r="4" fill="#eab308" opacity=".7"/><circle cx="50" cy="44" r="4" fill="#22c55e" opacity=".7"/>
+      <text x="80" y="48" font-family="JetBrains Mono" font-size="8" fill="#3f3f46">api.py</text>
+      <g font-family="JetBrains Mono" font-size="9">
+        <text x="22" y="80" fill="#8b5cf6" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.5s" fill="freeze"/>@app.get</text>
+        <text x="22" y="95" fill="#71717a" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.8s" fill="freeze"/>def list_users():</text>
+        <text x="22" y="110" fill="#22c55e" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.1s" fill="freeze"/>&nbsp;&nbsp;return db.all()</text>
+        <text x="22" y="135" fill="#3b82f6" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.5s" fill="freeze"/>@app.post</text>
+        <text x="22" y="150" fill="#71717a" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.8s" fill="freeze"/>def create_user(body):</text>
+        <text x="22" y="165" fill="#22c55e" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.1s" fill="freeze"/>&nbsp;&nbsp;return db.create()</text>
+        <text x="22" y="190" fill="#f59e0b" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.5s" fill="freeze"/>@app.delete</text>
+        <text x="22" y="205" fill="#71717a" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.8s" fill="freeze"/>def del_user(id):</text>
+        <text x="22" y="250" fill="#3f3f46" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="3.5s" fill="freeze"/>// 23 more routes...</text>
+      </g>
+      <path id="f1" d="M220,120 C260,120 270,100 310,100" stroke="none" fill="none"/>
+      <path id="f2" d="M220,180 C260,180 270,200 310,200" stroke="none" fill="none"/>
+      <path d="M220,120 C260,120 270,100 310,100" stroke="#14b8a6" stroke-width="1" opacity=".2" stroke-dasharray="4 4"><animate attributeName="stroke-dashoffset" from="8" to="0" dur="1s" repeatCount="indefinite"/></path>
+      <path d="M220,180 C260,180 270,200 310,200" stroke="#3b82f6" stroke-width="1" opacity=".2" stroke-dasharray="4 4"><animate attributeName="stroke-dashoffset" from="8" to="0" dur="1s" repeatCount="indefinite"/></path>
+      <circle r="3" fill="#14b8a6" opacity=".9"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#f1"/></animateMotion></circle>
+      <circle r="3" fill="#3b82f6" opacity=".9"><animateMotion dur="2.2s" repeatCount="indefinite" begin="0.3s"><mpath href="#f2"/></animateMotion></circle>
+      <rect x="245" y="140" width="70" height="70" rx="4" fill="#0f0f14" stroke="#14b8a6" stroke-width="1.5" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="1.5s" fill="freeze"/></rect>
+      <text x="253" y="172" font-family="JetBrains Mono" font-size="7" fill="#14b8a6" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="1.5s" fill="freeze"/>GENALPHA</text>
+      <text x="260" y="184" font-family="JetBrains Mono" font-size="6" fill="#3f3f46" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="1.8s" fill="freeze"/>PARSER</text>
+      <circle cx="280" cy="196" r="6" fill="none" stroke="#14b8a6" stroke-width="1" stroke-dasharray="8 20" opacity="0"><animate attributeName="opacity" values="0;.6" dur="0.3s" begin="2s" fill="freeze"/><animateTransform attributeName="transform" type="rotate" from="0 280 196" to="360 280 196" dur="2s" repeatCount="indefinite"/></circle>
+      <rect x="320" y="60" width="190" height="130" rx="6" fill="#0a0a0e" stroke="#22c55e" stroke-width="1" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3s" fill="freeze"/></rect>
+      <text x="334" y="80" font-family="JetBrains Mono" font-size="8" font-weight="bold" fill="#22c55e" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3s" fill="freeze"/>CLI OUTPUT</text>
+      <g font-family="JetBrains Mono" font-size="8" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3.3s" fill="freeze"/><text x="330" y="100" fill="#14b8a6">$</text><text x="340" y="100" fill="#e4e4e7">myapi --help</text><text x="330" y="115" fill="#71717a">list-users</text><text x="330" y="130" fill="#71717a">create-user</text><text x="330" y="145" fill="#3f3f46">+ 20 more</text></g>
+      <rect x="320" y="210" width="190" height="130" rx="6" fill="#0a0a0e" stroke="#8b5cf6" stroke-width="1" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3.5s" fill="freeze"/></rect>
+      <text x="334" y="230" font-family="JetBrains Mono" font-size="8" font-weight="bold" fill="#8b5cf6" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3.5s" fill="freeze"/>MCP SERVER</text>
+      <g font-family="JetBrains Mono" font-size="8" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3.8s" fill="freeze"/><text x="330" y="250" fill="#8b5cf6">@mcp.tool()</text><text x="330" y="265" fill="#71717a">list_users()</text><text x="330" y="280" fill="#8b5cf6">@mcp.tool()</text><text x="330" y="295" fill="#71717a">create_user()</text></g>
+      <text x="80" y="20" font-family="JetBrains Mono" font-size="9" fill="#3f3f46" letter-spacing="2" opacity="0"><animate attributeName="opacity" values="0;.6" dur="0.5s" begin="0.3s" fill="freeze"/>YOUR API CODE</text>
+      <text x="370" y="50" font-family="JetBrains Mono" font-size="9" fill="#3f3f46" letter-spacing="2" opacity="0"><animate attributeName="opacity" values="0;.6" dur="0.5s" begin="2.8s" fill="freeze"/>GENERATED OUTPUT</text>
+      <circle cx="280" cy="175" r="40" fill="url(#gc)" opacity="0"><animate attributeName="opacity" values="0;1" dur="1s" begin="2s" fill="freeze"/></circle>
+      <defs><radialGradient id="gc"><stop offset="0%" stop-color="#14b8a6" stop-opacity=".15"/><stop offset="100%" stop-color="#14b8a6" stop-opacity="0"/></radialGradient></defs>
+    </svg>
+  </div>
+</section>
 
 <div class="section-divider"></div>
 
@@ -306,59 +374,31 @@ footer a{color:var(--text-dim);text-decoration:none}footer a:hover{color:var(--a
 
 <div class="section-divider"></div>
 
-<!-- How -->
-<section class="fs how-section" id="how">
-  <div class="tag reveal">Protocol</div>
-  <h2 class="big-h reveal rd1">THREE SURFACES.<br><span class="glow">ONE SYSTEM.</span></h2>
-  <p class="sub-p reveal rd2">From GitHub URL to installable tools. No configuration, no manual mapping. One pipeline.</p>
-  <div class="steps-grid">
-    <div class="step-card reveal rd1"><div class="step-n">01</div><h3>PARSE</h3><p>Paste a GitHub repo URL. We clone, detect the framework, and extract every API route via OpenAPI + Python AST static analysis.</p><div class="step-arrow">&rarr;</div></div>
-    <div class="step-card reveal rd2"><div class="step-n">02</div><h3>VISUALIZE</h3><p>See your API as an interactive mindmap. Routes grouped by resource, color-coded by HTTP method. Full parameter inspection.</p><div class="step-arrow">&rarr;</div></div>
-    <div class="step-card reveal rd3"><div class="step-n">03</div><h3>GENERATE</h3><p>Download a pip-installable CLI or FastMCP server for AI agents. Auto-registered with Claude Desktop. Ship instantly.</p></div>
-  </div>
-</section>
-
-<div class="section-divider"></div>
-
 <!-- Features -->
 <section class="fs how-section" id="features">
   <div class="tag reveal">Capabilities</div>
-  <h2 class="big-h reveal rd1">BUILT FOR<br><span class="glow">DEVELOPERS WHO SHIP.</span></h2>
+  <h2 class="big-h reveal rd1">BUILT FOR<br><span style="color:var(--accent)">DEVELOPERS WHO SHIP.</span></h2>
   <div class="feat-grid">
-    <div class="feat-card reveal rd1"><div class="feat-icon" style="background:rgba(34,197,94,.08);color:var(--green)">&#9889;</div><h3>TWO-LAYER PARSING</h3><p>OpenAPI spec + Python AST extraction. Cross-file router resolution. DI param filtering. Pydantic model schemas.</p></div>
-    <div class="feat-card reveal rd2"><div class="feat-icon" style="background:rgba(59,130,246,.08);color:var(--blue)">&#9881;</div><h3>CLI GENERATOR</h3><p>Typer CLI with path params, body flags, --pretty output, --body override. pip-installable from the zip.</p></div>
-    <div class="feat-card reveal rd3"><div class="feat-icon" style="background:rgba(139,92,246,.08);color:var(--violet)">&#9670;</div><h3>MCP SERVER</h3><p>FastMCP with @mcp.tool() per route. Async httpx. Auto-registers with Claude Desktop. stdio transport.</p></div>
-    <div class="feat-card reveal rd1"><div class="feat-icon" style="background:rgba(245,158,11,.08);color:var(--amber)">&#128274;</div><h3>PRIVATE REPOS</h3><p>GitHub OAuth. Fernet-encrypted tokens. Auto-refresh. Parse private repos through our TPS integration layer.</p></div>
-    <div class="feat-card reveal rd2"><div class="feat-icon" style="background:rgba(20,184,166,.08);color:var(--accent)">&#9733;</div><h3>API MINDMAP</h3><p>React Flow + dagre layout. Routes grouped by prefix. Click nodes for params, types, response format.</p></div>
-    <div class="feat-card reveal rd3"><div class="feat-icon" style="background:rgba(244,63,94,.08);color:var(--rose)">&#9889;</div><h3>TEMPORAL WORKFLOWS</h3><p>Durable pipelines. Per-step live progress. Auto-retry. Status streamed to the browser in real-time.</p></div>
+    <div class="feat-card reveal rd1"><div class="feat-icon" style="background:rgba(34,197,94,.08);color:var(--green)">&#9889;</div><h3>TWO-LAYER PARSING</h3><p>OpenAPI spec + Python AST. Cross-file router resolution. DI param filtering. Pydantic model schemas.</p></div>
+    <div class="feat-card reveal rd2"><div class="feat-icon" style="background:rgba(59,130,246,.08);color:var(--blue)">&#9881;</div><h3>CLI GENERATOR</h3><p>Typer CLI with path params, body flags, --pretty output. pip-installable from the zip.</p></div>
+    <div class="feat-card reveal rd3"><div class="feat-icon" style="background:rgba(139,92,246,.08);color:var(--violet)">&#9670;</div><h3>MCP SERVER</h3><p>FastMCP with @mcp.tool() per route. Async httpx. Auto-registers with Claude Desktop.</p></div>
+    <div class="feat-card reveal rd1"><div class="feat-icon" style="background:rgba(245,158,11,.08);color:var(--amber)">&#128274;</div><h3>PRIVATE REPOS</h3><p>GitHub OAuth. Fernet-encrypted tokens. Parse private repos through our TPS integration layer.</p></div>
+    <div class="feat-card reveal rd2"><div class="feat-icon" style="background:rgba(20,184,166,.08);color:var(--accent)">&#9733;</div><h3>API MINDMAP</h3><p>React Flow + dagre layout. Routes grouped by prefix. Click nodes for full parameter details.</p></div>
+    <div class="feat-card reveal rd3"><div class="feat-icon" style="background:rgba(244,63,94,.08);color:var(--rose)">&#9889;</div><h3>TEMPORAL WORKFLOWS</h3><p>Durable pipelines. Per-step live progress. Auto-retry. Status streamed to the browser.</p></div>
   </div>
 </section>
 
 <div class="section-divider"></div>
-
-<!-- Frameworks -->
-<section class="fs fw-section">
-  <div class="tag reveal">Compatibility</div>
-  <h2 class="big-h reveal rd1" style="text-align:center">PARSE ANY<br><span class="glow">PYTHON API.</span></h2>
-  <p class="sub-p reveal rd2" style="text-align:center;margin-left:auto;margin-right:auto">Major Python frameworks supported. Java and Go via tree-sitter planned.</p>
-  <div class="fw-row reveal rd3">
-    <div class="fw-chip"><div class="fw-dot" style="background:var(--green)"></div>FastAPI</div>
-    <div class="fw-chip"><div class="fw-dot" style="background:var(--blue)"></div>OpenAPI</div>
-    <div class="fw-chip" style="opacity:.4"><div class="fw-dot" style="background:var(--text-muted)"></div>Flask</div>
-    <div class="fw-chip" style="opacity:.4"><div class="fw-dot" style="background:var(--text-muted)"></div>Django REST</div>
-    <div class="fw-chip" style="opacity:.4"><div class="fw-dot" style="background:var(--text-muted)"></div>Spring Boot</div>
-  </div>
-</section>
 
 <!-- CTA -->
 <section class="fs cta-end">
   <div class="cta-end-glow"></div>
   <div class="tag reveal">Initialize</div>
-  <h2 class="reveal rd1">STOP WRITING<br>BOILERPLATE.<br><span style="color:var(--accent)">START SHIPPING.</span></h2>
+  <h2 class="reveal rd1">STOP WRITING BOILERPLATE.<br><span style="color:var(--accent)">START SHIPPING.</span></h2>
   <p class="reveal rd2">Open source. Free. Parse your first repo in 30 seconds.</p>
   <div class="hero-cta reveal rd3">
-    <a href="/login" class="cta-main"><span>&#9654;</span> Launch App</a>
-    <a href="https://github.com/NandishNaik01/genalphacli" class="cta-ghost">View Source</a>
+    <a href="/login" class="btn-main"><span>&#9654;</span> Launch App</a>
+    <a href="https://github.com/NandishNaik01/genalphacli" class="btn-ghost">View Source</a>
   </div>
 </section>
 
@@ -369,9 +409,40 @@ footer a{color:var(--text-dim);text-decoration:none}footer a:hover{color:var(--a
 const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis')}),{threshold:.08,rootMargin:'0px 0px -30px 0px'});
 document.querySelectorAll('.reveal').forEach(e=>obs.observe(e));
 
-// Counter animation
+// Counter
 const cObs=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;e.target.querySelectorAll('[data-count]').forEach(el=>{const t=+el.dataset.count,st=performance.now();!function u(n){const p=Math.min((n-st)/1500,1);el.textContent=Math.round((1-Math.pow(1-p,3))*t);p<1&&requestAnimationFrame(u)}(st)});cObs.disconnect()}),{threshold:.5});
 cObs.observe(document.querySelector('.stats-row'));
+
+// ── Horizontal Parallax Flow ──
+const flowTrack = document.getElementById('flow-track');
+const flowSection = document.querySelector('.flow-section');
+
+let ticking = false;
+function updateFlow() {
+  // How far the section's top has scrolled past the viewport top
+  const sectionRect = flowSection.getBoundingClientRect();
+  const scrollableDistance = flowSection.offsetHeight - window.innerHeight;
+
+  if (scrollableDistance <= 0) return;
+
+  // progress: 0 = just entered sticky, 1 = about to leave
+  const progress = Math.max(0, Math.min(1, -sectionRect.top / scrollableDistance));
+
+  // How far to move the track horizontally
+  const trackWidth = flowTrack.scrollWidth;
+  const viewWidth = window.innerWidth;
+  const maxTranslate = Math.max(0, trackWidth - viewWidth + 100); // 100px extra padding
+
+  flowTrack.style.transform = `translateX(${-progress * maxTranslate}px)`;
+  ticking = false;
+}
+
+window.addEventListener('scroll', () => {
+  if (!ticking) {
+    requestAnimationFrame(updateFlow);
+    ticking = true;
+  }
+}, { passive: true });
 
 // ── Interactive Terminal ──
 const asciiArt = [
@@ -382,168 +453,39 @@ const asciiArt = [
   '╚██████╔╝███████╗██║ ╚████║██║  ██║███████╗██║     ██║  ██║██║  ██║',
   ' ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝',
 ];
-
-const commands = {
-  'help': () => `<span style="color:var(--accent)">Available commands:</span>
-  genalpha --help    Show GenAlpha CLI usage
-  genalpha parse     Parse a GitHub repo
-  genalpha build     Generate CLI / MCP server
-  hello              Show the banner
-  clear              Clear terminal
-  whoami             Who are you?`,
-
-  'genalpha --help': () => `<span style="color:var(--accent)">genalpha</span> — Turn any API repo into a CLI & MCP server
-
-<span style="color:var(--text)">USAGE:</span>
-  genalpha parse &lt;github-url&gt;    Parse API routes from a repo
-  genalpha build &lt;graph.json&gt;    Generate CLI / MCP packages
-
-<span style="color:var(--text)">OPTIONS:</span>
-  --type cli          Generate CLI only
-  --type mcp          Generate MCP server only
-  --type cli --type mcp  Generate both`,
-
-  'genalpha parse': () => `<span style="color:var(--green)">✓</span> Cloned repository
-<span style="color:var(--green)">✓</span> Detected FastAPI framework
-<span style="color:var(--green)">✓</span> Parsed <span style="color:var(--accent)">23 routes</span> in <span style="color:var(--accent)">39ms</span>
-<span style="color:var(--green)">✓</span> Saved to graph.json`,
-
-  'genalpha build': () => `<span style="color:var(--green)">✓</span> Generated CLI → dist/myapi/
-<span style="color:var(--green)">✓</span> Generated MCP → dist/myapi_mcp/
-<span style="color:var(--green)">✓</span> Registered with Claude Desktop
-
-<span style="color:var(--text-dim)">Run:</span> cd dist/myapi && pip install . && myapi --help`,
-
-  'whoami': () => `<span style="color:var(--accent)">A developer who ships.</span>`,
-
-  'ls': () => `<span style="color:var(--blue)">src/</span>  <span style="color:var(--blue)">tests/</span>  <span style="color:var(--blue)">web/</span>  <span style="color:var(--blue)">services/</span>  <span style="color:var(--blue)">worker/</span>  pyproject.toml  README.md  Makefile`,
-
-  'make dev': () => `<span style="color:var(--green)">●</span> Core API       <span style="color:var(--text-muted)">http://localhost:8000</span>
-<span style="color:var(--green)">●</span> TPS API        <span style="color:var(--text-muted)">http://localhost:8001</span>
-<span style="color:var(--green)">●</span> Worker         <span style="color:var(--text-muted)">parse + generate queues</span>
-<span style="color:var(--green)">●</span> Frontend       <span style="color:var(--text-muted)">http://localhost:3000</span>
-
-<span style="color:var(--accent);font-weight:bold">Ready!</span> Open http://localhost:3000`,
+const commands={
+  'help':()=>`<span style="color:var(--accent)">Available commands:</span>\n  genalpha --help    Show usage\n  genalpha parse     Parse a repo\n  genalpha build     Generate output\n  hello              Show banner\n  make dev           Start services\n  clear              Clear terminal`,
+  'genalpha --help':()=>`<span style="color:var(--accent)">genalpha</span> — API repos to CLIs & MCP servers\n\n<span style="color:var(--text)">USAGE:</span>\n  genalpha parse <github-url>\n  genalpha build <graph.json>\n\n<span style="color:var(--text)">OPTIONS:</span>\n  --type cli    --type mcp    --type cli --type mcp`,
+  'genalpha parse':()=>`<span style="color:var(--green)">✓</span> Cloned repository\n<span style="color:var(--green)">✓</span> Detected FastAPI\n<span style="color:var(--green)">✓</span> Parsed <span style="color:var(--accent)">23 routes</span> in <span style="color:var(--accent)">39ms</span>\n<span style="color:var(--green)">✓</span> Saved to graph.json`,
+  'genalpha build':()=>`<span style="color:var(--green)">✓</span> Generated CLI → dist/myapi/\n<span style="color:var(--green)">✓</span> Generated MCP → dist/myapi_mcp/\n<span style="color:var(--green)">✓</span> Registered with Claude Desktop`,
+  'whoami':()=>'<span style="color:var(--accent)">A developer who ships.</span>',
+  'ls':()=>'<span style="color:var(--blue)">src/</span>  <span style="color:var(--blue)">web/</span>  <span style="color:var(--blue)">services/</span>  <span style="color:var(--blue)">worker/</span>  Makefile  README.md',
+  'make dev':()=>'<span style="color:var(--green)">●</span> Core API       <span style="color:var(--text-muted)">:8000</span>\n<span style="color:var(--green)">●</span> TPS API        <span style="color:var(--text-muted)">:8001</span>\n<span style="color:var(--green)">●</span> Worker         <span style="color:var(--text-muted)">parse + generate</span>\n<span style="color:var(--green)">●</span> Frontend       <span style="color:var(--text-muted)">:3000</span>\n\n<span style="color:var(--accent);font-weight:bold">Ready!</span> Open http://localhost:3000',
 };
+const termH=document.getElementById('term-history'),termI=document.getElementById('term-input');
+let cmdHist=[],hIdx=-1;
+function mkP(){return'<span style="color:#22c55e">nandish</span><span style="color:#3f3f46">@</span><span style="color:#06b6d4">genalpha</span><span style="color:#3f3f46">:</span><span style="color:#8b5cf6">~</span><span style="color:#14b8a6">$</span> '}
+function addOut(h){const d=document.createElement('div');d.className='output';d.innerHTML=h;termH.appendChild(d)}
+function addAscii(){const c=document.createElement('div');c.style.marginTop='10px';
+  const h=document.createElement('div');h.className='hello-text';h.textContent='Hello World';h.style.opacity='0';h.style.animation='ascii-reveal .3s ease-out .2s forwards';c.appendChild(h);
+  asciiArt.forEach((l,i)=>{const d=document.createElement('div');d.className='ascii-art ascii-line';d.textContent=l;d.style.animationDelay=(.4+i*.12)+'s';c.appendChild(d)});
+  const s=document.createElement('div');s.className='ascii-sub ascii-line';s.innerHTML='// Turn any API into a CLI & MCP Server — <span style="color:var(--accent)">v0.1.0</span>';s.style.animationDelay=(.4+asciiArt.length*.12+.2)+'s';c.appendChild(s);
+  termH.appendChild(c)}
+function runCmd(cmd){const t=cmd.trim().toLowerCase();
+  const d=document.createElement('div');d.innerHTML=mkP()+'<span style="color:var(--text)">'+cmd+'</span>';termH.appendChild(d);
+  cmdHist.push(cmd);hIdx=cmdHist.length;
+  if(t==='clear'){termH.innerHTML='';return}
+  if(t==='hello'||t==='genalpha'){addAscii();return}
+  if(commands[t]){addOut(commands[t]());return}
+  if(t.startsWith('genalpha parse ')){addOut(commands['genalpha parse']());return}
+  if(t.startsWith('genalpha build')){addOut(commands['genalpha build']());return}
+  if(t)addOut('<span style="color:var(--rose)">command not found:</span> '+cmd+'\n<span style="color:var(--text-muted)">Try: help, hello, genalpha --help</span>');
+  document.querySelector('.live-term-body').scrollTop=9999}
+termI.addEventListener('keydown',e=>{if(e.key==='Enter'){runCmd(termI.value);termI.value='';document.querySelector('.live-term-body').scrollTop=9999}else if(e.key==='ArrowUp'){e.preventDefault();if(hIdx>0){hIdx--;termI.value=cmdHist[hIdx]}}else if(e.key==='ArrowDown'){e.preventDefault();if(hIdx<cmdHist.length-1){hIdx++;termI.value=cmdHist[hIdx]}else{hIdx=cmdHist.length;termI.value=''}}});
+document.querySelector('.live-term-body').addEventListener('click',()=>termI.focus());
 
-const termHistory = document.getElementById('term-history');
-const termInput = document.getElementById('term-input');
-let commandHistory = [];
-let historyIndex = -1;
-
-function makePrompt() {
-  return '<span style="color:#22c55e">nandish</span><span style="color:#3f3f46">@</span><span style="color:#06b6d4">genalpha</span><span style="color:#3f3f46">:</span><span style="color:#8b5cf6">~</span><span style="color:#14b8a6">$</span> ';
-}
-
-function addOutput(html) {
-  const div = document.createElement('div');
-  div.className = 'output';
-  div.innerHTML = html;
-  termHistory.appendChild(div);
-}
-
-function addAsciiArt() {
-  const container = document.createElement('div');
-  container.style.marginTop = '12px';
-
-  // Hello World text
-  const hello = document.createElement('div');
-  hello.className = 'hello-text';
-  hello.textContent = 'Hello World';
-  hello.style.opacity = '0';
-  hello.style.animation = 'ascii-reveal 0.3s ease-out 0.2s forwards';
-  container.appendChild(hello);
-
-  // ASCII art lines with staggered animation
-  asciiArt.forEach((line, i) => {
-    const div = document.createElement('div');
-    div.className = 'ascii-art ascii-line';
-    div.textContent = line;
-    div.style.animationDelay = (0.4 + i * 0.12) + 's';
-    container.appendChild(div);
-  });
-
-  // Subtitle
-  const sub = document.createElement('div');
-  sub.className = 'ascii-sub ascii-line';
-  sub.innerHTML = '// Turn any API into a CLI & MCP Server — <span style="color:var(--accent)">v0.1.0</span>';
-  sub.style.animationDelay = (0.4 + asciiArt.length * 0.12 + 0.2) + 's';
-  container.appendChild(sub);
-
-  termHistory.appendChild(container);
-}
-
-function handleCommand(cmd) {
-  const trimmed = cmd.trim().toLowerCase();
-
-  // Add the command to history display
-  const cmdDiv = document.createElement('div');
-  cmdDiv.innerHTML = makePrompt() + '<span style="color:var(--text)">' + cmd + '</span>';
-  termHistory.appendChild(cmdDiv);
-
-  commandHistory.push(cmd);
-  historyIndex = commandHistory.length;
-
-  if (trimmed === 'clear') {
-    termHistory.innerHTML = '';
-  } else if (trimmed === 'hello' || trimmed === 'genalpha' || trimmed === '') {
-    if (trimmed === '') return;
-    addAsciiArt();
-  } else if (commands[trimmed]) {
-    addOutput(commands[trimmed]());
-  } else if (trimmed.startsWith('genalpha parse ')) {
-    addOutput(commands['genalpha parse']());
-  } else if (trimmed.startsWith('genalpha build')) {
-    addOutput(commands['genalpha build']());
-  } else {
-    addOutput('<span style="color:var(--rose)">command not found:</span> ' + cmd + '\n<span style="color:var(--text-muted)">Try: help, hello, genalpha --help, make dev</span>');
-  }
-
-  // Scroll terminal to bottom
-  const body = document.querySelector('.live-term-body');
-  body.scrollTop = body.scrollHeight;
-}
-
-termInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    handleCommand(termInput.value);
-    termInput.value = '';
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    if (historyIndex > 0) {
-      historyIndex--;
-      termInput.value = commandHistory[historyIndex];
-    }
-  } else if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    if (historyIndex < commandHistory.length - 1) {
-      historyIndex++;
-      termInput.value = commandHistory[historyIndex];
-    } else {
-      historyIndex = commandHistory.length;
-      termInput.value = '';
-    }
-  }
-});
-
-// Click anywhere in terminal to focus input
-document.querySelector('.live-term-body').addEventListener('click', () => termInput.focus());
-
-// Auto-run "hello" when terminal scrolls into view
-const termObs = new IntersectionObserver(es => {
-  if (es[0].isIntersecting) {
-    setTimeout(() => {
-      termInput.value = 'hello';
-      setTimeout(() => {
-        handleCommand('hello');
-        termInput.value = '';
-        termInput.focus();
-      }, 600);
-    }, 800);
-    termObs.disconnect();
-  }
-}, { threshold: 0.3 });
-termObs.observe(document.querySelector('.live-term-section'));
+// Auto-play hello on load
+setTimeout(()=>{termI.value='hello';setTimeout(()=>{runCmd('hello');termI.value='';termI.focus()},500)},1500);
 </script>
 </body>
 </html>
