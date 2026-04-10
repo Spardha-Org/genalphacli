@@ -3,6 +3,7 @@ import { LandingNav } from "@/components/landing/landing-nav";
 import { HeroSection } from "@/components/landing/hero-section";
 import { FlowSection } from "@/components/landing/flow-section";
 import { ShowcaseSection } from "@/components/landing/showcase-section";
+import { AiSection } from "@/components/landing/ai-section";
 import { SectionDivider } from "@/components/landing/section-divider";
 
 export default function LandingPage() {
@@ -21,9 +22,7 @@ export default function LandingPage() {
       <SectionDivider />
       <ShowcaseSection />
       <SectionDivider />
-      <section className="min-h-screen flex items-center justify-center relative z-[1] px-[60px] py-10">
-        <p className="font-[family-name:var(--font-jetbrains-mono)] text-[var(--text-muted)] text-sm">// AI integrations (Phase 5)</p>
-      </section>
+      <AiSection />
       <SectionDivider />
       <section className="min-h-screen flex items-center justify-center relative z-[1] px-[60px] py-10">
         <p className="font-[family-name:var(--font-jetbrains-mono)] text-[var(--text-muted)] text-sm">// CTA + ASCII zoom (Phase 6)</p>
