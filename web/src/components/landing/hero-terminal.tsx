@@ -9,14 +9,15 @@ export function HeroTerminal() {
   const inputBuffer = useRef("");
   const historyRef = useRef<string[]>([]);
   const historyIndex = useRef(-1);
+  const autoPlaying = useRef(false);
 
   const writePrompt = useCallback(() => {
-    if (!xtermRef.current) return;
     const t = xtermRef.current;
+    if (!t) return;
     t.write("\x1b[32mnandish\x1b[0m\x1b[2m@\x1b[0m\x1b[36mgenalpha\x1b[0m\x1b[2m:\x1b[0m\x1b[35m~\x1b[0m\x1b[36m$ \x1b[0m");
   }, []);
 
-  const handleCommand = useCallback((cmd: string) => {
+  const runCommand = useCallback((cmd: string) => {
     const t = xtermRef.current;
     if (!t) return;
 
@@ -30,14 +31,12 @@ export function HeroTerminal() {
       writePrompt();
       return;
     }
-
     if (result.output === "__CLEAR__") {
       t.clear();
       t.write("\x1b[2J\x1b[H");
       writePrompt();
       return;
     }
-
     t.write("\r\n" + result.output + "\r\n");
     writePrompt();
   }, [writePrompt]);
@@ -46,12 +45,14 @@ export function HeroTerminal() {
     if (!termRef.current) return;
 
     let terminal: any;
-    let fitAddon: any;
+    let disposed = false;
 
     async function init() {
       const { Terminal } = await import("@xterm/xterm");
       const { FitAddon } = await import("@xterm/addon-fit");
       await import("@xterm/xterm/css/xterm.css");
+
+      if (disposed) return;
 
       terminal = new Terminal({
         theme: {
@@ -60,66 +61,69 @@ export function HeroTerminal() {
           cursor: "#14b8a6",
           cursorAccent: "#0a0a0e",
           selectionBackground: "#14b8a640",
-          black: "#050507",
-          red: "#f43f5e",
-          green: "#22c55e",
-          yellow: "#f59e0b",
-          blue: "#3b82f6",
-          magenta: "#8b5cf6",
-          cyan: "#06b6d4",
-          white: "#e4e4e7",
-          brightBlack: "#3f3f46",
-          brightRed: "#fb7185",
-          brightGreen: "#4ade80",
-          brightYellow: "#fbbf24",
-          brightBlue: "#60a5fa",
-          brightMagenta: "#a78bfa",
-          brightCyan: "#22d3ee",
-          brightWhite: "#fafafa",
+          black: "#050507", red: "#f43f5e", green: "#22c55e", yellow: "#f59e0b",
+          blue: "#3b82f6", magenta: "#8b5cf6", cyan: "#06b6d4", white: "#e4e4e7",
+          brightBlack: "#3f3f46", brightRed: "#fb7185", brightGreen: "#4ade80",
+          brightYellow: "#fbbf24", brightBlue: "#60a5fa", brightMagenta: "#a78bfa",
+          brightCyan: "#22d3ee", brightWhite: "#fafafa",
         },
         fontSize: 13,
-        fontFamily: "var(--font-jetbrains-mono), 'JetBrains Mono', monospace",
+        fontFamily: "'JetBrains Mono', monospace",
         cursorBlink: true,
         cursorStyle: "block",
         scrollback: 200,
-        allowProposedApi: true,
+        disableStdin: false,
       });
 
-      fitAddon = new FitAddon();
+      const fitAddon = new FitAddon();
       terminal.loadAddon(fitAddon);
       terminal.open(termRef.current!);
       fitAddon.fit();
-
       xtermRef.current = terminal;
 
-      // Write initial prompt
       writePrompt();
 
-      // Handle key input
-      terminal.onKey(({ key, domEvent }: { key: string; domEvent: KeyboardEvent }) => {
+      // Use onData for all input — gives us raw characters
+      terminal.onData((data: string) => {
+        if (autoPlaying.current) return;
+
+        for (const char of data) {
+          if (char === "\r") {
+            // Enter
+            terminal.write("\r\n");
+            runCommand(inputBuffer.current);
+            inputBuffer.current = "";
+          } else if (char === "\x7f" || char === "\b") {
+            // Backspace
+            if (inputBuffer.current.length > 0) {
+              inputBuffer.current = inputBuffer.current.slice(0, -1);
+              terminal.write("\b \b");
+            }
+          } else if (char === "\x1b[A") {
+            // Arrow up (won't hit here as single chars)
+          } else if (char >= " " && char <= "~") {
+            // Printable ASCII
+            inputBuffer.current += char;
+            terminal.write(char);
+          }
+        }
+      });
+
+      // Handle arrow keys via onKey (onData doesn't give clean arrow key codes)
+      terminal.onKey(({ domEvent }: { key: string; domEvent: KeyboardEvent }) => {
+        if (autoPlaying.current) return;
         const code = domEvent.keyCode;
 
-        if (code === 13) {
-          // Enter
-          terminal.write("\r\n");
-          handleCommand(inputBuffer.current);
-          inputBuffer.current = "";
-        } else if (code === 8) {
-          // Backspace
-          if (inputBuffer.current.length > 0) {
-            inputBuffer.current = inputBuffer.current.slice(0, -1);
-            terminal.write("\b \b");
-          }
-        } else if (code === 38) {
+        if (code === 38) {
           // Arrow Up
           if (historyIndex.current > 0) {
-            // Clear current input
             const clearLen = inputBuffer.current.length;
             terminal.write("\b \b".repeat(clearLen));
             historyIndex.current--;
             inputBuffer.current = historyRef.current[historyIndex.current];
             terminal.write(inputBuffer.current);
           }
+          domEvent.preventDefault();
         } else if (code === 40) {
           // Arrow Down
           const clearLen = inputBuffer.current.length;
@@ -132,57 +136,50 @@ export function HeroTerminal() {
             historyIndex.current = historyRef.current.length;
             inputBuffer.current = "";
           }
-        } else if (key.length === 1 && !domEvent.ctrlKey && !domEvent.metaKey) {
-          // Regular character
-          inputBuffer.current += key;
-          terminal.write(key);
+          domEvent.preventDefault();
         } else if (domEvent.ctrlKey && domEvent.key === "l") {
-          // Ctrl+L = clear
           terminal.clear();
           terminal.write("\x1b[2J\x1b[H");
           writePrompt();
           inputBuffer.current = "";
+          domEvent.preventDefault();
         }
       });
 
-      // Auto-play "hello" after delay
+      // Auto-play "hello" with typing effect
       setTimeout(() => {
-        const helloCmd = "hello";
-        for (let i = 0; i < helloCmd.length; i++) {
+        if (disposed) return;
+        autoPlaying.current = true;
+        const cmd = "hello";
+        for (let i = 0; i < cmd.length; i++) {
           setTimeout(() => {
-            terminal.write(helloCmd[i]);
-            inputBuffer.current += helloCmd[i];
-            if (i === helloCmd.length - 1) {
+            if (disposed) return;
+            terminal.write(cmd[i]);
+            inputBuffer.current += cmd[i];
+            if (i === cmd.length - 1) {
               setTimeout(() => {
+                if (disposed) return;
                 terminal.write("\r\n");
-                handleCommand(inputBuffer.current);
+                runCommand(inputBuffer.current);
                 inputBuffer.current = "";
-              }, 200);
+                autoPlaying.current = false;
+              }, 300);
             }
-          }, i * 80);
+          }, i * 100);
         }
       }, 1500);
 
-      // Resize on window resize
-      const resizeHandler = () => fitAddon?.fit();
-      window.addEventListener("resize", resizeHandler);
-
-      return () => {
-        window.removeEventListener("resize", resizeHandler);
-        terminal.dispose();
-      };
+      const onResize = () => fitAddon.fit();
+      window.addEventListener("resize", onResize);
+      return () => window.removeEventListener("resize", onResize);
     }
 
     init();
-
-    return () => {
-      terminal?.dispose();
-    };
-  }, [handleCommand, writePrompt]);
+    return () => { disposed = true; terminal?.dispose(); };
+  }, [runCommand, writePrompt]);
 
   return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.02)_inset] transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_50px_120px_rgba(0,0,0,0.7)]">
-      {/* Terminal bar */}
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.02)_inset] transition-transform duration-300 hover:-translate-y-1">
       <div className="flex items-center gap-2 px-4 py-3 bg-[var(--elevated)] border-b border-[var(--border)]">
         <div className="w-[11px] h-[11px] rounded-full bg-[#ef4444] opacity-70" />
         <div className="w-[11px] h-[11px] rounded-full bg-[#eab308] opacity-70" />
@@ -191,8 +188,7 @@ export function HeroTerminal() {
           nandish@genalpha ~/projects
         </span>
       </div>
-      {/* Terminal body */}
-      <div ref={termRef} className="min-h-[340px]" style={{ padding: "4px" }} />
+      <div ref={termRef} className="min-h-[300px] max-h-[420px]" style={{ padding: "4px" }} />
     </div>
   );
 }

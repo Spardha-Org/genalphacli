@@ -14,7 +14,7 @@ export interface CommandResult {
 
 export const COMMANDS: Record<string, () => CommandResult> = {
   hello: () => ({
-    output: "Hello World\r\n" + ASCII_ART.join("\r\n") + "\r\n\x1b[2m// Turn any API into a CLI & MCP Server — v0.1.0\x1b[0m",
+    output: ASCII_ART.join("\r\n") + "\r\n\x1b[2m// Turn any API into a CLI & MCP Server — v0.1.0\x1b[0m",
     isAscii: true,
   }),
 
