@@ -11,7 +11,7 @@ export function CtaSection() {
   const asciiInView = useInView(asciiRef, { once: true, amount: 0.3 });
 
   return (
-    <section ref={ref} className="min-h-screen py-24 px-6 lg:px-[60px] text-center relative z-[1] flex flex-col items-center justify-center">
+    <section ref={ref} className="py-40 px-6 lg:px-[60px] text-center relative z-[1] flex flex-col items-center justify-center" style={{ minHeight: "120vh" }}>
       {/* Glow */}
       <div
         className="absolute w-[600px] h-[300px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
