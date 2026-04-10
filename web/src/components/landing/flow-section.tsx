@@ -52,7 +52,7 @@ export function FlowSection() {
       const rect = el.getBoundingClientRect();
       const sectionHeight = el.offsetHeight - window.innerHeight;
       const progress = sectionHeight > 0 ? Math.abs(rect.top) / sectionHeight : 0;
-      const inHorizontalPhase = rect.top <= 0 && progress < 0.6;
+      const inHorizontalPhase = rect.top <= 0 && progress < 0.8;
 
       if (inHorizontalPhase && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         window.scrollBy({ top: e.deltaX, behavior: "instant" as ScrollBehavior });
@@ -64,12 +64,12 @@ export function FlowSection() {
     return () => window.removeEventListener("wheel", handler);
   }, []);
 
-  // Horizontal scroll stops when 3rd card reaches center, then section releases
-  // [0, 0.6] = horizontal scroll phase, [0.6, 1] = section releases (page continues)
-  const x = useTransform(scrollYProgress, [0, 0.6], ["0%", "-38%"]);
+  // Horizontal scroll stops when 3rd card reaches center, then section releases quickly
+  // [0, 0.8] = horizontal scroll phase, [0.8, 1] = short release buffer
+  const x = useTransform(scrollYProgress, [0, 0.8], ["0%", "-38%"]);
 
   return (
-    <section ref={containerRef} id="flow" className="relative z-[1]" style={{ height: "300vh" }}>
+    <section ref={containerRef} id="flow" className="relative z-[1]" style={{ height: "250vh" }}>
       <div className="sticky top-0 h-screen flex items-center overflow-hidden">
         <motion.div className="flex items-center gap-0 pl-[60px]" style={{ x }}>
 
