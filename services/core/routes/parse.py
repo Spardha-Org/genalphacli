@@ -159,6 +159,9 @@ async def update_service_status(
     if body.route_graph is not None:
         service.route_graph = body.route_graph
     if body.metadata is not None:
+        # Extract zip_path as download_url if present
+        if "zip_path" in body.metadata:
+            service.download_url = body.metadata["zip_path"]
         service.metadata_json = body.metadata
 
     db.add(service)
