@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import httpx
-from fastapi import APIRouter, Request
-from fastapi.responses import RedirectResponse
-from services.core.deps import CurrentWorkspaceDep
+from fastapi import APIRouter
+from pydantic import BaseModel
+from services.core.deps import CurrentWorkspaceDep, DbDep
 from services.core.tps_client import tps_request
-from services.core.config import settings
+from services.core.models import Workspace
+from sqlmodel import select
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
@@ -26,49 +26,45 @@ async def list_integrations(workspace: CurrentWorkspaceDep):
 
 @router.post("/{app_name}/install")
 async def install_app(app_name: str, workspace: CurrentWorkspaceDep):
-    """Start OAuth flow for an app."""
+    """Start OAuth flow — returns authorize URL for frontend to redirect to."""
     return await tps_request("POST", f"/integrations/{app_name}/install", workspace_id=workspace.id)
 
 
-@router.get("/{app_name}/callback")
-async def oauth_callback(app_name: str, request: Request):
-    """Handle OAuth callback from GitHub.
+class ExchangeRequest(BaseModel):
+    code: str
+    state: str
 
-    This is a browser redirect — no session cookie available.
-    We forward to TPS which validates via the stored OAuth state (DB-backed).
-    Then redirect the user back to the integrations settings page.
+
+@router.post("/{app_name}/exchange")
+async def exchange_oauth_code(
+    app_name: str,
+    body: ExchangeRequest,
+    workspace: CurrentWorkspaceDep,
+    db: DbDep,
+):
+    """Exchange OAuth code+state for token. Called by frontend after GitHub redirect.
+
+    Flow: GitHub redirects to frontend callback page → frontend POSTs code+state here
+    → Core forwards to TPS → TPS validates state, exchanges code, stores encrypted token.
     """
-    code = request.query_params.get("code", "")
-    state = request.query_params.get("state", "")
-
-    # Call TPS directly — no workspace_id header needed,
-    # TPS gets it from the stored OAuth state
-    tps_url = settings.tps_url
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                f"{tps_url}/integrations/{app_name}/callback",
-                params={"code": code, "state": state},
-                headers={"X-TPS-Secret": settings.tps_secret},
-            )
-            response.raise_for_status()
-    except httpx.HTTPStatusError as exc:
-        # Redirect to settings with error
-        return RedirectResponse(
-            url=f"{settings.app_url}/settings/integrations?error=oauth_failed",
-            status_code=302,
-        )
-    except Exception:
-        return RedirectResponse(
-            url=f"{settings.app_url}/settings/integrations?error=service_unavailable",
-            status_code=302,
-        )
-
-    # Success — redirect to integrations page
-    return RedirectResponse(
-        url=f"{settings.app_url}/settings/integrations?connected={app_name}",
-        status_code=302,
+    result = await tps_request(
+        "POST",
+        f"/integrations/{app_name}/exchange",
+        workspace_id=workspace.id,
+        json={"code": body.code, "state": body.state},
     )
+
+    # Store integration_id on workspace
+    if "integration_id" in result:
+        stmt = select(Workspace).where(Workspace.id == workspace.id)
+        ws_result = await db.exec(stmt)
+        ws = ws_result.first()
+        if ws:
+            ws.integration_id = result["integration_id"]
+            db.add(ws)
+            await db.commit()
+
+    return result
 
 
 @router.delete("/{integration_id}")

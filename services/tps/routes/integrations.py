@@ -50,29 +50,33 @@ async def install_app(
     }
 
 
-@router.get("/{app_name}/callback")
-async def oauth_callback(
+class ExchangeRequest(BaseModel):
+    code: str
+    state: str
+
+
+@router.post("/{app_name}/exchange")
+async def exchange_oauth_code(
     app_name: str,
+    body: ExchangeRequest,
     db: DbDep,
-    code: Annotated[str, Query()],
-    state: Annotated[str, Query()],
-    # NOTE: No TpsAuthDep or WorkspaceIdDep here — this is called
-    # via browser redirect from GitHub, not from Core with headers.
-    # We get the workspace_id from the stored OAuth state instead.
+    workspace_id: WorkspaceIdDep,
+    _auth: TpsAuthDep,
 ):
-    """Exchange OAuth code for token and store the integration."""
+    """Exchange OAuth code+state for token. Called by Core (not browser).
+
+    Validates state from DB, exchanges code for token, encrypts and stores.
+    """
     # Look up state from DB (CSRF protection)
-    stmt = select(OAuthState).where(OAuthState.state == state)
+    stmt = select(OAuthState).where(OAuthState.state == body.state)
     result = await db.exec(stmt)
     oauth_state = result.first()
 
     if not oauth_state:
-        raise HTTPException(status_code=400, detail="Invalid or expired state parameter")
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
 
     if oauth_state.app_name != app_name:
         raise HTTPException(status_code=400, detail="App name mismatch")
-
-    workspace_id = oauth_state.workspace_id
 
     # Delete the used state (single-use)
     await db.delete(oauth_state)
@@ -86,7 +90,7 @@ async def oauth_callback(
     # Exchange code for token
     redirect_uri = settings.github_redirect_uri
     try:
-        config = await handler.exchange_code(code, redirect_uri)
+        config = await handler.exchange_code(body.code, redirect_uri)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
