@@ -367,12 +367,62 @@
     overflow-x: auto; margin-top: 12px; line-height: 1.6;
   }
 
-  /* ── Mindmap placeholder ── */
-  .mindmap-placeholder {
+  /* ── Mindmap ── */
+  .mindmap {
     height: 500px; background: var(--surface);
     border: 1px solid var(--border); border-radius: var(--radius);
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-mono); font-size: 13px; color: var(--text-muted);
+    position: relative; overflow: hidden;
+  }
+  .mindmap-node {
+    position: absolute; padding: 8px 14px;
+    border-radius: 8px; font-family: var(--font-mono); font-size: 11px;
+    font-weight: 600; white-space: nowrap;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+    transition: box-shadow 0.2s;
+  }
+  .mindmap-node:hover { box-shadow: 0 0 12px rgba(20, 184, 166, 0.3); }
+  .mindmap-node.root {
+    background: var(--accent); color: var(--bg);
+    border-color: var(--accent); font-size: 13px; font-weight: 700;
+  }
+  .mindmap-node.group {
+    background: var(--elevated); color: var(--text);
+    border-color: rgba(255,255,255,0.1);
+  }
+  .mindmap-node.endpoint {
+    background: var(--bg); color: var(--text-dim);
+    border-color: var(--border); font-size: 10px;
+  }
+  .mindmap-node .method {
+    font-size: 9px; font-weight: 700; padding: 1px 5px;
+    border-radius: 3px; text-transform: uppercase;
+  }
+  .mindmap svg.edges {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  .mindmap svg.edges path {
+    fill: none; stroke: rgba(20, 184, 166, 0.25); stroke-width: 1.5;
+  }
+  .mindmap svg.edges path.dim {
+    stroke: rgba(255,255,255,0.06);
+  }
+  .mindmap-controls {
+    position: absolute; bottom: 12px; right: 12px;
+    display: flex; gap: 4px; z-index: 10;
+  }
+  .mindmap-controls button {
+    width: 32px; height: 32px; border-radius: 6px;
+    background: var(--elevated); border: 1px solid var(--border);
+    color: var(--text-dim); font-family: var(--font-mono); font-size: 14px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .mindmap-controls button:hover { color: var(--text); border-color: var(--text-muted); }
+  .mindmap-inner {
+    width: 100%; height: 100%; transition: transform 0.2s ease;
+    transform-origin: center center; position: relative;
   }
 
   /* ── Settings Panel ── */
@@ -621,13 +671,91 @@
 
     <!-- Mindmap Tab -->
     <div class="tab-panel active" id="panel-mindmap">
-      <div class="mindmap-placeholder">
-        <div>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" style="margin: 0 auto 12px; display: block;">
-            <circle cx="12" cy="12" r="3"/><circle cx="4" cy="4" r="2"/><circle cx="20" cy="4" r="2"/><circle cx="4" cy="20" r="2"/><circle cx="20" cy="20" r="2"/>
-            <path d="M9.5 9.5L5.5 5.5M14.5 9.5L18.5 5.5M9.5 14.5L5.5 18.5M14.5 14.5L18.5 18.5"/>
-          </svg>
-          React Flow mindmap renders here
+      <div class="mindmap">
+        <div class="mindmap-controls">
+          <button onclick="zoomMindmap(0.1)" title="Zoom in">+</button>
+          <button onclick="zoomMindmap(-0.1)" title="Zoom out">&minus;</button>
+          <button onclick="resetMindmap()" title="Fit to view" style="font-size: 11px;">[ ]</button>
+        </div>
+        <div class="mindmap-inner" id="mindmap-inner">
+        <!-- Edges SVG -->
+        <svg class="edges">
+          <!-- Root → Groups -->
+          <path d="M 310,240 C 380,240 380,100 440,100" />
+          <path d="M 310,240 C 380,240 380,240 440,240" />
+          <path d="M 310,240 C 380,240 380,380 440,380" />
+          <!-- /users group → endpoints -->
+          <path class="dim" d="M 540,100 C 590,100 590,50 640,50" />
+          <path class="dim" d="M 540,100 C 590,100 590,100 640,100" />
+          <path class="dim" d="M 540,100 C 590,100 590,150 640,150" />
+          <!-- /items group → endpoints -->
+          <path class="dim" d="M 540,240 C 590,240 590,200 640,200" />
+          <path class="dim" d="M 540,240 C 590,240 590,240 640,240" />
+          <path class="dim" d="M 540,240 C 590,240 590,280 640,280" />
+          <!-- /auth group → endpoints -->
+          <path class="dim" d="M 530,380 C 590,380 590,345 640,345" />
+          <path class="dim" d="M 530,380 C 590,380 590,380 640,380" />
+          <path class="dim" d="M 530,380 C 590,380 590,415 640,415" />
+        </svg>
+
+        <!-- Root Node -->
+        <div class="mindmap-node root" style="left: 200px; top: 228px;">
+          fastapi
+        </div>
+
+        <!-- Group: /users -->
+        <div class="mindmap-node group" style="left: 440px; top: 88px;">
+          /users
+        </div>
+        <!-- /users endpoints -->
+        <div class="mindmap-node endpoint" style="left: 640px; top: 38px;">
+          <span class="method" style="background: rgba(34,197,94,0.15); color: var(--green);">GET</span>
+          /users
+        </div>
+        <div class="mindmap-node endpoint" style="left: 640px; top: 88px;">
+          <span class="method" style="background: rgba(59,130,246,0.15); color: var(--blue);">POST</span>
+          /users
+        </div>
+        <div class="mindmap-node endpoint" style="left: 640px; top: 138px;">
+          <span class="method" style="background: rgba(34,197,94,0.15); color: var(--green);">GET</span>
+          /users/{id}
+        </div>
+
+        <!-- Group: /items -->
+        <div class="mindmap-node group" style="left: 440px; top: 228px;">
+          /items
+        </div>
+        <!-- /items endpoints -->
+        <div class="mindmap-node endpoint" style="left: 640px; top: 188px;">
+          <span class="method" style="background: rgba(34,197,94,0.15); color: var(--green);">GET</span>
+          /items
+        </div>
+        <div class="mindmap-node endpoint" style="left: 640px; top: 228px;">
+          <span class="method" style="background: rgba(59,130,246,0.15); color: var(--blue);">POST</span>
+          /items
+        </div>
+        <div class="mindmap-node endpoint" style="left: 640px; top: 268px;">
+          <span class="method" style="background: rgba(245,158,11,0.15); color: var(--amber);">PUT</span>
+          /items/{id}
+        </div>
+
+        <!-- Group: /auth -->
+        <div class="mindmap-node group" style="left: 440px; top: 368px;">
+          /auth
+        </div>
+        <!-- /auth endpoints -->
+        <div class="mindmap-node endpoint" style="left: 640px; top: 333px;">
+          <span class="method" style="background: rgba(59,130,246,0.15); color: var(--blue);">POST</span>
+          /auth/login
+        </div>
+        <div class="mindmap-node endpoint" style="left: 640px; top: 368px;">
+          <span class="method" style="background: rgba(59,130,246,0.15); color: var(--blue);">POST</span>
+          /auth/register
+        </div>
+        <div class="mindmap-node endpoint" style="left: 640px; top: 403px;">
+          <span class="method" style="background: rgba(244,63,94,0.15); color: var(--rose);">DEL</span>
+          /auth/logout
+        </div>
         </div>
       </div>
     </div>
@@ -831,7 +959,7 @@ fastapi-cli items list --limit 10
                 <span>PyPI</span>
               </div>
             </div>
-            <a href="#" onclick="showView('integrations'); return false;" style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); text-decoration: none; margin-top: 6px;">
+            <a href="#" onclick="showView('integrations'); return false;" style="font-family: var(--font-mono); font-size: 11px; color: var(--text); text-decoration: none; margin-top: 6px;">
               Connect more at Integrations &rarr;
             </a>
           </div>
@@ -1256,6 +1384,16 @@ fastapi-genalpha-mcp serve</pre>
 
   function closeModal(id) {
     document.getElementById(id).classList.remove('open');
+  }
+
+  let mindmapZoom = 1;
+  function zoomMindmap(delta) {
+    mindmapZoom = Math.min(2, Math.max(0.4, mindmapZoom + delta));
+    document.getElementById('mindmap-inner').style.transform = 'scale(' + mindmapZoom + ')';
+  }
+  function resetMindmap() {
+    mindmapZoom = 1;
+    document.getElementById('mindmap-inner').style.transform = 'scale(1)';
   }
 
   function selectHost(val, el) {
