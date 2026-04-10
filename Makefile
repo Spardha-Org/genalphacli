@@ -59,6 +59,10 @@ dev: infra ## Start everything (infra + core + tps + web) in background
 	@set -a && source $(ENV_FILE) && set +a && \
 		PYTHONPATH=.:src uv run uvicorn services.tps.main:app --port 8001 --reload --log-level info \
 		> .logs/tps.log 2>&1 & echo $$! > .pids/tps.pid
+	@# Start Temporal worker in background
+	@set -a && source $(ENV_FILE) && set +a && \
+		PYTHONPATH=.:src uv run python -m worker.worker \
+		> .logs/worker.log 2>&1 & echo $$! > .pids/worker.pid
 	@# Start Next.js in background
 	@cd web && npm run dev > ../.logs/web.log 2>&1 & echo $$! > .pids/web.pid
 	@sleep 3
@@ -68,6 +72,7 @@ dev: infra ## Start everything (infra + core + tps + web) in background
 	@echo "  $(CYAN)Core API:$(NC)    http://localhost:8000/docs"
 	@echo "  $(CYAN)TPS API:$(NC)     http://localhost:8001/docs"
 	@echo "  $(CYAN)Temporal UI:$(NC) http://localhost:8080"
+	@echo "  $(CYAN)Worker:$(NC)      running (parse + generate queues)"
 	@echo ""
 	@echo "  Logs: $(YELLOW)make logs$(NC)"
 	@echo "  Stop: $(YELLOW)make stop$(NC)"
@@ -77,6 +82,7 @@ stop: ## Stop all background services
 	@echo "$(YELLOW)Stopping services...$(NC)"
 	@-kill $$(cat .pids/core.pid 2>/dev/null) 2>/dev/null; rm -f .pids/core.pid
 	@-kill $$(cat .pids/tps.pid 2>/dev/null) 2>/dev/null; rm -f .pids/tps.pid
+	@-kill $$(cat .pids/worker.pid 2>/dev/null) 2>/dev/null; rm -f .pids/worker.pid
 	@-kill $$(cat .pids/web.pid 2>/dev/null) 2>/dev/null; rm -f .pids/web.pid
 	@# Also kill by port in case services were started outside make
 	@-lsof -ti:8000 2>/dev/null | xargs kill -9 2>/dev/null || true
@@ -91,6 +97,8 @@ logs: ## Tail all service logs
 	@echo "$(CYAN)=== Core ===$(NC)" && tail -20 .logs/core.log 2>/dev/null || echo "(not running)"
 	@echo ""
 	@echo "$(CYAN)=== TPS ===$(NC)" && tail -20 .logs/tps.log 2>/dev/null || echo "(not running)"
+	@echo ""
+	@echo "$(CYAN)=== Worker ===$(NC)" && tail -20 .logs/worker.log 2>/dev/null || echo "(not running)"
 	@echo ""
 	@echo "$(CYAN)=== Web ===$(NC)" && tail -20 .logs/web.log 2>/dev/null || echo "(not running)"
 

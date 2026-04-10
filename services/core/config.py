@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     session_cookie_name: str = "session_id"
     session_cookie_secure: bool = False  # True in production
 
+    # Email (Resend)
+    resend_api_key: str = ""  # Get from resend.com
+    email_from: str = "GenAlpha <onboarding@resend.dev>"  # Use resend.dev for testing
+
+    # Temporal
+    temporal_address: str = "localhost:7233"
+
     # TPS
     tps_url: str = "http://localhost:8001"
     tps_secret: str = "dev-tps-secret-change-in-production"

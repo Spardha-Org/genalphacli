@@ -17,35 +17,32 @@ from services.tps.integration_service import (
     delete_integration,
     get_or_refresh,
 )
-from services.tps.models import Integration
+from services.tps.models import Integration, OAuthState
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/integrations", tags=["integrations"])
-
-# In-memory state store for OAuth CSRF (use Redis in production)
-_oauth_states: dict[str, str] = {}
 
 
 @router.post("/{app_name}/install")
 async def install_app(
     app_name: str,
+    db: DbDep,
     workspace_id: WorkspaceIdDep,
     _auth: TpsAuthDep,
 ):
-    """Start the OAuth installation flow for an app.
-
-    Returns the authorization URL to redirect the user to.
-    """
+    """Start the OAuth installation flow. Returns the authorization URL."""
     try:
         handler = get_handler(app_name)
     except ValueError:
         raise HTTPException(status_code=404, detail=f"App '{app_name}' not found")
 
-    redirect_uri = settings.github_redirect_uri  # TODO: make per-app
+    redirect_uri = settings.github_redirect_uri
     authorize_url, state = handler.get_authorize_url(redirect_uri)
 
-    # Store state for CSRF validation
-    _oauth_states[state] = workspace_id
+    # Persist state in DB (survives process restarts / uvicorn reload)
+    oauth_state = OAuthState(state=state, workspace_id=workspace_id, app_name=app_name)
+    db.add(oauth_state)
+    await db.commit()
 
     return {
         "authorize_url": authorize_url,
@@ -53,22 +50,37 @@ async def install_app(
     }
 
 
-@router.get("/{app_name}/callback")
-async def oauth_callback(
-    app_name: str,
-    db: DbDep,
-    _auth: TpsAuthDep,
-    code: Annotated[str, Query()],
-    state: Annotated[str, Query()],
-):
-    """Exchange OAuth code for token and store the integration.
+class ExchangeRequest(BaseModel):
+    code: str
+    state: str
 
-    Called by Core after the OAuth redirect returns to Next.js.
+
+@router.post("/{app_name}/exchange")
+async def exchange_oauth_code(
+    app_name: str,
+    body: ExchangeRequest,
+    db: DbDep,
+    workspace_id: WorkspaceIdDep,
+    _auth: TpsAuthDep,
+):
+    """Exchange OAuth code+state for token. Called by Core (not browser).
+
+    Validates state from DB, exchanges code for token, encrypts and stores.
     """
-    # Validate state (CSRF protection)
-    workspace_id = _oauth_states.pop(state, None)
-    if not workspace_id:
-        raise HTTPException(status_code=400, detail="Invalid or expired state parameter")
+    # Look up state from DB (CSRF protection)
+    stmt = select(OAuthState).where(OAuthState.state == body.state)
+    result = await db.exec(stmt)
+    oauth_state = result.first()
+
+    if not oauth_state:
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+
+    if oauth_state.app_name != app_name:
+        raise HTTPException(status_code=400, detail="App name mismatch")
+
+    # Delete the used state (single-use)
+    await db.delete(oauth_state)
+    await db.commit()
 
     try:
         handler = get_handler(app_name)
@@ -78,20 +90,41 @@ async def oauth_callback(
     # Exchange code for token
     redirect_uri = settings.github_redirect_uri
     try:
-        config = await handler.exchange_code(code, redirect_uri)
+        config = await handler.exchange_code(body.code, redirect_uri)
+        logger.info("Token exchange successful for %s", app_name)
     except ValueError as e:
+        logger.error("Token exchange failed: %s", e)
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("Token exchange unexpected error: %s", e)
+        raise HTTPException(status_code=500, detail=f"Token exchange failed: {e}")
 
     # Fetch user info for display
-    user_info = await handler.get_user_info(config)
+    try:
+        user_info = await handler.get_user_info(config)
+        logger.info("User info fetched: %s", user_info.get("login"))
+    except Exception as e:
+        logger.error("Failed to fetch user info: %s", e)
+        user_info = {"login": "unknown"}
 
     # Store encrypted integration
-    integration = await create_integration(
-        db,
-        workspace_id=workspace_id,
-        app_name=app_name,
-        config=config,
-        github_username=user_info.get("login"),
+    try:
+        integration = await create_integration(
+            db,
+            workspace_id=workspace_id,
+            app_name=app_name,
+            config=config,
+            github_username=user_info.get("login"),
+        )
+    except Exception as e:
+        logger.error("Failed to create integration: %s", e)
+        raise HTTPException(status_code=500, detail=f"Failed to store integration: {e}")
+
+    logger.info(
+        "Integration created: %s for workspace %s (user: %s)",
+        integration.id,
+        workspace_id,
+        user_info.get("login"),
     )
 
     return {
@@ -135,7 +168,7 @@ async def remove_integration(
     workspace_id: WorkspaceIdDep,
     _auth: TpsAuthDep,
 ):
-    """Disconnect an integration (revoke and clear tokens)."""
+    """Disconnect an integration."""
     deleted = await delete_integration(db, integration_id, workspace_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Integration not found")
@@ -155,19 +188,14 @@ async def clone_repo_with_integration(
     workspace_id: WorkspaceIdDep,
     _auth: TpsAuthDep,
 ):
-    """Clone a repo using the integration's credentials.
-
-    Called by the Temporal worker during ParseWorkflow.
-    Returns the clone directory path.
-    """
+    """Clone a repo using the integration's credentials."""
     config = await get_or_refresh(db, integration_id, workspace_id)
     access_token = config.get("access_token")
 
     if not access_token:
         raise HTTPException(status_code=401, detail="No access token available")
 
-    # Use existing genalphacli clone infrastructure
-    from genalphacli.github import parse_github_url, fetch_repo_info, clone_repo
+    from genalphacli.github import clone_repo, fetch_repo_info, parse_github_url
 
     owner, repo = parse_github_url(body.repo_url)
     info = fetch_repo_info(owner, repo, token=access_token)

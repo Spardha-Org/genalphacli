@@ -1,7 +1,6 @@
 """ParseWorkflow — Clone, detect framework, parse routes.
 
-This is the first of two workflows in the pipeline.
-After completion, the user reviews the mindmap and triggers GenerateWorkflow.
+Updates Core DB status after each step via status_activities.
 """
 
 from __future__ import annotations
@@ -18,27 +17,27 @@ with workflow.unsafe.imports_passed_through():
         clone_repo_activity,
     )
     from worker.activities.parse_activities import parse_routes_activity
+    from worker.activities.status_activities import update_service_status
     from worker.activities.schemas import (
         CloneRepoInput,
         ParseRoutesInput,
     )
+    from worker.activities.status_activities import StatusUpdateInput
 
 
 @dataclass
 class ParseWorkflowInput:
-    """Input for ParseWorkflow."""
-
     owner: str
     repo: str
     user_id: str
     service_id: str
     command_name: str
+    workspace_id: str = ""
+    integration_id: str = ""
 
 
 @dataclass
 class ParseWorkflowOutput:
-    """Output from ParseWorkflow."""
-
     route_graph: dict
     route_count: int
     parse_time_ms: int
@@ -48,30 +47,18 @@ class ParseWorkflowOutput:
 
 @workflow.defn
 class ParseWorkflow:
-    """Parse a GitHub repo's API routes.
-
-    Steps:
-    1. Clone the repo (with retry for network issues)
-    2. Parse API routes using the genalphacli pipeline
-    3. Clean up the clone directory
-    4. Return the parsed graph
-
-    Status is tracked via workflow query for frontend progress display.
-    """
-
-    def __init__(self) -> None:
-        self._status = "initialized"
-        self._step = 0
-        self._total_steps = 3
-        self._error: str | None = None
-        self._clone_dir: str | None = None
 
     @workflow.run
     async def run(self, input: ParseWorkflowInput) -> ParseWorkflowOutput:
+        clone_dir: str | None = None
+
         try:
             # Step 1: Clone repo
-            self._status = "cloning"
-            self._step = 1
+            await workflow.execute_activity(
+                update_service_status,
+                StatusUpdateInput(service_id=input.service_id, status="cloning"),
+                start_to_close_timeout=timedelta(seconds=10),
+            )
 
             clone_result = await workflow.execute_activity(
                 clone_repo_activity,
@@ -80,6 +67,8 @@ class ParseWorkflow:
                     repo=input.repo,
                     user_id=input.user_id,
                     service_id=input.service_id,
+                    workspace_id=input.workspace_id,
+                    integration_id=input.integration_id,
                 ),
                 start_to_close_timeout=timedelta(seconds=120),
                 retry_policy=RetryPolicy(
@@ -88,11 +77,18 @@ class ParseWorkflow:
                     maximum_attempts=3,
                 ),
             )
-            self._clone_dir = clone_result.clone_dir
+            clone_dir = clone_result.clone_dir
 
             # Step 2: Parse routes
-            self._status = "parsing"
-            self._step = 2
+            await workflow.execute_activity(
+                update_service_status,
+                StatusUpdateInput(
+                    service_id=input.service_id,
+                    status="parsing",
+                    framework=clone_result.framework,
+                ),
+                start_to_close_timeout=timedelta(seconds=10),
+            )
 
             parse_result = await workflow.execute_activity(
                 parse_routes_activity,
@@ -105,18 +101,31 @@ class ParseWorkflow:
                 retry_policy=RetryPolicy(maximum_attempts=1),
             )
 
-            # Step 3: Cleanup
-            self._status = "cleaning_up"
-            self._step = 3
-
+            # Step 3: Update status to parsed with route graph
             await workflow.execute_activity(
-                cleanup_clone_activity,
-                clone_result.clone_dir,
-                start_to_close_timeout=timedelta(seconds=30),
-                retry_policy=RetryPolicy(maximum_attempts=1),
+                update_service_status,
+                StatusUpdateInput(
+                    service_id=input.service_id,
+                    status="parsed",
+                    route_graph=parse_result.route_graph,
+                    metadata={
+                        "total_routes": parse_result.route_count,
+                        "parse_time_ms": parse_result.parse_time_ms,
+                        "warnings": parse_result.warnings,
+                    },
+                ),
+                start_to_close_timeout=timedelta(seconds=10),
             )
 
-            self._status = "completed"
+            # Cleanup clone directory
+            if clone_dir:
+                await workflow.execute_activity(
+                    cleanup_clone_activity,
+                    clone_dir,
+                    start_to_close_timeout=timedelta(seconds=30),
+                    retry_policy=RetryPolicy(maximum_attempts=1),
+                )
+
             return ParseWorkflowOutput(
                 route_graph=parse_result.route_graph,
                 route_count=parse_result.route_count,
@@ -126,29 +135,30 @@ class ParseWorkflow:
             )
 
         except Exception as e:
-            self._status = "failed"
-            self._error = str(e)
+            # Update status to failed
+            try:
+                await workflow.execute_activity(
+                    update_service_status,
+                    StatusUpdateInput(
+                        service_id=input.service_id,
+                        status="failed",
+                        error_message=str(e),
+                    ),
+                    start_to_close_timeout=timedelta(seconds=10),
+                )
+            except Exception:
+                pass
 
-            # Best-effort cleanup on failure
-            if self._clone_dir:
+            # Cleanup on failure
+            if clone_dir:
                 try:
                     await workflow.execute_activity(
                         cleanup_clone_activity,
-                        self._clone_dir,
+                        clone_dir,
                         start_to_close_timeout=timedelta(seconds=30),
                         retry_policy=RetryPolicy(maximum_attempts=1),
                     )
                 except Exception:
-                    pass  # Cleanup failure is non-fatal
+                    pass
 
             raise
-
-    @workflow.query
-    def get_status(self) -> dict:
-        """Query current workflow status for frontend progress display."""
-        return {
-            "status": self._status,
-            "step": self._step,
-            "total_steps": self._total_steps,
-            "error": self._error,
-        }

@@ -1,7 +1,6 @@
 """GenerateWorkflow — Generate CLI/MCP packages and create downloadable zip.
 
-This is the second workflow, triggered after the user reviews the mindmap.
-The workflow returns the zip path — the Next.js layer owns the DB update.
+Updates Core DB status after each step via status_activities.
 """
 
 from __future__ import annotations
@@ -17,6 +16,7 @@ with workflow.unsafe.imports_passed_through():
         generate_packages_activity,
         package_zip_activity,
     )
+    from worker.activities.status_activities import update_service_status, StatusUpdateInput
     from worker.activities.schemas import (
         GeneratePackagesInput,
         PackageZipInput,
@@ -25,47 +25,31 @@ with workflow.unsafe.imports_passed_through():
 
 @dataclass
 class GenerateWorkflowInput:
-    """Input for GenerateWorkflow."""
-
     route_graph: dict
     cli_name: str
     base_url: str
-    output_types: list[str]  # ["cli", "mcp"]
+    output_types: list[str]
     service_id: str
 
 
 @dataclass
 class GenerateWorkflowOutput:
-    """Output from GenerateWorkflow."""
-
     zip_path: str
     zip_size_bytes: int
 
 
 @workflow.defn
 class GenerateWorkflow:
-    """Generate CLI/MCP packages from a parsed route graph.
-
-    Steps:
-    1. Generate packages (CLI and/or MCP)
-    2. Package into a zip file
-    3. Return zip path for the Next.js layer to serve
-
-    The Next.js layer updates the service record — this workflow does NOT write to the DB.
-    """
-
-    def __init__(self) -> None:
-        self._status = "initialized"
-        self._step = 0
-        self._total_steps = 2
-        self._error: str | None = None
 
     @workflow.run
     async def run(self, input: GenerateWorkflowInput) -> GenerateWorkflowOutput:
         try:
             # Step 1: Generate packages
-            self._status = "generating"
-            self._step = 1
+            await workflow.execute_activity(
+                update_service_status,
+                StatusUpdateInput(service_id=input.service_id, status="generating"),
+                start_to_close_timeout=timedelta(seconds=10),
+            )
 
             gen_result = await workflow.execute_activity(
                 generate_packages_activity,
@@ -81,8 +65,11 @@ class GenerateWorkflow:
             )
 
             # Step 2: Package as zip
-            self._status = "packaging"
-            self._step = 2
+            await workflow.execute_activity(
+                update_service_status,
+                StatusUpdateInput(service_id=input.service_id, status="packaging"),
+                start_to_close_timeout=timedelta(seconds=10),
+            )
 
             zip_result = await workflow.execute_activity(
                 package_zip_activity,
@@ -95,23 +82,33 @@ class GenerateWorkflow:
                 retry_policy=RetryPolicy(maximum_attempts=1),
             )
 
-            self._status = "completed"
+            # Step 3: Update to complete with download URL
+            await workflow.execute_activity(
+                update_service_status,
+                StatusUpdateInput(
+                    service_id=input.service_id,
+                    status="complete",
+                    metadata={"zip_path": zip_result.zip_path, "zip_size_bytes": zip_result.zip_size_bytes},
+                ),
+                start_to_close_timeout=timedelta(seconds=10),
+            )
+
             return GenerateWorkflowOutput(
                 zip_path=zip_result.zip_path,
                 zip_size_bytes=zip_result.zip_size_bytes,
             )
 
         except Exception as e:
-            self._status = "failed"
-            self._error = str(e)
+            try:
+                await workflow.execute_activity(
+                    update_service_status,
+                    StatusUpdateInput(
+                        service_id=input.service_id,
+                        status="failed",
+                        error_message=str(e),
+                    ),
+                    start_to_close_timeout=timedelta(seconds=10),
+                )
+            except Exception:
+                pass
             raise
-
-    @workflow.query
-    def get_status(self) -> dict:
-        """Query current workflow status for frontend progress display."""
-        return {
-            "status": self._status,
-            "step": self._step,
-            "total_steps": self._total_steps,
-            "error": self._error,
-        }
