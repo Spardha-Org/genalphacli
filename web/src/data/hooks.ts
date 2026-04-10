@@ -113,6 +113,15 @@ export function useDeleteProject() {
 
 // ── Service Hooks ──
 
+export function useServicesByProject(projectId: string) {
+  return useQuery({
+    queryKey: [...keys.projects(), projectId, "services"] as const,
+    queryFn: () => servicesApi.listByProject(projectId),
+    enabled: Boolean(projectId),
+    staleTime: 10_000,
+  });
+}
+
 export function useService(id: string) {
   return useQuery<Service>({
     queryKey: keys.service(id),

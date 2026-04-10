@@ -20,6 +20,39 @@ class CreateServiceRequest(BaseModel):
     project_id: str
 
 
+@router.get("/by-project/{project_id}")
+async def list_services_by_project(
+    project_id: str,
+    db: DbDep,
+    workspace: CurrentWorkspaceDep,
+):
+    """List all services for a project (excludes route_graph for performance)."""
+    # Verify project belongs to workspace
+    project_result = await db.exec(
+        select(Project).where(Project.id == project_id, Project.workspace_id == workspace.id)
+    )
+    if not project_result.first():
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    result = await db.exec(
+        select(Service).where(Service.project_id == project_id)
+    )
+    services = result.all()
+
+    return [
+        {
+            "id": s.id,
+            "name": s.name,
+            "repo_url": s.repo_url,
+            "framework": s.framework,
+            "status": s.status,
+            "error_message": s.error_message,
+            "created_at": s.created_at.isoformat(),
+        }
+        for s in services
+    ]
+
+
 @router.get("/{service_id}")
 async def get_service(
     service_id: str,
