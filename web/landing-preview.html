@@ -4,669 +4,546 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GenAlpha — Turn any API into a CLI & MCP Server</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0a0a0b;
-    --bg-surface: #111113;
-    --bg-elevated: #1a1a1d;
-    --bg-hover: #222225;
-    --border: #2a2a2d;
-    --border-subtle: #1e1e21;
-    --text: #ededef;
-    --text-secondary: #a0a0a6;
-    --text-muted: #5c5c63;
-    --accent: #14b8a6;
-    --accent-hover: #0d9488;
-    --accent-glow: rgba(20, 184, 166, 0.15);
-    --green: #22c55e;
-    --blue: #3b82f6;
-    --amber: #f59e0b;
-    --rose: #f43f5e;
-    --violet: #8b5cf6;
-    --font-mono: 'JetBrains Mono', monospace;
-    --font-sans: 'Inter', -apple-system, sans-serif;
-  }
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#050507;--surface:#0a0a0e;--elevated:#0f0f14;--card:#111116;
+  --border:#1a1a22;--border-glow:#14b8a620;
+  --text:#e4e4e7;--text-dim:#71717a;--text-muted:#3f3f46;
+  --accent:#14b8a6;--accent-bright:#2dd4bf;--accent-glow:rgba(20,184,166,0.15);
+  --green:#22c55e;--blue:#3b82f6;--violet:#8b5cf6;--rose:#f43f5e;--amber:#f59e0b;--cyan:#06b6d4;
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',system-ui,sans-serif;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);overflow-x:hidden;-webkit-font-smoothing:antialiased}
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+/* Grid BG */
+.grid-bg{position:fixed;inset:0;pointer-events:none;z-index:0;perspective:600px;overflow:hidden}
+.grid-plane{position:absolute;width:200%;height:200%;left:-50%;top:0;background:linear-gradient(var(--accent)10 1px,transparent 1px),linear-gradient(90deg,var(--accent)10 1px,transparent 1px);background-size:80px 80px;transform:rotateX(60deg) translateY(-40%);transform-origin:center top;mask-image:linear-gradient(to bottom,rgba(0,0,0,0.25) 0%,transparent 50%);animation:grid-scroll 20s linear infinite}
+@keyframes grid-scroll{from{background-position:0 0}to{background-position:0 80px}}
+.scanlines{position:fixed;inset:0;pointer-events:none;z-index:9999;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 4px)}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font-sans);
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-  }
+@keyframes fadeUp{from{opacity:0;transform:translateY(60px)}to{opacity:1;transform:translateY(0)}}
+@keyframes gradient-x{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes pulse-dot{0%,100%{r:3;opacity:.8}50%{r:5;opacity:1}}
+@keyframes flow-dot{0%{offset-distance:0%}100%{offset-distance:100%}}
+@keyframes dash-draw{from{stroke-dashoffset:1000}to{stroke-dashoffset:0}}
+@keyframes code-line{from{width:0;opacity:0}to{width:100%;opacity:1}}
+@keyframes blink-cursor{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes float-y{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes glow-breathe{0%,100%{filter:drop-shadow(0 0 6px var(--accent)40)}50%{filter:drop-shadow(0 0 16px var(--accent)80)}}
+@keyframes spin-slow{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes orbit{from{transform:rotate(0) translateX(60px) rotate(0)}to{transform:rotate(360deg) translateX(60px) rotate(-360deg)}}
 
-  /* ── Announcement Bar ── */
-  .announcement {
-    background: var(--bg-surface);
-    border-bottom: 1px solid var(--border-subtle);
-    text-align: center;
-    padding: 8px 16px;
-    font-size: 13px;
-    color: var(--text-secondary);
-  }
-  .announcement a {
-    color: var(--accent);
-    text-decoration: none;
-    font-weight: 500;
-  }
-  .announcement a:hover { text-decoration: underline; }
+.reveal{opacity:0;transform:translateY(60px);transition:all 1s cubic-bezier(.16,1,.3,1)}.reveal.vis{opacity:1;transform:translateY(0)}.rd1{transition-delay:.1s}.rd2{transition-delay:.2s}.rd3{transition-delay:.3s}.rd4{transition-delay:.4s}
 
-  /* ── Nav ── */
-  nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 48px;
-    border-bottom: 1px solid var(--border-subtle);
-    background: var(--bg);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    backdrop-filter: blur(12px);
-  }
-  .nav-logo {
-    font-family: var(--font-mono);
-    font-weight: 800;
-    font-size: 22px;
-    color: var(--text);
-    text-decoration: none;
-    letter-spacing: -0.5px;
-  }
-  .nav-logo span { color: var(--accent); }
-  .nav-links { display: flex; gap: 32px; align-items: center; }
-  .nav-links a {
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-size: 14px;
-    font-weight: 500;
-    transition: color 0.2s;
-  }
-  .nav-links a:hover { color: var(--text); }
-  .nav-github {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 6px 12px;
-    color: var(--text-secondary);
-    font-size: 13px;
-    text-decoration: none;
-    transition: all 0.2s;
-  }
-  .nav-github:hover { border-color: var(--text-muted); color: var(--text); }
+/* Nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:14px 40px;background:rgba(5,5,7,0.5);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid var(--border)}
+.logo{font-family:var(--mono);font-weight:800;font-size:18px;color:var(--text);text-decoration:none;letter-spacing:1px;text-transform:uppercase}.logo span{color:var(--accent)}
+.nav-r{display:flex;gap:24px;align-items:center}
+.nav-r a{font-family:var(--mono);font-size:11px;color:var(--text-dim);text-decoration:none;letter-spacing:1px;text-transform:uppercase;transition:color .2s}.nav-r a:hover{color:var(--accent)}
+.nav-btn{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:var(--accent);color:var(--bg);padding:8px 20px;border-radius:2px;text-decoration:none;border:1px solid var(--accent);transition:all .2s}.nav-btn:hover{background:transparent;color:var(--accent)}
 
-  /* ── Hero ── */
-  .hero {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 100px 48px 80px;
-    text-align: center;
-  }
-  .hero-eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--accent-glow);
-    border: 1px solid rgba(20, 184, 166, 0.2);
-    border-radius: 100px;
-    padding: 6px 16px;
-    font-size: 13px;
-    color: var(--accent);
-    font-weight: 500;
-    margin-bottom: 32px;
-  }
-  .hero h1 {
-    font-family: var(--font-mono);
-    font-size: clamp(36px, 5vw, 64px);
-    font-weight: 800;
-    line-height: 1.1;
-    letter-spacing: -2px;
-    margin-bottom: 24px;
-  }
-  .hero h1 .strike {
-    text-decoration: line-through;
-    color: var(--text-muted);
-    text-decoration-color: var(--rose);
-    text-decoration-thickness: 3px;
-  }
-  .hero h1 .highlight {
-    background: linear-gradient(135deg, var(--accent), #06b6d4);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  .hero-description {
-    font-size: 18px;
-    color: var(--text-secondary);
-    max-width: 600px;
-    margin: 0 auto 40px;
-    line-height: 1.7;
-  }
-  .hero-badges {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    margin-bottom: 40px;
-  }
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 14px;
-    font-size: 13px;
-    font-family: var(--font-mono);
-    color: var(--text-secondary);
-  }
-  .badge-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-  }
+/* Hero */
+.hero{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:40px;padding:120px 60px 80px;position:relative;z-index:1}
+.hero-left{animation:fadeUp .9s ease-out .2s both}
+.hero-right{animation:fadeUp .9s ease-out .5s both}
+.hero-status{font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-bottom:40px;line-height:2.2}
+.hero-status .on{color:var(--green)}.hero-status .sy{color:var(--cyan)}.hero-status .ac{color:var(--accent)}
+.hero h1{font-family:var(--mono);font-size:clamp(36px,4.5vw,64px);font-weight:800;line-height:.95;letter-spacing:-2px;margin-bottom:28px}
+.hero h1 .glow{background:linear-gradient(135deg,var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero h1 .dim{color:var(--text-muted);font-weight:300}
+.hero-sub{color:var(--text-dim);font-size:15px;max-width:440px;line-height:1.7;margin-bottom:32px}
+.hero-cta{display:flex;gap:12px}
+.cta-main{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:2px;text-transform:uppercase;background:var(--accent);color:var(--bg);padding:14px 28px;text-decoration:none;border:1px solid var(--accent);display:flex;align-items:center;gap:10px;transition:all .3s;position:relative;overflow:hidden}
+.cta-main:hover{box-shadow:0 0 40px var(--accent-glow),0 0 80px rgba(20,184,166,.1);transform:translateY(-2px)}
+.cta-main::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.1),transparent);transition:left .5s}.cta-main:hover::after{left:100%}
+.cta-ghost{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);padding:14px 28px;text-decoration:none;border:1px solid var(--border);transition:all .3s;display:flex;align-items:center;gap:10px}
+.cta-ghost:hover{border-color:var(--accent);color:var(--accent)}
 
-  /* ── CTA Buttons ── */
-  .cta-group {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    margin-bottom: 48px;
-  }
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: all 0.2s;
-    cursor: pointer;
-    border: none;
-  }
-  .btn-primary {
-    background: var(--accent);
-    color: #0a0a0b;
-  }
-  .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
-  .btn-secondary {
-    background: var(--bg-elevated);
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
-  .btn-secondary:hover { border-color: var(--text-muted); background: var(--bg-hover); }
+/* ── Animated Conversion Scene (Hero Right) ── */
+.conversion-scene{width:100%;max-width:520px;margin:0 auto}
+.conversion-scene svg{width:100%;height:auto}
 
-  /* ── Terminal Preview ── */
-  .terminal-container {
-    max-width: 700px;
-    margin: 0 auto 48px;
-  }
-  .terminal {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-    text-align: left;
-  }
-  .terminal-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
-    background: var(--bg-elevated);
-    border-bottom: 1px solid var(--border-subtle);
-  }
-  .terminal-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-  }
-  .terminal-dot.red { background: #ef4444; }
-  .terminal-dot.yellow { background: #eab308; }
-  .terminal-dot.green { background: #22c55e; }
-  .terminal-title {
-    font-size: 12px;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    margin-left: 8px;
-  }
-  .terminal-body {
-    padding: 20px;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    line-height: 1.8;
-  }
-  .terminal-line { display: flex; gap: 8px; }
-  .terminal-prompt { color: var(--accent); user-select: none; }
-  .terminal-cmd { color: var(--text); }
-  .terminal-comment { color: var(--text-muted); font-style: italic; }
-  .terminal-output { color: var(--text-secondary); padding-left: 18px; }
-  .terminal-success { color: var(--green); }
+/* ── Interactive Terminal Section ── */
+.live-term-section{padding:80px 60px;position:relative;z-index:1;display:flex;justify-content:center}
+.live-term-wrap{width:100%;max-width:900px}
+.live-term{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.02) inset}
+.live-term .term-bar{display:flex;align-items:center;gap:8px;padding:14px 18px;background:var(--elevated);border-bottom:1px solid var(--border)}
+.live-term .term-dot{width:12px;height:12px;border-radius:50%;opacity:.7}
+.live-term .term-dot.r{background:#ef4444}.live-term .term-dot.y{background:#eab308}.live-term .term-dot.g{background:#22c55e}
+.live-term .term-tab{font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-left:auto;letter-spacing:1px}
+.live-term-body{padding:24px;font-family:var(--mono);font-size:13px;min-height:380px;max-height:500px;overflow-y:auto;position:relative}
+.live-term-body .prompt-line{display:flex;align-items:center;gap:0}
+.live-term-body .prompt-user{color:var(--green)}
+.live-term-body .prompt-at{color:var(--text-muted)}
+.live-term-body .prompt-host{color:var(--cyan)}
+.live-term-body .prompt-dir{color:var(--violet)}
+.live-term-body .prompt-symbol{color:var(--accent);margin-right:8px}
+.live-term-body .input-area{background:none;border:none;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;flex:1;caret-color:var(--accent)}
+.live-term-body .output{color:var(--text-dim);white-space:pre;line-height:1.3;margin-top:12px}
+.live-term-body .ascii-art{color:var(--accent);white-space:pre;line-height:1.15;font-size:10px;overflow-x:auto}
+.live-term-body .ascii-sub{color:var(--text-dim);font-size:11px;margin-top:8px;letter-spacing:1px}
+.live-term-body .hello-text{color:var(--text);font-size:14px;margin-bottom:8px}
+/* ASCII reveal animation */
+.ascii-line{opacity:0;transform:translateY(10px);animation:ascii-reveal .4s ease-out forwards}
+@keyframes ascii-reveal{to{opacity:1;transform:translateY(0)}}
+.cursor-blink{animation:blink-cursor 1s step-end infinite;color:var(--accent)}
 
-  /* ── Flow Section ── */
-  .flow-section {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 80px 48px;
-  }
-  .section-label {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 16px;
-  }
-  .section-title {
-    font-family: var(--font-mono);
-    font-size: clamp(28px, 3vw, 40px);
-    font-weight: 700;
-    letter-spacing: -1px;
-    margin-bottom: 16px;
-  }
-  .section-description {
-    color: var(--text-secondary);
-    font-size: 16px;
-    max-width: 500px;
-    margin-bottom: 48px;
-  }
+/* ── Sections ── */
+.fs{min-height:100vh;display:flex;align-items:center;position:relative;z-index:1;padding:100px 60px}
+.section-divider{height:1px;max-width:1200px;margin:0 auto;background:linear-gradient(90deg,transparent,var(--border),var(--accent)40,var(--border),transparent);background-size:200% 100%;animation:gradient-x 4s ease-in-out infinite;opacity:.5}
 
-  /* ── Three Column Flow ── */
-  .flow-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2px;
-  }
-  .flow-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
-    padding: 32px;
-    position: relative;
-  }
-  .flow-card:first-child { border-radius: 12px 0 0 12px; }
-  .flow-card:last-child { border-radius: 0 12px 12px 0; }
-  .flow-number {
-    font-family: var(--font-mono);
-    font-size: 48px;
-    font-weight: 800;
-    color: var(--bg-hover);
-    margin-bottom: 16px;
-    line-height: 1;
-  }
-  .flow-card-title {
-    font-family: var(--font-mono);
-    font-size: 18px;
-    font-weight: 700;
-    margin-bottom: 8px;
-  }
-  .flow-card-desc {
-    color: var(--text-secondary);
-    font-size: 14px;
-    line-height: 1.6;
-  }
-  .flow-arrow {
-    position: absolute;
-    right: -14px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 28px;
-    height: 28px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
-    font-size: 14px;
-    z-index: 2;
-  }
+/* Stats */
+.stats-section{justify-content:center}.stats-inner{text-align:center;width:100%}
+.stats-row{display:flex;justify-content:center;gap:2px;margin-top:48px}
+.stat-box{background:var(--surface);border:1px solid var(--border);padding:40px 60px;text-align:center;position:relative;overflow:hidden;transition:all .4s}
+.stat-box:first-child{border-radius:4px 0 0 4px}.stat-box:last-child{border-radius:0 4px 4px 0}
+.stat-box:hover{border-color:var(--accent);box-shadow:0 0 30px var(--accent-glow)}
+.stat-box::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0;transition:opacity .3s}.stat-box:hover::before{opacity:1}
+.stat-val{font-family:var(--mono);font-size:48px;font-weight:800;color:var(--accent)}.stat-lbl{font-family:var(--mono);font-size:10px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;margin-top:8px}
 
-  /* ── Features Grid ── */
-  .features-section {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 80px 48px;
-  }
-  .features-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-top: 48px;
-  }
-  .feature-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
-    border-radius: 12px;
-    padding: 28px;
-    transition: border-color 0.2s;
-  }
-  .feature-card:hover { border-color: var(--border); }
-  .feature-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    margin-bottom: 16px;
-  }
-  .feature-card h3 {
-    font-family: var(--font-mono);
-    font-size: 15px;
-    font-weight: 600;
-    margin-bottom: 8px;
-  }
-  .feature-card p {
-    color: var(--text-secondary);
-    font-size: 13px;
-    line-height: 1.6;
-  }
+/* How / Features */
+.how-section{flex-direction:column;justify-content:center;align-items:flex-start}
+.tag{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:20px}
+.big-h{font-family:var(--mono);font-size:clamp(32px,5vw,64px);font-weight:800;letter-spacing:-2px;line-height:1;margin-bottom:16px}
+.sub-p{color:var(--text-dim);font-size:15px;max-width:500px;margin-bottom:60px;line-height:1.7}
+.steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;width:100%;background:var(--border);border-radius:4px;overflow:hidden}
+.step-card{background:var(--surface);padding:40px;position:relative;transition:all .5s cubic-bezier(.16,1,.3,1)}
+.step-card:hover{background:var(--elevated);transform:translateY(-8px);z-index:2;box-shadow:0 30px 60px rgba(0,0,0,.5)}
+.step-n{font-family:var(--mono);font-size:64px;font-weight:800;color:var(--border);line-height:1;margin-bottom:24px;transition:color .3s}
+.step-card:hover .step-n{color:var(--accent);opacity:.4}
+.step-card h3{font-family:var(--mono);font-size:16px;font-weight:700;margin-bottom:12px;letter-spacing:-.5px}
+.step-card p{color:var(--text-dim);font-size:13px;line-height:1.7}
+.step-arrow{position:absolute;right:-14px;top:50%;transform:translateY(-50%);width:28px;height:28px;background:var(--bg);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:12px;z-index:3;transition:all .3s}
+.step-card:hover .step-arrow{border-color:var(--accent);color:var(--accent)}
 
-  /* ── Supported Frameworks ── */
-  .frameworks-section {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 80px 48px;
-    text-align: center;
-  }
-  .framework-logos {
-    display: flex;
-    gap: 32px;
-    justify-content: center;
-    align-items: center;
-    margin-top: 40px;
-    flex-wrap: wrap;
-  }
-  .framework-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
-    border-radius: 10px;
-    padding: 14px 24px;
-    font-family: var(--font-mono);
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    transition: all 0.2s;
-  }
-  .framework-item:hover { border-color: var(--border); color: var(--text); }
-  .framework-item .dot { width: 10px; height: 10px; border-radius: 50%; }
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;margin-top:56px}
+.feat-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:32px;position:relative;overflow:hidden;transition:all .4s cubic-bezier(.16,1,.3,1)}
+.feat-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at top left,var(--accent-glow),transparent 60%);opacity:0;transition:opacity .4s}
+.feat-card:hover{transform:translateY(-6px);border-color:var(--accent)30;box-shadow:0 20px 50px rgba(0,0,0,.3)}.feat-card:hover::before{opacity:1}
+.feat-icon{width:44px;height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:20px;position:relative;transition:transform .3s}.feat-card:hover .feat-icon{transform:scale(1.15)}
+.feat-card h3{font-family:var(--mono);font-size:13px;font-weight:600;margin-bottom:8px;letter-spacing:.5px;position:relative}
+.feat-card p{color:var(--text-dim);font-size:12px;line-height:1.7;position:relative}
 
-  /* ── CTA Bottom ── */
-  .cta-bottom {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 100px 48px;
-    text-align: center;
-  }
-  .cta-bottom h2 {
-    font-family: var(--font-mono);
-    font-size: clamp(28px, 3vw, 44px);
-    font-weight: 800;
-    letter-spacing: -1.5px;
-    margin-bottom: 16px;
-  }
-  .cta-bottom p {
-    color: var(--text-secondary);
-    font-size: 16px;
-    margin-bottom: 32px;
-  }
+/* Frameworks */
+.fw-section{flex-direction:column;align-items:center;text-align:center}
+.fw-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:48px}
+.fw-chip{font-family:var(--mono);font-size:12px;color:var(--text-dim);background:var(--surface);border:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:10px;transition:all .3s}
+.fw-chip:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.fw-dot{width:8px;height:8px;border-radius:50%}
 
-  /* ── Footer ── */
-  footer {
-    border-top: 1px solid var(--border-subtle);
-    padding: 32px 48px;
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 13px;
-  }
-  footer a { color: var(--text-secondary); text-decoration: none; }
-  footer a:hover { color: var(--accent); }
+/* CTA end */
+.cta-end{flex-direction:column;align-items:center;text-align:center;position:relative}
+.cta-end-glow{position:absolute;width:600px;height:300px;background:radial-gradient(ellipse,var(--accent-glow),transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none}
+.cta-end h2{font-family:var(--mono);font-size:clamp(32px,5vw,56px);font-weight:800;letter-spacing:-2px;margin-bottom:16px;position:relative}
+.cta-end p{color:var(--text-dim);font-size:15px;margin-bottom:40px;position:relative}
 
-  /* ── Responsive ── */
-  @media (max-width: 768px) {
-    nav { padding: 12px 20px; }
-    .nav-links { gap: 16px; }
-    .hero { padding: 60px 20px 40px; }
-    .flow-grid { grid-template-columns: 1fr; }
-    .flow-card { border-radius: 0; }
-    .flow-card:first-child { border-radius: 12px 12px 0 0; }
-    .flow-card:last-child { border-radius: 0 0 12px 12px; }
-    .flow-arrow { display: none; }
-    .features-grid { grid-template-columns: 1fr; }
-    .hero-badges { flex-wrap: wrap; }
-  }
+footer{border-top:1px solid var(--border);padding:24px 60px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--text-muted);letter-spacing:1px;z-index:1;position:relative}
+footer a{color:var(--text-dim);text-decoration:none}footer a:hover{color:var(--accent)}
+
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding:120px 20px 40px}.hero-right{display:none}.fs{padding:60px 20px;min-height:auto}.steps-grid,.feat-grid{grid-template-columns:1fr}.step-arrow{display:none}.stats-row{flex-direction:column}.stat-box{border-radius:0!important}.stat-box:first-child{border-radius:4px 4px 0 0!important}.stat-box:last-child{border-radius:0 0 4px 4px!important}nav{padding:12px 20px}}
 </style>
 </head>
 <body>
+<div class="grid-bg"><div class="grid-plane"></div></div>
+<div class="scanlines"></div>
 
-<!-- Announcement -->
-<div class="announcement">
-  Now with GitHub OAuth integration — parse private repos directly.
-  <a href="/login">Try it out &rarr;</a>
-</div>
-
-<!-- Nav -->
 <nav>
-  <a href="/" class="nav-logo"><span>//</span> genalpha</a>
-  <div class="nav-links">
-    <a href="/login">Get Started</a>
-    <a href="https://github.com/NandishNaik01/genalphacli" class="nav-github">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-      Star
-    </a>
+  <a href="/" class="logo"><span>//</span> GenAlpha</a>
+  <div class="nav-r">
+    <a href="#how">System</a>
+    <a href="#features">Capabilities</a>
+    <a href="https://github.com/NandishNaik01/genalphacli">GitHub</a>
+    <a href="/login" class="nav-btn">Launch App</a>
   </div>
 </nav>
 
-<!-- Hero -->
+<!-- Hero: Split layout with animated conversion scene -->
 <section class="hero">
-  <div class="hero-eyebrow">
-    <span>&#9679;</span> Open Source CLI & MCP Generator
-  </div>
-
-  <h1>
-    API repos to <span class="strike">docs</span><br>
-    <span class="highlight">CLIs & MCP servers</span>
-  </h1>
-
-  <p class="hero-description">
-    Paste a GitHub repo. We parse every route via static analysis.
-    You get an installable CLI tool and an MCP server for AI agents — automatically.
-  </p>
-
-  <div class="hero-badges">
-    <div class="badge">
-      <div class="badge-dot" style="background: var(--green)"></div>
-      FastAPI
+  <div class="hero-left">
+    <div class="hero-status">
+      <div>// PARALLEL_ENGINES&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="on">ONLINE</span></div>
+      <div>// PARSER_LAYERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ac">ACTIVE</span></div>
+      <div>// READINESS_STATUS&nbsp;&nbsp;&nbsp;&nbsp;<span class="on">READY</span></div>
     </div>
-    <div class="badge">
-      <div class="badge-dot" style="background: var(--blue)"></div>
-      OpenAPI
-    </div>
-    <div class="badge">
-      <div class="badge-dot" style="background: var(--text-muted)"></div>
-      Flask (soon)
-    </div>
-    <div class="badge">
-      <div class="badge-dot" style="background: var(--text-muted)"></div>
-      Django (soon)
+    <h1><span class="dim">SEE YOUR API.</span><br><span class="glow">BUILD WHAT'S NEXT.</span></h1>
+    <p class="hero-sub">Paste a GitHub repo. We parse every route via static analysis. You get a CLI and an MCP server for AI agents — automatically.</p>
+    <div class="hero-cta">
+      <a href="/login" class="cta-main"><span>&#9654;</span> Launch App</a>
+      <a href="https://github.com/NandishNaik01/genalphacli" class="cta-ghost">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+        View Source
+      </a>
     </div>
   </div>
 
-  <div class="cta-group">
-    <a href="/login" class="btn btn-primary">
-      Get Started &rarr;
-    </a>
-    <a href="https://github.com/NandishNaik01/genalphacli" class="btn btn-secondary">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-      View on GitHub
-    </a>
-  </div>
+  <!-- Animated Conversion Scene: Code → Parse → CLI/MCP -->
+  <div class="hero-right">
+    <div class="conversion-scene">
+      <svg viewBox="0 0 520 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Code Panel (left) -->
+        <rect x="10" y="30" width="200" height="340" rx="6" fill="#0a0a0e" stroke="#1a1a22"/>
+        <rect x="10" y="30" width="200" height="28" rx="6" fill="#0f0f14"/>
+        <circle cx="26" cy="44" r="4" fill="#ef4444" opacity=".7"/><circle cx="38" cy="44" r="4" fill="#eab308" opacity=".7"/><circle cx="50" cy="44" r="4" fill="#22c55e" opacity=".7"/>
+        <text x="80" y="48" font-family="JetBrains Mono" font-size="8" fill="#3f3f46">api.py</text>
+        <!-- Animated code lines -->
+        <g font-family="JetBrains Mono" font-size="9">
+          <text x="22" y="80" fill="#8b5cf6" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.5s" fill="freeze"/>@app.get</text>
+          <text x="22" y="95" fill="#71717a" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.8s" fill="freeze"/>def list_users():</text>
+          <text x="22" y="110" fill="#22c55e" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.1s" fill="freeze"/>&nbsp;&nbsp;return db.all()</text>
+          <text x="22" y="135" fill="#3b82f6" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.5s" fill="freeze"/>@app.post</text>
+          <text x="22" y="150" fill="#71717a" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="1.8s" fill="freeze"/>def create_user(body):</text>
+          <text x="22" y="165" fill="#22c55e" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.1s" fill="freeze"/>&nbsp;&nbsp;return db.create()</text>
+          <text x="22" y="190" fill="#f59e0b" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.5s" fill="freeze"/>@app.delete</text>
+          <text x="22" y="205" fill="#71717a" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.8s" fill="freeze"/>def del_user(id):</text>
+          <text x="22" y="220" fill="#22c55e" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="3.1s" fill="freeze"/>&nbsp;&nbsp;return db.delete()</text>
+          <text x="22" y="250" fill="#3f3f46" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="3.5s" fill="freeze"/>// 23 more routes...</text>
+        </g>
 
-  <!-- Terminal Preview -->
-  <div class="terminal-container">
-    <div class="terminal">
-      <div class="terminal-header">
-        <div class="terminal-dot red"></div>
-        <div class="terminal-dot yellow"></div>
-        <div class="terminal-dot green"></div>
-        <span class="terminal-title">terminal</span>
-      </div>
-      <div class="terminal-body">
-        <div class="terminal-line"><span class="terminal-prompt">$</span><span class="terminal-cmd">genalpha parse https://github.com/your/api</span></div>
-        <div class="terminal-output terminal-success">&#10003; Cloned repository</div>
-        <div class="terminal-output terminal-success">&#10003; Detected FastAPI framework</div>
-        <div class="terminal-output terminal-success">&#10003; Parsed 23 routes in 39ms</div>
-        <br>
-        <div class="terminal-line"><span class="terminal-prompt">$</span><span class="terminal-cmd">genalpha build --type cli --type mcp</span></div>
-        <div class="terminal-output terminal-success">&#10003; Generated CLI: dist/myapi/</div>
-        <div class="terminal-output terminal-success">&#10003; Generated MCP: dist/myapi_mcp/</div>
-        <br>
-        <div class="terminal-line"><span class="terminal-prompt">$</span><span class="terminal-cmd">myapi list-users --pretty</span></div>
-        <div class="terminal-output">[ { "id": 1, "name": "Alice" }, ... ]</div>
-      </div>
+        <!-- Flow arrows (animated dots flowing right) -->
+        <path id="flow1" d="M220,120 C260,120 270,100 310,100" stroke="none" fill="none"/>
+        <path id="flow2" d="M220,180 C260,180 270,200 310,200" stroke="none" fill="none"/>
+        <path id="flow3" d="M220,240 C260,240 270,300 310,300" stroke="none" fill="none"/>
+        <!-- Visible flow lines -->
+        <path d="M220,120 C260,120 270,100 310,100" stroke="#14b8a6" stroke-width="1" opacity=".2" stroke-dasharray="4 4"><animate attributeName="stroke-dashoffset" from="8" to="0" dur="1s" repeatCount="indefinite"/></path>
+        <path d="M220,180 C260,180 270,200 310,200" stroke="#3b82f6" stroke-width="1" opacity=".2" stroke-dasharray="4 4"><animate attributeName="stroke-dashoffset" from="8" to="0" dur="1s" repeatCount="indefinite"/></path>
+        <path d="M220,240 C260,240 270,300 310,300" stroke="#8b5cf6" stroke-width="1" opacity=".2" stroke-dasharray="4 4"><animate attributeName="stroke-dashoffset" from="8" to="0" dur="1s" repeatCount="indefinite"/></path>
+        <!-- Flowing dots -->
+        <circle r="3" fill="#14b8a6" opacity=".9"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#flow1"/></animateMotion></circle>
+        <circle r="3" fill="#3b82f6" opacity=".9"><animateMotion dur="2.2s" repeatCount="indefinite" begin="0.3s"><mpath href="#flow2"/></animateMotion></circle>
+        <circle r="3" fill="#8b5cf6" opacity=".9"><animateMotion dur="2.4s" repeatCount="indefinite" begin="0.6s"><mpath href="#flow3"/></animateMotion></circle>
+
+        <!-- GenAlpha Parser (center) -->
+        <rect x="245" y="140" width="70" height="70" rx="4" fill="#0f0f14" stroke="#14b8a6" stroke-width="1.5" opacity="0">
+          <animate attributeName="opacity" values="0;1" dur="0.5s" begin="1.5s" fill="freeze"/>
+        </rect>
+        <text x="255" y="172" font-family="JetBrains Mono" font-size="7" fill="#14b8a6" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="1.5s" fill="freeze"/>GENALPHA</text>
+        <text x="260" y="184" font-family="JetBrains Mono" font-size="6" fill="#3f3f46" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="1.8s" fill="freeze"/>PARSER</text>
+        <!-- Spinning indicator -->
+        <circle cx="280" cy="196" r="6" fill="none" stroke="#14b8a6" stroke-width="1" stroke-dasharray="8 20" opacity="0">
+          <animate attributeName="opacity" values="0;.6" dur="0.3s" begin="2s" fill="freeze"/>
+          <animateTransform attributeName="transform" type="rotate" from="0 280 196" to="360 280 196" dur="2s" repeatCount="indefinite"/>
+        </circle>
+
+        <!-- Output Panels (right) -->
+        <!-- CLI Panel -->
+        <rect x="320" y="60" width="190" height="130" rx="6" fill="#0a0a0e" stroke="#22c55e" stroke-width="1" opacity="0">
+          <animate attributeName="opacity" values="0;1" dur="0.5s" begin="3s" fill="freeze"/>
+        </rect>
+        <rect x="320" y="60" width="190" height="24" rx="6" fill="#0f0f14" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3s" fill="freeze"/></rect>
+        <text x="334" y="76" font-family="JetBrains Mono" font-size="8" font-weight="bold" fill="#22c55e" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3s" fill="freeze"/>CLI OUTPUT</text>
+        <g font-family="JetBrains Mono" font-size="8" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3.3s" fill="freeze"/>
+          <text x="330" y="100" fill="#14b8a6">$</text><text x="340" y="100" fill="#e4e4e7">myapi --help</text>
+          <text x="330" y="115" fill="#71717a">list-users</text>
+          <text x="330" y="128" fill="#71717a">create-user</text>
+          <text x="330" y="141" fill="#71717a">delete-user</text>
+          <text x="330" y="154" fill="#3f3f46">+ 20 more commands</text>
+        </g>
+
+        <!-- MCP Panel -->
+        <rect x="320" y="210" width="190" height="130" rx="6" fill="#0a0a0e" stroke="#8b5cf6" stroke-width="1" opacity="0">
+          <animate attributeName="opacity" values="0;1" dur="0.5s" begin="3.5s" fill="freeze"/>
+        </rect>
+        <rect x="320" y="210" width="190" height="24" rx="6" fill="#0f0f14" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3.5s" fill="freeze"/></rect>
+        <text x="334" y="226" font-family="JetBrains Mono" font-size="8" font-weight="bold" fill="#8b5cf6" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3.5s" fill="freeze"/>MCP SERVER</text>
+        <g font-family="JetBrains Mono" font-size="8" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="3.8s" fill="freeze"/>
+          <text x="330" y="250" fill="#8b5cf6">@mcp.tool()</text>
+          <text x="330" y="265" fill="#71717a">list_users()</text>
+          <text x="330" y="278" fill="#8b5cf6">@mcp.tool()</text>
+          <text x="330" y="293" fill="#71717a">create_user()</text>
+          <text x="330" y="308" fill="#3f3f46">+ 20 more tools</text>
+        </g>
+
+        <!-- Labels -->
+        <text x="80" y="20" font-family="JetBrains Mono" font-size="9" fill="#3f3f46" letter-spacing="2" opacity="0"><animate attributeName="opacity" values="0;.6" dur="0.5s" begin="0.3s" fill="freeze"/>YOUR API CODE</text>
+        <text x="370" y="50" font-family="JetBrains Mono" font-size="9" fill="#3f3f46" letter-spacing="2" opacity="0"><animate attributeName="opacity" values="0;.6" dur="0.5s" begin="2.8s" fill="freeze"/>GENERATED OUTPUT</text>
+
+        <!-- Glow effects -->
+        <circle cx="280" cy="175" r="40" fill="url(#glow-center)" opacity="0"><animate attributeName="opacity" values="0;1" dur="1s" begin="2s" fill="freeze"/></circle>
+        <defs>
+          <radialGradient id="glow-center"><stop offset="0%" stop-color="#14b8a6" stop-opacity=".15"/><stop offset="100%" stop-color="#14b8a6" stop-opacity="0"/></radialGradient>
+        </defs>
+      </svg>
     </div>
   </div>
 </section>
 
-<!-- How It Works -->
-<section class="flow-section">
-  <div class="section-label">How it works</div>
-  <h2 class="section-title">Three steps. Zero config.</h2>
-  <p class="section-description">
-    From GitHub URL to installable tools. No configuration files, no manual mapping, no boilerplate.
-  </p>
+<!-- Interactive Terminal -->
+<div class="live-term-section reveal">
+  <div class="live-term-wrap">
+    <div class="live-term">
+      <div class="term-bar">
+        <div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div>
+        <span class="term-tab">nandish@genalpha ~/projects</span>
+      </div>
+      <div class="live-term-body" id="live-term">
+        <div id="term-history"></div>
+        <div class="prompt-line">
+          <span class="prompt-user">nandish</span><span class="prompt-at">@</span><span class="prompt-host">genalpha</span><span class="prompt-at">:</span><span class="prompt-dir">~</span><span class="prompt-symbol">$&nbsp;</span>
+          <input type="text" class="input-area" id="term-input" placeholder="type a command..." autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-  <div class="flow-grid">
-    <div class="flow-card">
-      <div class="flow-number">01</div>
-      <h3 class="flow-card-title">Parse</h3>
-      <p class="flow-card-desc">
-        Paste a GitHub repo URL. We clone it, detect the framework, and extract every API route via OpenAPI specs + Python AST analysis.
-      </p>
-      <div class="flow-arrow">&rarr;</div>
-    </div>
-    <div class="flow-card">
-      <div class="flow-number">02</div>
-      <h3 class="flow-card-title">Visualize</h3>
-      <p class="flow-card-desc">
-        See your API as an interactive mindmap. Routes grouped by resource, color-coded by HTTP method. Review before generating.
-      </p>
-      <div class="flow-arrow">&rarr;</div>
-    </div>
-    <div class="flow-card">
-      <div class="flow-number">03</div>
-      <h3 class="flow-card-title">Generate</h3>
-      <p class="flow-card-desc">
-        Download a pip-installable CLI tool or a FastMCP server. Auto-registered with Claude Desktop. Ready to use.
-      </p>
+<div class="section-divider"></div>
+
+<!-- Stats -->
+<section class="fs stats-section">
+  <div class="stats-inner">
+    <div class="tag reveal">System Metrics</div>
+    <div class="stats-row reveal rd1">
+      <div class="stat-box"><div class="stat-val" data-count="572">0</div><div class="stat-lbl">Routes Parsed</div></div>
+      <div class="stat-box"><div class="stat-val" data-count="39">0</div><div class="stat-lbl">MS Parse Time</div></div>
+      <div class="stat-box"><div class="stat-val" data-count="94">0</div><div class="stat-lbl">Tests Passing</div></div>
+      <div class="stat-box"><div class="stat-val">2</div><div class="stat-lbl">Output Modes</div></div>
     </div>
   </div>
 </section>
+
+<div class="section-divider"></div>
+
+<!-- How -->
+<section class="fs how-section" id="how">
+  <div class="tag reveal">Protocol</div>
+  <h2 class="big-h reveal rd1">THREE SURFACES.<br><span class="glow">ONE SYSTEM.</span></h2>
+  <p class="sub-p reveal rd2">From GitHub URL to installable tools. No configuration, no manual mapping. One pipeline.</p>
+  <div class="steps-grid">
+    <div class="step-card reveal rd1"><div class="step-n">01</div><h3>PARSE</h3><p>Paste a GitHub repo URL. We clone, detect the framework, and extract every API route via OpenAPI + Python AST static analysis.</p><div class="step-arrow">&rarr;</div></div>
+    <div class="step-card reveal rd2"><div class="step-n">02</div><h3>VISUALIZE</h3><p>See your API as an interactive mindmap. Routes grouped by resource, color-coded by HTTP method. Full parameter inspection.</p><div class="step-arrow">&rarr;</div></div>
+    <div class="step-card reveal rd3"><div class="step-n">03</div><h3>GENERATE</h3><p>Download a pip-installable CLI or FastMCP server for AI agents. Auto-registered with Claude Desktop. Ship instantly.</p></div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
 
 <!-- Features -->
-<section class="features-section">
-  <div class="section-label">Features</div>
-  <h2 class="section-title">Built for developers who ship</h2>
-
-  <div class="features-grid">
-    <div class="feature-card">
-      <div class="feature-icon" style="background: rgba(34, 197, 94, 0.1); color: var(--green);">&#9889;</div>
-      <h3>Two-Layer Parsing</h3>
-      <p>OpenAPI spec detection + Python AST extraction. Cross-file router prefix resolution. DI param filtering. Full Pydantic model schemas.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon" style="background: rgba(59, 130, 246, 0.1); color: var(--blue);">&#9881;</div>
-      <h3>CLI Generator</h3>
-      <p>Typer CLI with positional path params, body flags, --pretty output, --body JSON override. pip-installable from the zip.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon" style="background: rgba(139, 92, 246, 0.1); color: var(--violet);">&#9670;</div>
-      <h3>MCP Server</h3>
-      <p>FastMCP with @mcp.tool() per route. Async httpx client. Auto-registers with Claude Desktop. stdio transport.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--amber);">&#128274;</div>
-      <h3>Private Repos</h3>
-      <p>Connect GitHub via OAuth. Tokens encrypted with Fernet. Auto-refresh. Parse private repos securely through our TPS service.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon" style="background: rgba(20, 184, 166, 0.1); color: var(--accent);">&#9733;</div>
-      <h3>API Mindmap</h3>
-      <p>React Flow visualization with dagre layout. Routes grouped by path prefix. Click any node to see params, types, and response format.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon" style="background: rgba(244, 63, 94, 0.1); color: var(--rose);">&#9889;</div>
-      <h3>Temporal Workflows</h3>
-      <p>Durable parse + generate pipelines. Per-step progress. Auto-retry on failure. Live status updates in the browser.</p>
-    </div>
+<section class="fs how-section" id="features">
+  <div class="tag reveal">Capabilities</div>
+  <h2 class="big-h reveal rd1">BUILT FOR<br><span class="glow">DEVELOPERS WHO SHIP.</span></h2>
+  <div class="feat-grid">
+    <div class="feat-card reveal rd1"><div class="feat-icon" style="background:rgba(34,197,94,.08);color:var(--green)">&#9889;</div><h3>TWO-LAYER PARSING</h3><p>OpenAPI spec + Python AST extraction. Cross-file router resolution. DI param filtering. Pydantic model schemas.</p></div>
+    <div class="feat-card reveal rd2"><div class="feat-icon" style="background:rgba(59,130,246,.08);color:var(--blue)">&#9881;</div><h3>CLI GENERATOR</h3><p>Typer CLI with path params, body flags, --pretty output, --body override. pip-installable from the zip.</p></div>
+    <div class="feat-card reveal rd3"><div class="feat-icon" style="background:rgba(139,92,246,.08);color:var(--violet)">&#9670;</div><h3>MCP SERVER</h3><p>FastMCP with @mcp.tool() per route. Async httpx. Auto-registers with Claude Desktop. stdio transport.</p></div>
+    <div class="feat-card reveal rd1"><div class="feat-icon" style="background:rgba(245,158,11,.08);color:var(--amber)">&#128274;</div><h3>PRIVATE REPOS</h3><p>GitHub OAuth. Fernet-encrypted tokens. Auto-refresh. Parse private repos through our TPS integration layer.</p></div>
+    <div class="feat-card reveal rd2"><div class="feat-icon" style="background:rgba(20,184,166,.08);color:var(--accent)">&#9733;</div><h3>API MINDMAP</h3><p>React Flow + dagre layout. Routes grouped by prefix. Click nodes for params, types, response format.</p></div>
+    <div class="feat-card reveal rd3"><div class="feat-icon" style="background:rgba(244,63,94,.08);color:var(--rose)">&#9889;</div><h3>TEMPORAL WORKFLOWS</h3><p>Durable pipelines. Per-step live progress. Auto-retry. Status streamed to the browser in real-time.</p></div>
   </div>
 </section>
 
-<!-- Supported Frameworks -->
-<section class="frameworks-section">
-  <div class="section-label">Frameworks</div>
-  <h2 class="section-title">Parse any Python API</h2>
-  <p style="color: var(--text-secondary); max-width: 500px; margin: 0 auto;">
-    We support major Python frameworks with more coming. Java and Go support planned via tree-sitter.
-  </p>
-  <div class="framework-logos">
-    <div class="framework-item">
-      <div class="dot" style="background: var(--green);"></div>
-      FastAPI
-    </div>
-    <div class="framework-item">
-      <div class="dot" style="background: var(--blue);"></div>
-      OpenAPI / Swagger
-    </div>
-    <div class="framework-item" style="opacity: 0.5;">
-      <div class="dot" style="background: var(--text-muted);"></div>
-      Flask (coming)
-    </div>
-    <div class="framework-item" style="opacity: 0.5;">
-      <div class="dot" style="background: var(--text-muted);"></div>
-      Django REST (coming)
-    </div>
-    <div class="framework-item" style="opacity: 0.5;">
-      <div class="dot" style="background: var(--text-muted);"></div>
-      Spring Boot (planned)
-    </div>
+<div class="section-divider"></div>
+
+<!-- Frameworks -->
+<section class="fs fw-section">
+  <div class="tag reveal">Compatibility</div>
+  <h2 class="big-h reveal rd1" style="text-align:center">PARSE ANY<br><span class="glow">PYTHON API.</span></h2>
+  <p class="sub-p reveal rd2" style="text-align:center;margin-left:auto;margin-right:auto">Major Python frameworks supported. Java and Go via tree-sitter planned.</p>
+  <div class="fw-row reveal rd3">
+    <div class="fw-chip"><div class="fw-dot" style="background:var(--green)"></div>FastAPI</div>
+    <div class="fw-chip"><div class="fw-dot" style="background:var(--blue)"></div>OpenAPI</div>
+    <div class="fw-chip" style="opacity:.4"><div class="fw-dot" style="background:var(--text-muted)"></div>Flask</div>
+    <div class="fw-chip" style="opacity:.4"><div class="fw-dot" style="background:var(--text-muted)"></div>Django REST</div>
+    <div class="fw-chip" style="opacity:.4"><div class="fw-dot" style="background:var(--text-muted)"></div>Spring Boot</div>
   </div>
 </section>
 
-<!-- Bottom CTA -->
-<section class="cta-bottom">
-  <h2>Stop writing boilerplate.<br>Start <span style="color: var(--accent);">shipping</span>.</h2>
-  <p>Open source. Free to use. Parse your first repo in 30 seconds.</p>
-  <div class="cta-group">
-    <a href="/login" class="btn btn-primary">Get Started &rarr;</a>
-    <a href="https://github.com/NandishNaik01/genalphacli" class="btn btn-secondary">
-      View Source
-    </a>
+<!-- CTA -->
+<section class="fs cta-end">
+  <div class="cta-end-glow"></div>
+  <div class="tag reveal">Initialize</div>
+  <h2 class="reveal rd1">STOP WRITING<br>BOILERPLATE.<br><span style="color:var(--accent)">START SHIPPING.</span></h2>
+  <p class="reveal rd2">Open source. Free. Parse your first repo in 30 seconds.</p>
+  <div class="hero-cta reveal rd3">
+    <a href="/login" class="cta-main"><span>&#9654;</span> Launch App</a>
+    <a href="https://github.com/NandishNaik01/genalphacli" class="cta-ghost">View Source</a>
   </div>
 </section>
 
-<!-- Footer -->
-<footer>
-  <p>
-    Built by <a href="https://github.com/NandishNaik01">NandishNaik01</a> &nbsp;&middot;&nbsp;
-    <a href="https://github.com/NandishNaik01/genalphacli">GitHub</a> &nbsp;&middot;&nbsp;
-    MIT License
-  </p>
-</footer>
+<footer>Built by <a href="https://github.com/NandishNaik01">NandishNaik01</a> &middot; <a href="https://github.com/NandishNaik01/genalphacli">GitHub</a> &middot; MIT</footer>
 
+<script>
+// Scroll reveal
+const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis')}),{threshold:.08,rootMargin:'0px 0px -30px 0px'});
+document.querySelectorAll('.reveal').forEach(e=>obs.observe(e));
+
+// Counter animation
+const cObs=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;e.target.querySelectorAll('[data-count]').forEach(el=>{const t=+el.dataset.count,st=performance.now();!function u(n){const p=Math.min((n-st)/1500,1);el.textContent=Math.round((1-Math.pow(1-p,3))*t);p<1&&requestAnimationFrame(u)}(st)});cObs.disconnect()}),{threshold:.5});
+cObs.observe(document.querySelector('.stats-row'));
+
+// ── Interactive Terminal ──
+const asciiArt = [
+  ' ██████╗ ███████╗███╗   ██╗ █████╗ ██╗     ██████╗ ██╗  ██╗ █████╗ ',
+  '██╔════╝ ██╔════╝████╗  ██║██╔══██╗██║     ██╔══██╗██║  ██║██╔══██╗',
+  '██║  ███╗█████╗  ██╔██╗ ██║███████║██║     ██████╔╝███████║███████║',
+  '██║   ██║██╔══╝  ██║╚██╗██║██╔══██║██║     ██╔═══╝ ██╔══██║██╔══██║',
+  '╚██████╔╝███████╗██║ ╚████║██║  ██║███████╗██║     ██║  ██║██║  ██║',
+  ' ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝',
+];
+
+const commands = {
+  'help': () => `<span style="color:var(--accent)">Available commands:</span>
+  genalpha --help    Show GenAlpha CLI usage
+  genalpha parse     Parse a GitHub repo
+  genalpha build     Generate CLI / MCP server
+  hello              Show the banner
+  clear              Clear terminal
+  whoami             Who are you?`,
+
+  'genalpha --help': () => `<span style="color:var(--accent)">genalpha</span> — Turn any API repo into a CLI & MCP server
+
+<span style="color:var(--text)">USAGE:</span>
+  genalpha parse &lt;github-url&gt;    Parse API routes from a repo
+  genalpha build &lt;graph.json&gt;    Generate CLI / MCP packages
+
+<span style="color:var(--text)">OPTIONS:</span>
+  --type cli          Generate CLI only
+  --type mcp          Generate MCP server only
+  --type cli --type mcp  Generate both`,
+
+  'genalpha parse': () => `<span style="color:var(--green)">✓</span> Cloned repository
+<span style="color:var(--green)">✓</span> Detected FastAPI framework
+<span style="color:var(--green)">✓</span> Parsed <span style="color:var(--accent)">23 routes</span> in <span style="color:var(--accent)">39ms</span>
+<span style="color:var(--green)">✓</span> Saved to graph.json`,
+
+  'genalpha build': () => `<span style="color:var(--green)">✓</span> Generated CLI → dist/myapi/
+<span style="color:var(--green)">✓</span> Generated MCP → dist/myapi_mcp/
+<span style="color:var(--green)">✓</span> Registered with Claude Desktop
+
+<span style="color:var(--text-dim)">Run:</span> cd dist/myapi && pip install . && myapi --help`,
+
+  'whoami': () => `<span style="color:var(--accent)">A developer who ships.</span>`,
+
+  'ls': () => `<span style="color:var(--blue)">src/</span>  <span style="color:var(--blue)">tests/</span>  <span style="color:var(--blue)">web/</span>  <span style="color:var(--blue)">services/</span>  <span style="color:var(--blue)">worker/</span>  pyproject.toml  README.md  Makefile`,
+
+  'make dev': () => `<span style="color:var(--green)">●</span> Core API       <span style="color:var(--text-muted)">http://localhost:8000</span>
+<span style="color:var(--green)">●</span> TPS API        <span style="color:var(--text-muted)">http://localhost:8001</span>
+<span style="color:var(--green)">●</span> Worker         <span style="color:var(--text-muted)">parse + generate queues</span>
+<span style="color:var(--green)">●</span> Frontend       <span style="color:var(--text-muted)">http://localhost:3000</span>
+
+<span style="color:var(--accent);font-weight:bold">Ready!</span> Open http://localhost:3000`,
+};
+
+const termHistory = document.getElementById('term-history');
+const termInput = document.getElementById('term-input');
+let commandHistory = [];
+let historyIndex = -1;
+
+function makePrompt() {
+  return '<span style="color:#22c55e">nandish</span><span style="color:#3f3f46">@</span><span style="color:#06b6d4">genalpha</span><span style="color:#3f3f46">:</span><span style="color:#8b5cf6">~</span><span style="color:#14b8a6">$</span> ';
+}
+
+function addOutput(html) {
+  const div = document.createElement('div');
+  div.className = 'output';
+  div.innerHTML = html;
+  termHistory.appendChild(div);
+}
+
+function addAsciiArt() {
+  const container = document.createElement('div');
+  container.style.marginTop = '12px';
+
+  // Hello World text
+  const hello = document.createElement('div');
+  hello.className = 'hello-text';
+  hello.textContent = 'Hello World';
+  hello.style.opacity = '0';
+  hello.style.animation = 'ascii-reveal 0.3s ease-out 0.2s forwards';
+  container.appendChild(hello);
+
+  // ASCII art lines with staggered animation
+  asciiArt.forEach((line, i) => {
+    const div = document.createElement('div');
+    div.className = 'ascii-art ascii-line';
+    div.textContent = line;
+    div.style.animationDelay = (0.4 + i * 0.12) + 's';
+    container.appendChild(div);
+  });
+
+  // Subtitle
+  const sub = document.createElement('div');
+  sub.className = 'ascii-sub ascii-line';
+  sub.innerHTML = '// Turn any API into a CLI & MCP Server — <span style="color:var(--accent)">v0.1.0</span>';
+  sub.style.animationDelay = (0.4 + asciiArt.length * 0.12 + 0.2) + 's';
+  container.appendChild(sub);
+
+  termHistory.appendChild(container);
+}
+
+function handleCommand(cmd) {
+  const trimmed = cmd.trim().toLowerCase();
+
+  // Add the command to history display
+  const cmdDiv = document.createElement('div');
+  cmdDiv.innerHTML = makePrompt() + '<span style="color:var(--text)">' + cmd + '</span>';
+  termHistory.appendChild(cmdDiv);
+
+  commandHistory.push(cmd);
+  historyIndex = commandHistory.length;
+
+  if (trimmed === 'clear') {
+    termHistory.innerHTML = '';
+  } else if (trimmed === 'hello' || trimmed === 'genalpha' || trimmed === '') {
+    if (trimmed === '') return;
+    addAsciiArt();
+  } else if (commands[trimmed]) {
+    addOutput(commands[trimmed]());
+  } else if (trimmed.startsWith('genalpha parse ')) {
+    addOutput(commands['genalpha parse']());
+  } else if (trimmed.startsWith('genalpha build')) {
+    addOutput(commands['genalpha build']());
+  } else {
+    addOutput('<span style="color:var(--rose)">command not found:</span> ' + cmd + '\n<span style="color:var(--text-muted)">Try: help, hello, genalpha --help, make dev</span>');
+  }
+
+  // Scroll terminal to bottom
+  const body = document.querySelector('.live-term-body');
+  body.scrollTop = body.scrollHeight;
+}
+
+termInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    handleCommand(termInput.value);
+    termInput.value = '';
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (historyIndex > 0) {
+      historyIndex--;
+      termInput.value = commandHistory[historyIndex];
+    }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (historyIndex < commandHistory.length - 1) {
+      historyIndex++;
+      termInput.value = commandHistory[historyIndex];
+    } else {
+      historyIndex = commandHistory.length;
+      termInput.value = '';
+    }
+  }
+});
+
+// Click anywhere in terminal to focus input
+document.querySelector('.live-term-body').addEventListener('click', () => termInput.focus());
+
+// Auto-run "hello" when terminal scrolls into view
+const termObs = new IntersectionObserver(es => {
+  if (es[0].isIntersecting) {
+    setTimeout(() => {
+      termInput.value = 'hello';
+      setTimeout(() => {
+        handleCommand('hello');
+        termInput.value = '';
+        termInput.focus();
+      }, 600);
+    }, 800);
+    termObs.disconnect();
+  }
+}, { threshold: 0.3 });
+termObs.observe(document.querySelector('.live-term-section'));
+</script>
 </body>
 </html>
