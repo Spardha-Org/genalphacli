@@ -37,6 +37,24 @@ export function HeroTerminal() {
       writePrompt();
       return;
     }
+
+    // For ASCII art: stagger each line with a delay
+    if (result.isAscii) {
+      const lines = result.output.split("\r\n");
+      autoPlaying.current = true;
+      lines.forEach((line, i) => {
+        setTimeout(() => {
+          t.write("\r\n" + line);
+          if (i === lines.length - 1) {
+            t.write("\r\n");
+            writePrompt();
+            autoPlaying.current = false;
+          }
+        }, i * 80);
+      });
+      return;
+    }
+
     t.write("\r\n" + result.output + "\r\n");
     writePrompt();
   }, [writePrompt]);
