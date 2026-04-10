@@ -9,6 +9,7 @@ services:
       POSTGRES_DB: genalpha
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-dbs.sql:/docker-entrypoint-initdb.d/init-dbs.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U genalpha"]
       interval: 5s
