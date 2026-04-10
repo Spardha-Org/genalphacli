@@ -25,7 +25,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);overflow-x:h
 
 @keyframes fadeUp{from{opacity:0;transform:translateY(60px)}to{opacity:1;transform:translateY(0)}}
 @keyframes gradient-x{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-@keyframes ascii-reveal{to{opacity:1;transform:translateY(0)}}
+@keyframes ascii-reveal{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse-node{0%,100%{box-shadow:0 0 8px var(--accent-glow)}50%{box-shadow:0 0 24px var(--accent-glow),0 0 48px rgba(20,184,166,.08)}}
 @keyframes flow-dash{from{stroke-dashoffset:12}to{stroke-dashoffset:0}}
 @keyframes float-y{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
@@ -479,8 +479,8 @@ footer a{color:var(--text-dim);text-decoration:none}footer a:hover{color:var(--a
     <a href="https://github.com/NandishNaik01/genalphacli" class="btn-ghost">View Source</a>
   </div>
 
-  <!-- ASCII GENALPHA banner -->
-  <div class="reveal rd4" id="bottom-ascii" style="margin-top:60px;text-align:center"></div>
+  <!-- ASCII GENALPHA banner (animated on scroll via JS, not .reveal) -->
+  <div id="bottom-ascii" style="margin-top:60px;text-align:center"></div>
 </section>
 
 <footer>Built by <a href="https://github.com/NandishNaik01">NandishNaik01</a> &middot; <a href="https://github.com/NandishNaik01/genalphacli">GitHub</a> &middot; MIT</footer>
