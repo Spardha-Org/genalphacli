@@ -5,6 +5,7 @@ from __future__ import annotations
 import secrets
 from datetime import datetime, timezone
 
+from sqlalchemy import JSON
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -111,12 +112,12 @@ class Service(SQLModel, table=True):
     repo_url: str | None = None
     framework: str | None = None
     status: str = Field(default="pending")
-    route_graph: dict | None = Field(default=None, sa_type_kwargs={"astext_type": None})
+    route_graph: dict | None = Field(default=None, sa_type=JSON)
     error_message: str | None = None
     parse_workflow_id: str | None = None
     generate_workflow_id: str | None = None
     download_url: str | None = None
-    metadata_json: dict | None = Field(default=None, alias="metadata")
+    metadata_json: dict | None = Field(default=None, sa_type=JSON)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 
