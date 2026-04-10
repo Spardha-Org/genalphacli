@@ -36,9 +36,14 @@ logger = logging.getLogger(__name__)
 
 async def main() -> None:
     """Start the Temporal worker with both parse and generate task queues."""
+    import concurrent.futures
+
     logger.info("Connecting to Temporal at %s", TEMPORAL_ADDRESS)
     client = await Client.connect(TEMPORAL_ADDRESS)
     logger.info("Connected to Temporal")
+
+    # Thread pool for sync activities (clone, parse, generate are all sync)
+    activity_executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 
     # Parse worker — conservative concurrency (clone is I/O heavy)
     parse_worker = Worker(
@@ -52,6 +57,7 @@ async def main() -> None:
             update_service_status,
         ],
         max_concurrent_activities=5,
+        activity_executor=activity_executor,
     )
 
     # Generate worker — higher concurrency (generation is lightweight)
@@ -63,6 +69,7 @@ async def main() -> None:
             generate_packages_activity,
             package_zip_activity,
         ],
+        activity_executor=activity_executor,
         max_concurrent_activities=20,
     )
 
