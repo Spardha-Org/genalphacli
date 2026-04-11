@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useProjects, useCreateService, useServiceStatus, useServicesByProject, useDeleteService } from "@/data/hooks";
 import type { ServiceStatusValue } from "@/data/types";
 import Link from "next/link";
+import { Breadcrumb } from "@/components/dashboard/breadcrumb";
 
 export default function ProjectPage() {
   const { id } = useParams<{ id: string }>();
@@ -27,8 +28,8 @@ export default function ProjectPage() {
     return (
       <div className="text-center py-20">
         <p className="text-zinc-400">Project not found</p>
-        <Link href="/dashboard" className="text-teal-400 text-sm mt-2 inline-block">
-          Back to dashboard
+        <Link href="/projects" className="text-[var(--accent)] text-sm mt-2 inline-block">
+          Back to projects
         </Link>
       </div>
     );
@@ -40,6 +41,10 @@ export default function ProjectPage() {
 
   return (
     <div>
+      <Breadcrumb items={[
+        { label: "Projects", href: "/projects" },
+        { label: project.name },
+      ]} />
       <div className="mb-8">
         <h1 className="text-2xl font-bold font-[family-name:var(--font-geist-mono)]">
           {project.name}

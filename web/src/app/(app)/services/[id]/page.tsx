@@ -7,6 +7,7 @@ import { useService, useServiceStatus, useGenerate } from "@/data/hooks";
 import type { Subcommand, ServiceStatusValue } from "@/data/types";
 import { RouteDetailPanel } from "@/components/route-detail-panel";
 import Link from "next/link";
+import { Breadcrumb } from "@/components/dashboard/breadcrumb";
 
 // Lazy-load React Flow — saves ~80KB gzipped from initial bundle
 const RouteGraph = dynamic(
@@ -57,6 +58,11 @@ export default function ServicePage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)]">
+      <Breadcrumb items={[
+        { label: "Projects", href: "/projects" },
+        { label: service.name },
+      ]} />
+
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
         <div>

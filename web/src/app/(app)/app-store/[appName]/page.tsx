@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useApps, useIntegrations } from "@/data/hooks";
 import { ConnectionForm } from "@/components/app-store/connection-form";
+import { Breadcrumb } from "@/components/dashboard/breadcrumb";
 
 export default function AppDetailPage() {
   const { appName } = useParams<{ appName: string }>();
@@ -39,16 +40,10 @@ export default function AppDetailPage() {
   return (
     <div className="flex items-start justify-center pt-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="w-full max-w-md">
-        {/* Back link */}
-        <Link
-          href="/app-store"
-          className="text-[var(--text-dim)] text-xs font-[family-name:var(--font-jetbrains-mono)] hover:text-[var(--accent)] transition-colors no-underline mb-8 inline-flex items-center gap-1"
-        >
-          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-          App Store
-        </Link>
+        <Breadcrumb items={[
+          { label: "App Store", href: "/app-store" },
+          { label: app.display_name },
+        ]} />
 
         {/* App card — matches the HTML modal design */}
         <div className="bg-[var(--elevated)] border border-[var(--border)] rounded-[var(--radius)] p-8 mt-4 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
