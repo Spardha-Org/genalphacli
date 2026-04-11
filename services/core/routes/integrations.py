@@ -1,40 +1,73 @@
-"""Integration routes — proxy to TPS service."""
+"""Integration routes — uses TPS SDK (direct function calls, no HTTP)."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from services.core.deps import CurrentWorkspaceDep, DbDep
-from services.core.tps_client import tps_request
+
+from services.core.deps import CurrentUserDep, DbDep
+from services.core.tps_client import tps
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
 
+# ── Apps ──
+
+
 @router.get("/apps")
-async def list_apps(workspace: CurrentWorkspaceDep):
+async def list_apps(db: DbDep, user: CurrentUserDep):
     """List available apps from TPS marketplace."""
-    return await tps_request("GET", "/apps", workspace_id=workspace.id)
+    return await tps.list_apps(db)
+
+
+@router.get("/apps/{identifier}")
+async def get_app(identifier: str, db: DbDep, user: CurrentUserDep):
+    """Get a single app by name or code."""
+    app = await tps.get_app(db, identifier)
+    if not app:
+        raise HTTPException(status_code=404, detail=f"App '{identifier}' not found")
+    return app
+
+
+# ── Integrations ──
 
 
 @router.get("")
-async def list_integrations(workspace: CurrentWorkspaceDep):
-    """List connected integrations for this workspace."""
-    return await tps_request("GET", "/integrations", workspace_id=workspace.id)
+async def list_integrations(db: DbDep, user: CurrentUserDep):
+    """List connected integrations for this user."""
+    return await tps.list_integrations(db, user.id)
+
+
+@router.get("/{identifier}")
+async def get_integration(identifier: str, db: DbDep, user: CurrentUserDep):
+    """Get a single integration by app_name or integration_id."""
+    integration = await tps.get_integration(db, user.id, identifier)
+    if not integration:
+        raise HTTPException(status_code=404, detail="Integration not found")
+    return integration
+
+
+# ── OAuth Flow ──
+
+
+class InstallRequest(BaseModel):
+    form_data: dict | None = None
 
 
 @router.post("/{app_name}/install")
 async def install_app(
-    app_name: str,
-    workspace: CurrentWorkspaceDep,
-    body: dict | None = None,
+    app_name: str, db: DbDep, user: CurrentUserDep, body: InstallRequest | None = None,
 ):
-    """Start OAuth flow — returns authorize URL for frontend to redirect to."""
-    return await tps_request(
-        "POST",
-        f"/integrations/{app_name}/install",
-        workspace_id=workspace.id,
-        json=body,
-    )
+    """Start OAuth flow — returns authorize URL."""
+    from services.tps.config import settings
+    redirect_uri = settings.github_redirect_uri  # TODO: per-app redirect URIs
+    try:
+        return await tps.start_oauth_install(
+            db, user.id, app_name, redirect_uri,
+            form_data=body.form_data if body else None,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 class ExchangeRequest(BaseModel):
@@ -44,21 +77,20 @@ class ExchangeRequest(BaseModel):
 
 @router.post("/{app_name}/exchange")
 async def exchange_oauth_code(
-    app_name: str,
-    body: ExchangeRequest,
-    workspace: CurrentWorkspaceDep,
+    app_name: str, body: ExchangeRequest, db: DbDep, user: CurrentUserDep,
 ):
-    """Exchange OAuth code+state for token.
+    """Exchange OAuth code+state for token."""
+    from services.tps.config import settings
+    redirect_uri = settings.github_redirect_uri
+    try:
+        return await tps.exchange_oauth_code(
+            db, user.id, app_name, body.code, body.state, redirect_uri,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    No longer writes to Workspace.integration_id — multi-app support
-    means integrations are looked up by (workspace_id, app_name) via TPS.
-    """
-    return await tps_request(
-        "POST",
-        f"/integrations/{app_name}/exchange",
-        workspace_id=workspace.id,
-        json={"code": body.code, "state": body.state},
-    )
+
+# ── Credential Flow ──
 
 
 class ConnectRequest(BaseModel):
@@ -67,20 +99,22 @@ class ConnectRequest(BaseModel):
 
 @router.post("/{app_name}/connect")
 async def connect_app(
-    app_name: str,
-    body: ConnectRequest,
-    workspace: CurrentWorkspaceDep,
+    app_name: str, body: ConnectRequest, db: DbDep, user: CurrentUserDep,
 ):
-    """Connect a credential-based app (API Key, Basic Auth, mTLS)."""
-    return await tps_request(
-        "POST",
-        f"/integrations/{app_name}/connect",
-        workspace_id=workspace.id,
-        json={"credentials": body.credentials},
-    )
+    """Connect a credential-based app."""
+    try:
+        return await tps.connect_credentials(db, user.id, app_name, body.credentials)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── Delete ──
 
 
 @router.delete("/{integration_id}")
-async def delete_integration(integration_id: str, workspace: CurrentWorkspaceDep):
+async def delete_integration(integration_id: str, db: DbDep, user: CurrentUserDep):
     """Disconnect an integration."""
-    return await tps_request("DELETE", f"/integrations/{integration_id}", workspace_id=workspace.id)
+    deleted = await tps.delete_integration(db, integration_id, user.id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Integration not found")
+    return {"ok": True}
