@@ -117,6 +117,19 @@ export const servicesApi = {
 
   getStatus: (id: string) => apiFetch<Service>(`/services/${id}`),
 
+  createFromPyPI: (payload: { package_name: string; project_id: string; version?: string }) =>
+    apiFetch<{ serviceId: string; workflowId: string; status: string }>(
+      "/parse/pypi",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          packageName: payload.package_name,
+          projectId: payload.project_id,
+          version: payload.version,
+        }),
+      },
+    ),
+
   generate: (payload: {
     serviceId: string;
     outputTypes: string[];

@@ -45,6 +45,7 @@ from services.core.routes.projects import router as projects_router
 from services.core.routes.services import router as services_router
 from services.core.routes.integrations import router as integrations_router
 from services.core.routes.parse import router as parse_router
+from services.core.routes.parse_pypi import router as parse_pypi_router
 from services.core.routes.generate import router as generate_router
 from services.core.routes.artifacts import router as artifacts_router
 from services.core.routes.oauth_callback import router as oauth_callback_router
@@ -54,6 +55,7 @@ app.include_router(projects_router)
 app.include_router(services_router)
 app.include_router(integrations_router)
 app.include_router(parse_router)
+app.include_router(parse_pypi_router)
 app.include_router(generate_router)
 app.include_router(artifacts_router)
 app.include_router(oauth_callback_router)

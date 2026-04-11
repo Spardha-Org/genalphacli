@@ -6,8 +6,14 @@ interface Step {
   description: string;
 }
 
-const PARSE_STEPS: Step[] = [
+const GITHUB_PARSE_STEPS: Step[] = [
   { key: "cloning", label: "Cloning repository", description: "Downloading from GitHub..." },
+  { key: "parsing", label: "Parsing routes", description: "Extracting API routes via static analysis..." },
+  { key: "parsed", label: "Done", description: "Routes parsed successfully." },
+];
+
+const PYPI_PARSE_STEPS: Step[] = [
+  { key: "downloading", label: "Downloading package", description: "Fetching source distribution from PyPI..." },
   { key: "parsing", label: "Parsing routes", description: "Extracting API routes via static analysis..." },
   { key: "parsed", label: "Done", description: "Routes parsed successfully." },
 ];
@@ -22,10 +28,15 @@ interface ProgressStepperProps {
   currentStatus: string;
   errorMessage?: string | null;
   mode: "parse" | "generate";
+  sourceType?: "github" | "pypi";
 }
 
-export function ProgressStepper({ currentStatus, errorMessage, mode }: ProgressStepperProps) {
-  const steps = mode === "parse" ? PARSE_STEPS : GENERATE_STEPS;
+export function ProgressStepper({ currentStatus, errorMessage, mode, sourceType }: ProgressStepperProps) {
+  const steps = mode === "generate"
+    ? GENERATE_STEPS
+    : sourceType === "pypi"
+      ? PYPI_PARSE_STEPS
+      : GITHUB_PARSE_STEPS;
   const failed = currentStatus === "failed" || currentStatus === "timed_out";
 
   const currentStepIndex = steps.findIndex((s) => s.key === currentStatus);

@@ -22,9 +22,11 @@ from worker.activities.github_activities import (
     clone_repo_activity,
 )
 from worker.activities.parse_activities import parse_routes_activity
+from worker.activities.pypi_activities import fetch_pypi_sdist_activity
 from worker.activities.status_activities import update_service_status
 from worker.workflows.generate_workflow import GenerateWorkflow
 from worker.workflows.parse_workflow import ParseWorkflow
+from worker.workflows.pypi_parse_workflow import PyPIParseWorkflow
 
 TEMPORAL_ADDRESS = os.environ.get("TEMPORAL_ADDRESS", "localhost:7233")
 
@@ -50,7 +52,7 @@ async def main() -> None:
     worker = Worker(
         client,
         task_queue=PARSE_QUEUE,
-        workflows=[ParseWorkflow, GenerateWorkflow],
+        workflows=[ParseWorkflow, PyPIParseWorkflow, GenerateWorkflow],
         activities=[
             clone_repo_activity,
             parse_routes_activity,
@@ -59,6 +61,7 @@ async def main() -> None:
             generate_packages_activity,
             package_zip_activity,
             upload_artifact_activity,
+            fetch_pypi_sdist_activity,
         ],
         max_concurrent_activities=10,
         activity_executor=activity_executor,

@@ -99,3 +99,23 @@ class UploadArtifactOutput:
 
     artifact_id: str
     file_size: int
+
+
+@dataclass
+class FetchPyPISdistInput:
+    """Input for fetch_pypi_sdist_activity."""
+
+    package_name: str
+    service_id: str
+    user_id: str
+    version: str | None = None  # None = latest stable
+
+
+@dataclass
+class FetchPyPISdistOutput:
+    """Output from fetch_pypi_sdist_activity."""
+
+    extract_dir: str
+    framework: str | None
+    package_version: str
+    package_summary: str

@@ -179,6 +179,16 @@ export function useCreateService() {
   });
 }
 
+export function useCreatePyPIService() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: servicesApi.createFromPyPI,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.projects() });
+    },
+  });
+}
+
 export function useDeleteService() {
   const queryClient = useQueryClient();
   return useMutation({

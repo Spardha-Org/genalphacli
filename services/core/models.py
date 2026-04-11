@@ -108,6 +108,8 @@ class Service(SQLModel, table=True):
     project_id: str = Field(foreign_key="core_projects.id", index=True)
     name: str
     repo_url: Optional[str] = None
+    source_type: str = Field(default="github")  # "github" | "pypi"
+    source_version: Optional[str] = None  # PyPI version parsed
     framework: Optional[str] = None
     status: str = Field(default="pending")
     route_graph: Optional[dict] = Field(default=None, sa_column=Column(JSON))
