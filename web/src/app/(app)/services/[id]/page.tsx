@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useService, useGenerate, useDeleteService, useProjects } from "@/data/hooks";
 import type { Subcommand } from "@/data/types";
@@ -137,7 +137,7 @@ export default function ServiceDetailPage() {
       {activeTab === "Mindmap" && <MindmapPanel service={service} onSelectRoute={setSelectedRoute} />}
       {activeTab === "Routes" && <RoutesPanel subcommands={subcommands} />}
       {activeTab === "Generate" && <GeneratePanel serviceId={service.id} serviceName={service.name} baseUrl={service.route_graph?.base_url} artifactId={service.artifact_id} />}
-      {activeTab === "Config" && <ConfigPanel />}
+      {activeTab === "Config" && <ConfigPanel routeGraph={service.route_graph} />}
       {activeTab === "Host" && <HostPanel serviceName={service.name} />}
     </div>
   );
@@ -288,33 +288,102 @@ ${cliName} --help`}
 }
 
 // ── Config Tab ──
-function ConfigPanel() {
-  const [envVars] = useState([
-    { key: "BASE_URL", value: "", detected: true },
-    { key: "API_KEY", value: "", detected: true },
-  ]);
+function ConfigPanel({ routeGraph }: { routeGraph: any }) {
+  // Build detected vars from route_graph
+  const detectedVars = useMemo(() => {
+    const vars: { key: string; defaultValue: string; source: string }[] = [];
+
+    if (routeGraph?.base_url) {
+      vars.push({ key: "BASE_URL", defaultValue: routeGraph.base_url, source: "route_graph" });
+    } else {
+      vars.push({ key: "BASE_URL", defaultValue: "", source: "required" });
+    }
+
+    if (routeGraph?.auth?.env_var) {
+      vars.push({ key: routeGraph.auth.env_var, defaultValue: "", source: `auth (${routeGraph.auth.type})` });
+    }
+
+    return vars;
+  }, [routeGraph]);
+
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    detectedVars.forEach((v) => { initial[v.key] = v.defaultValue; });
+    return initial;
+  });
+
+  const [customVars, setCustomVars] = useState<{ key: string; value: string }[]>([]);
 
   return (
     <div className="space-y-4">
+      {/* Detected variables */}
       <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] p-6">
         <div className="flex items-center justify-between mb-1.5">
           <h3 className="font-[family-name:var(--font-jetbrains-mono)] text-sm font-semibold">Detected Variables</h3>
-          <span className="px-2 py-0.5 text-[10px] font-[family-name:var(--font-jetbrains-mono)] font-semibold rounded bg-[var(--amber)]/10 border border-[var(--amber)]/20 text-[var(--amber)]">{envVars.length} detected</span>
+          <span className="px-2 py-0.5 text-[10px] font-[family-name:var(--font-jetbrains-mono)] font-semibold rounded bg-[var(--amber)]/10 border border-[var(--amber)]/20 text-[var(--amber)]">{detectedVars.length} detected</span>
         </div>
-        <p className="text-xs text-[var(--text-dim)] mb-5">These environment variables were detected from the parsed routes.</p>
+        <p className="text-xs text-[var(--text-dim)] mb-5">These environment variables were detected from the parsed routes. Please add values if anything is missing.</p>
         <div className="flex flex-col gap-3">
-          {envVars.map((v) => (
+          {detectedVars.map((v) => (
             <div key={v.key} className="flex gap-2 items-center">
               <input value={v.key} readOnly className="w-[200px] px-3 py-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] font-[family-name:var(--font-jetbrains-mono)] text-xs" />
-              <input placeholder="Enter value..." className="flex-1 px-3 py-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] font-[family-name:var(--font-jetbrains-mono)] text-xs outline-none focus:border-[var(--accent)]" />
+              <input
+                placeholder="Enter value..."
+                value={values[v.key] || ""}
+                onChange={(e) => setValues((prev) => ({ ...prev, [v.key]: e.target.value }))}
+                className="flex-1 px-3 py-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] font-[family-name:var(--font-jetbrains-mono)] text-xs outline-none focus:border-[var(--accent)] placeholder:text-[var(--text-muted)]"
+              />
               <span className="px-2 py-0.5 text-[9px] font-[family-name:var(--font-jetbrains-mono)] font-semibold rounded bg-[var(--green)]/10 border border-[var(--green)]/20 text-[var(--green)] whitespace-nowrap">detected</span>
             </div>
           ))}
         </div>
       </div>
 
+      {/* Custom variables */}
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] p-6">
+        <div className="flex items-center justify-between mb-1.5">
+          <h3 className="font-[family-name:var(--font-jetbrains-mono)] text-sm font-semibold">Custom Variables</h3>
+          <button
+            onClick={() => setCustomVars((prev) => [...prev, { key: "", value: "" }])}
+            className="inline-flex items-center gap-1 px-2 py-1 text-[var(--text-dim)] hover:text-[var(--text)] font-[family-name:var(--font-jetbrains-mono)] text-xs transition-colors"
+          >
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg>
+            Add
+          </button>
+        </div>
+        <p className="text-xs text-[var(--text-dim)] mb-5">Add any additional key-value pairs your CLI or MCP server needs.</p>
+        <div className="flex flex-col gap-3">
+          {customVars.map((v, i) => (
+            <div key={i} className="flex gap-2 items-center">
+              <input
+                placeholder="KEY"
+                value={v.key}
+                onChange={(e) => setCustomVars((prev) => prev.map((item, j) => j === i ? { ...item, key: e.target.value.toUpperCase() } : item))}
+                className="w-[200px] px-3 py-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase outline-none focus:border-[var(--accent)] placeholder:text-[var(--text-muted)]"
+              />
+              <input
+                placeholder="value"
+                value={v.value}
+                onChange={(e) => setCustomVars((prev) => prev.map((item, j) => j === i ? { ...item, value: e.target.value } : item))}
+                className="flex-1 px-3 py-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text)] font-[family-name:var(--font-jetbrains-mono)] text-xs outline-none focus:border-[var(--accent)] placeholder:text-[var(--text-muted)]"
+              />
+              <button
+                onClick={() => setCustomVars((prev) => prev.filter((_, j) => j !== i))}
+                className="text-[var(--rose)] hover:text-[var(--rose)]/80 text-lg px-2 transition-colors"
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+          {customVars.length === 0 && (
+            <p className="text-[var(--text-muted)] text-xs font-[family-name:var(--font-jetbrains-mono)]">No custom variables yet.</p>
+          )}
+        </div>
+      </div>
+
       <div className="flex justify-end">
         <Button className="bg-[var(--accent)] text-[var(--bg)] hover:bg-[var(--accent-bright)] font-[family-name:var(--font-jetbrains-mono)] text-xs font-semibold">
+          <svg className="w-3.5 h-3.5 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><path d="M17 21v-8H7v8M7 3v5h8" /></svg>
           Save Config
         </Button>
       </div>
