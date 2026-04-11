@@ -241,6 +241,45 @@ async def list_integrations(
     ]
 
 
+@router.get("/{identifier}", response_model=IntegrationDTO)
+async def get_integration(
+    identifier: str,
+    db: DbDep,
+    workspace_id: WorkspaceIdDep,
+    _auth: TpsAuthDep,
+):
+    """Get a single integration by integration_id or app_name."""
+    # Try by app_name first (more common lookup)
+    stmt = select(Integration).where(
+        Integration.workspace_id == workspace_id,
+        Integration.app_name == identifier,
+        Integration.status == "active",
+    )
+    result = await db.exec(stmt)
+    integration = result.first()
+
+    # Fallback to integration_id
+    if not integration:
+        stmt = select(Integration).where(
+            Integration.id == identifier,
+            Integration.workspace_id == workspace_id,
+            Integration.status == "active",
+        )
+        result = await db.exec(stmt)
+        integration = result.first()
+
+    if not integration:
+        raise HTTPException(status_code=404, detail="Integration not found")
+
+    return IntegrationDTO(
+        id=integration.id,
+        app_name=integration.app_name,
+        identifier=integration.identifier,
+        status=integration.status,
+        created_at=integration.created_at.isoformat(),
+    )
+
+
 @router.delete("/{integration_id}", response_model=OkResponse)
 async def remove_integration(
     integration_id: str,

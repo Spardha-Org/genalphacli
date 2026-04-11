@@ -37,6 +37,12 @@ class IntegrationsApi(Protocol):
         """POST /integrations/{app_name}/connect — connect credential-based app."""
         ...
 
+    async def get_integration(
+        self, identifier: str, db: DbDep, workspace_id: WorkspaceIdDep, _auth: TpsAuthDep
+    ) -> dict:
+        """GET /integrations/{identifier} — get by integration_id or app_name."""
+        ...
+
     async def remove_integration(
         self, integration_id: str, db: DbDep, workspace_id: WorkspaceIdDep, _auth: TpsAuthDep
     ) -> dict:

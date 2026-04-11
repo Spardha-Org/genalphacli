@@ -114,6 +114,29 @@ paths:
       tags:
         - Integrations
 
+  /integrations/{identifier}:
+    get:
+      summary: Get a single integration by integration_id or app_name
+      operationId: getIntegration
+      parameters:
+        - in: path
+          name: identifier
+          schema:
+            type: string
+          required: true
+          description: "Integration ID or app_name (e.g., 'github')"
+      responses:
+        200:
+          description: Integration details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationDTO"
+        404:
+          description: Integration not found
+      tags:
+        - Integrations
+
   /integrations/{integration_id}:
     delete:
       summary: Disconnect an integration — revokes token and wipes credentials
