@@ -140,6 +140,17 @@ export const servicesApi = {
       "/generate",
       { method: "POST", body: JSON.stringify(payload) },
     ),
+
+  publish: (payload: {
+    serviceId: string;
+    outputTypes: string[];
+    cliName: string;
+    baseUrl: string;
+  }) =>
+    apiFetch<{ serviceId: string; workflowId: string; status: string }>(
+      "/publish",
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
 };
 
 // ── Integrations API ──

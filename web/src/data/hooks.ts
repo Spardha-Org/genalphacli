@@ -211,6 +211,18 @@ export function useGenerate() {
   });
 }
 
+export function usePublish() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: servicesApi.publish,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: keys.service(variables.serviceId),
+      });
+    },
+  });
+}
+
 // ── Integration Hooks ──
 
 export function useApps() {
