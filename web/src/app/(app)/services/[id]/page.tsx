@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import { useService, useGenerate, useDeleteService, useProjects } from "@/data/hooks";
 import type { Subcommand } from "@/data/types";
 import { Breadcrumb } from "@/components/dashboard/breadcrumb";
+import { RouteMindmap } from "@/components/dashboard/route-mindmap";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -18,18 +18,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-
-const RouteGraph = dynamic(
-  () => import("@/components/route-graph").then((m) => ({ default: m.RouteGraph })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-[500px] bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] flex items-center justify-center">
-        <p className="text-[var(--text-muted)] animate-pulse font-[family-name:var(--font-jetbrains-mono)] text-sm">Loading graph...</p>
-      </div>
-    ),
-  }
-);
 
 const TABS = ["Mindmap", "Routes", "Generate", "Config", "Host"] as const;
 type Tab = (typeof TABS)[number];
@@ -163,7 +151,7 @@ export default function ServiceDetailPage() {
 
 // ── Mindmap Tab ──
 function MindmapPanel({ service, onSelectRoute }: { service: any; onSelectRoute: (r: Subcommand) => void }) {
-  if (!service.route_graph || service.status !== "parsed" && service.status !== "complete") {
+  if (!service.route_graph || (service.status !== "parsed" && service.status !== "complete")) {
     return (
       <div className="h-[500px] bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] flex items-center justify-center">
         <p className="text-[var(--text-muted)] font-[family-name:var(--font-jetbrains-mono)] text-sm">
@@ -173,13 +161,7 @@ function MindmapPanel({ service, onSelectRoute }: { service: any; onSelectRoute:
     );
   }
 
-  return (
-    <div className="h-[500px] bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] overflow-hidden">
-      <RouteGraph routeGraph={service.route_graph} onNodeClick={(node: any) => {
-        if (node?.data?.subcommand) onSelectRoute(node.data.subcommand);
-      }} />
-    </div>
-  );
+  return <RouteMindmap routeGraph={service.route_graph} onRouteClick={onSelectRoute} />;
 }
 
 // ── Routes Tab ──
