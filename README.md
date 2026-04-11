@@ -1,5 +1,7 @@
 # GenAlpha CLI
 
+**Author:** Nandish Naik
+
 Convert any API repository into a working CLI tool and MCP server — automatically.
 
 Parse a GitHub repo, extract all API routes via static analysis, and generate installable tools. Build a CLI for your terminal or an MCP server for AI agents like Claude and Cursor.
