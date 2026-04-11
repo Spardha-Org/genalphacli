@@ -136,7 +136,7 @@ export default function ServiceDetailPage() {
       {/* Tab panels */}
       {activeTab === "Mindmap" && <MindmapPanel service={service} onSelectRoute={setSelectedRoute} />}
       {activeTab === "Routes" && <RoutesPanel subcommands={subcommands} />}
-      {activeTab === "Generate" && <GeneratePanel serviceId={service.id} serviceName={service.name} baseUrl={service.route_graph?.base_url} artifactId={service.artifact_id} />}
+      {activeTab === "Generate" && <GeneratePanel serviceId={service.id} serviceName={service.name} serviceStatus={service.status} baseUrl={service.route_graph?.base_url} artifactId={service.artifact_id} />}
       {activeTab === "Config" && <ConfigPanel routeGraph={service.route_graph} />}
       {activeTab === "Host" && <HostPanel serviceName={service.name} />}
     </div>
@@ -218,10 +218,14 @@ function RoutesPanel({ subcommands }: { subcommands: Subcommand[] }) {
 }
 
 // ── Generate Tab ──
-function GeneratePanel({ serviceId, serviceName, baseUrl, artifactId }: { serviceId: string; serviceName: string; baseUrl?: string; artifactId?: string | null }) {
+function GeneratePanel({ serviceId, serviceName, serviceStatus, baseUrl, artifactId }: { serviceId: string; serviceName: string; serviceStatus: string; baseUrl?: string; artifactId?: string | null }) {
   const [outputTypes, setOutputTypes] = useState<string[]>(["cli"]);
   const [cliName, setCliName] = useState(serviceName.toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^[^a-z]/, "a"));
   const generate = useGenerate();
+
+  const isGenerating = ["generating", "packaging"].includes(serviceStatus);
+  const isComplete = serviceStatus === "complete";
+  const isBusy = generate.isPending || isGenerating;
 
   function toggleOutput(type: string) {
     setOutputTypes((prev) => prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]);
@@ -254,33 +258,70 @@ function GeneratePanel({ serviceId, serviceName, baseUrl, artifactId }: { servic
 
         <Button
           onClick={() => generate.mutate({ serviceId, outputTypes, cliName, baseUrl: baseUrl || "http://localhost:8000" })}
-          disabled={generate.isPending || outputTypes.length === 0}
+          disabled={isBusy || outputTypes.length === 0}
           className="w-full bg-[var(--accent)] text-[var(--bg)] hover:bg-[var(--accent-bright)] font-[family-name:var(--font-jetbrains-mono)] text-xs font-semibold justify-center"
         >
-          <svg className="w-3.5 h-3.5 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
-          {generate.isPending ? "Generating..." : "Generate"}
+          {isBusy ? (
+            <>
+              <svg className="w-3.5 h-3.5 mr-1.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+              </svg>
+              {serviceStatus === "packaging" ? "Packaging..." : "Generating..."}
+            </>
+          ) : (
+            <>
+              <svg className="w-3.5 h-3.5 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+              Generate
+            </>
+          )}
         </Button>
       </div>
 
       {/* Output */}
       <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] p-6">
-        <h3 className="font-[family-name:var(--font-jetbrains-mono)] text-sm font-semibold mb-1">Output</h3>
-        <p className="text-xs text-[var(--text-dim)] mb-4">Generated CLI will appear here</p>
-        <pre className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-[var(--text-dim)] bg-[var(--bg)] p-4 rounded-lg overflow-x-auto leading-relaxed">
+        {isBusy ? (
+          <div className="flex flex-col items-center justify-center h-full gap-3 py-8">
+            <div className="w-10 h-10 rounded-full bg-[var(--accent)]/10 flex items-center justify-center animate-pulse">
+              <svg className="w-5 h-5 text-[var(--accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+              </svg>
+            </div>
+            <p className="text-[var(--text)] font-[family-name:var(--font-jetbrains-mono)] text-sm">
+              {serviceStatus === "packaging" ? "Packaging your CLI..." : "Generating packages..."}
+            </p>
+            <p className="text-[var(--text-muted)] text-xs">This usually takes a few seconds</p>
+          </div>
+        ) : isComplete && artifactId ? (
+          <>
+            <h3 className="font-[family-name:var(--font-jetbrains-mono)] text-sm font-semibold mb-1 text-[var(--text)]">Generation complete!</h3>
+            <p className="text-xs text-[var(--text)] mb-4">Your package is ready to download.</p>
+            <pre className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-[var(--text)] bg-[var(--bg)] p-4 rounded-lg overflow-x-auto leading-relaxed">
+{`# Install:
+pip install ./${cliName}.zip
+
+# Usage:
+${cliName} --help`}
+            </pre>
+            <a
+              href={`/api/artifacts/${artifactId}/download`}
+              className="mt-3 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--accent)] text-[var(--bg)] rounded-lg hover:bg-[var(--accent-bright)] transition-colors font-[family-name:var(--font-jetbrains-mono)] text-xs font-semibold"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+              Download ZIP
+            </a>
+          </>
+        ) : (
+          <>
+            <h3 className="font-[family-name:var(--font-jetbrains-mono)] text-sm font-semibold mb-1 text-[var(--text)]">Output</h3>
+            <p className="text-xs text-[var(--text)] mb-4">Select output types and click Generate</p>
+            <pre className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-[var(--text)] bg-[var(--bg)] p-4 rounded-lg overflow-x-auto leading-relaxed">
 {`# After generation:
 pip install ./${cliName}.zip
 
 # Usage:
 ${cliName} --help`}
-        </pre>
-        {artifactId && (
-          <a
-            href={`/api/artifacts/${artifactId}/download`}
-            className="mt-3 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-[var(--border)] rounded-lg text-[var(--text-dim)] hover:text-[var(--text)] hover:border-[var(--text-muted)] transition-colors font-[family-name:var(--font-jetbrains-mono)] text-xs"
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
-            Download ZIP
-          </a>
+            </pre>
+          </>
         )}
       </div>
     </div>
