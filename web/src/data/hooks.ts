@@ -179,6 +179,16 @@ export function useCreateService() {
   });
 }
 
+export function useCreatePyPIService() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: servicesApi.createFromPyPI,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.projects() });
+    },
+  });
+}
+
 export function useDeleteService() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -193,6 +203,18 @@ export function useGenerate() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: servicesApi.generate,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: keys.service(variables.serviceId),
+      });
+    },
+  });
+}
+
+export function usePublish() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: servicesApi.publish,
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: keys.service(variables.serviceId),

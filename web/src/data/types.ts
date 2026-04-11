@@ -55,10 +55,12 @@ export interface Project {
 export type ServiceStatusValue =
   | "pending"
   | "cloning"
+  | "downloading"
   | "parsing"
   | "parsed"
   | "generating"
   | "packaging"
+  | "publishing"
   | "complete"
   | "failed"
   | "timed_out";
@@ -68,6 +70,8 @@ export interface Service {
   project_id: string;
   name: string;
   repo_url: string | null;
+  source_type: string;  // "github" | "pypi"
+  source_version: string | null;
   framework: string | null;
   status: ServiceStatusValue;
   route_graph: RouteGraph | null;

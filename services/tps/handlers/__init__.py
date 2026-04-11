@@ -6,10 +6,12 @@ from typing import Union
 
 from services.tps.handlers.base import AppHandler, CredentialHandler, OAuthHandler
 from services.tps.handlers.github import GithubHandler
+from services.tps.handlers.pypi import PyPIHandler
 
 # Registry of available handlers — keyed by app_name
 HANDLER_REGISTRY: dict[str, type] = {
     "github": GithubHandler,
+    "pypi": PyPIHandler,
 }
 
 
