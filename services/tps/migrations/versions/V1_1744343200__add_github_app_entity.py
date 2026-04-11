@@ -40,7 +40,7 @@ def upgrade() -> None:
         """),
         {
             "id": secrets.token_hex(12),
-            "app_code": 14,
+            "app_code": 1,
             "app_name": "github",
             "display_name": "GitHub",
             "auth_type": "oauth2",

@@ -48,7 +48,7 @@ async def seed_data(db):
     """Seed a GitHub app and an active integration."""
     github_app = AppMarketplace(
         id="app-github",
-        app_code=14,
+        app_code=1,
         app_name="github",
         display_name="GitHub",
         auth_type="oauth2",
