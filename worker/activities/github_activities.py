@@ -34,20 +34,20 @@ def clone_repo_activity(input: CloneRepoInput) -> CloneRepoOutput:
     logger.info("Cloning %s/%s for service %s", input.owner, input.repo, input.service_id)
 
     if input.integration_id:
-        # Clone via TPS — uses the stored encrypted GitHub token
+        # Fetch GitHub token from TPS, then clone with authentication
         logger.info("Using TPS integration %s for authenticated clone", input.integration_id)
-        with httpx.Client(timeout=120.0) as client:
-            response = client.post(
-                f"{TPS_URL}/integrations/{input.integration_id}/clone",
-                json={"repo_url": f"https://github.com/{input.owner}/{input.repo}"},
+        with httpx.Client(timeout=30.0) as client:
+            response = client.get(
+                f"{TPS_URL}/integrations/{input.integration_id}/token",
                 headers={
                     "X-TPS-Secret": TPS_SECRET,
-                    "X-Workspace-ID": input.workspace_id,
+                    "X-User-ID": input.user_id,
                 },
             )
             response.raise_for_status()
-            data = response.json()
-            clone_dir = Path(data["clone_dir"])
+            token = response.json()["access_token"]
+        info = fetch_repo_info(input.owner, input.repo, token=token)
+        clone_dir = clone_repo(info, token=token)
     else:
         # Direct clone — public repos only
         logger.info("No integration — cloning public repo directly")
