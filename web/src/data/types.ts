@@ -110,18 +110,36 @@ export interface RouteParam {
 
 // ── Integrations ──
 
+export interface FormField {
+  reference_key: string;
+  type: string;
+  display_name: string;
+  required: boolean;
+  placeholder?: string;
+}
+
+export interface AppMeta {
+  icon?: string;
+  description?: string;
+  form_fields?: FormField[];
+}
+
 export interface AppMarketplace {
   id: string;
+  app_code: number;
   app_name: string;
   display_name: string;
   auth_type: string;
-  icon_url: string | null;
+  category: string;
+  provider: string;
+  meta: AppMeta;
+  is_install_required: boolean;
 }
 
 export interface Integration {
   id: string;
   app_name: string;
-  github_username: string | null;
+  identifier: string | null;
   status: string;
   created_at: string;
 }

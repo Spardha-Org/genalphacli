@@ -1,8 +1,7 @@
-"""GitHub OAuth handler — implements the AppHandler protocol."""
+"""GitHub OAuth handler — implements the OAuthHandler protocol."""
 
 from __future__ import annotations
 
-import secrets
 import logging
 
 import httpx
@@ -13,13 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 class GithubHandler:
-    """GitHub OAuth handler.
+    """GitHub OAuth2 handler.
 
-    Implements the full OAuth web flow:
-    1. Generate authorize URL with state
-    2. Exchange code for access token
-    3. Token refresh (GitHub tokens don't expire by default)
-    4. Fetch user info
+    GitHub tokens don't expire by default, so refresh is a no-op.
     """
 
     AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
@@ -27,8 +22,15 @@ class GithubHandler:
     USER_URL = "https://api.github.com/user"
     USER_EMAILS_URL = "https://api.github.com/user/emails"
 
-    def get_authorize_url(self, redirect_uri: str) -> tuple[str, str]:
+    def get_app_name(self) -> str:
+        return "github"
+
+    def get_authorize_url(
+        self, redirect_uri: str, form_data: dict | None = None
+    ) -> tuple[str, str]:
         """Generate GitHub OAuth authorization URL."""
+        import secrets
+
         state = secrets.token_urlsafe(32)
         url = (
             f"{self.AUTHORIZE_URL}"
@@ -39,7 +41,9 @@ class GithubHandler:
         )
         return url, state
 
-    async def exchange_code(self, code: str, redirect_uri: str) -> dict:
+    async def exchange_code(
+        self, code: str, redirect_uri: str, form_data: dict | None = None
+    ) -> dict:
         """Exchange authorization code for access token."""
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -67,19 +71,35 @@ class GithubHandler:
             }
 
     async def refresh_token(self, config: dict) -> dict:
-        """GitHub tokens don't expire by default — return config as-is."""
+        """GitHub tokens don't expire — return config as-is."""
         return config
 
     def is_token_expired(self, config: dict) -> bool:
-        """GitHub tokens don't expire by default."""
+        """GitHub tokens don't expire."""
         return False
+
+    async def revoke_token(self, config: dict) -> None:
+        """Best-effort token revocation at GitHub."""
+        access_token = config.get("access_token")
+        if not access_token or not settings.github_client_id:
+            return
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.delete(
+                    f"https://api.github.com/applications/{settings.github_client_id}/token",
+                    auth=(settings.github_client_id, settings.github_client_secret),
+                    json={"access_token": access_token},
+                    headers={"Accept": "application/vnd.github+json"},
+                    timeout=5.0,
+                )
+        except (httpx.HTTPError, httpx.TimeoutException):
+            logger.warning("Failed to revoke GitHub token — continuing with local cleanup")
 
     async def get_user_info(self, config: dict) -> dict:
         """Fetch GitHub user profile."""
         access_token = config["access_token"]
 
         async with httpx.AsyncClient() as client:
-            # Get user profile
             response = await client.get(
                 self.USER_URL,
                 headers={
@@ -90,7 +110,6 @@ class GithubHandler:
             response.raise_for_status()
             user = response.json()
 
-            # Get email if not public
             email = user.get("email")
             if not email:
                 email_response = await client.get(

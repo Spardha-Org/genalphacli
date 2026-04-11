@@ -1,0 +1,269 @@
+openapi: "3.0.2"
+info:
+  title: TPS Integration APIs
+  version: "1.0"
+servers:
+  - url: http://localhost:8001
+
+tags:
+  - name: Integrations
+    description: Integration lifecycle APIs
+
+# Common headers — all endpoints require X-TPS-Secret, most require X-User-ID
+x-common-headers:
+  - name: X-TPS-Secret
+    in: header
+    required: true
+    schema:
+      type: string
+    description: Shared secret for Core→TPS authentication
+  - name: X-User-ID
+    in: header
+    required: true
+    schema:
+      type: string
+    description: User ID for scoping integrations
+
+paths:
+  /integrations:
+    get:
+      summary: List all active integrations for a user
+      operationId: listIntegrations
+      responses:
+        200:
+          description: List of active integrations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IntegrationDTO"
+      tags:
+        - Integrations
+
+  /integrations/{app_name}/install:
+    post:
+      summary: Start OAuth install flow — returns authorize URL
+      operationId: installApp
+      parameters:
+        - in: path
+          name: app_name
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InstallRequest"
+      responses:
+        200:
+          description: Authorization URL and state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstallResponse"
+        400:
+          description: App uses credential flow, not OAuth
+        404:
+          description: App not found
+      tags:
+        - Integrations
+
+  /integrations/{app_name}/exchange:
+    post:
+      summary: Exchange OAuth code+state for token
+      operationId: exchangeOAuthCode
+      parameters:
+        - in: path
+          name: app_name
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExchangeRequest"
+      responses:
+        200:
+          description: Integration created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectResponse"
+        400:
+          description: Invalid or expired state
+      tags:
+        - Integrations
+
+  /integrations/{app_name}/connect:
+    post:
+      summary: Connect a credential-based app (API Key, Basic Auth, mTLS)
+      operationId: connectApp
+      parameters:
+        - in: path
+          name: app_name
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectRequest"
+      responses:
+        200:
+          description: Integration created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectResponse"
+        400:
+          description: App uses OAuth flow, or missing required fields
+        404:
+          description: App not found
+      tags:
+        - Integrations
+
+  /integrations/{identifier}:
+    get:
+      summary: Get a single integration by integration_id or app_name
+      operationId: getIntegration
+      parameters:
+        - in: path
+          name: identifier
+          schema:
+            type: string
+          required: true
+          description: "Integration ID or app_name (e.g., 'github')"
+      responses:
+        200:
+          description: Integration details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationDTO"
+        404:
+          description: Integration not found
+      tags:
+        - Integrations
+
+  /integrations/{integration_id}:
+    delete:
+      summary: Disconnect an integration — revokes token and wipes credentials
+      operationId: removeIntegration
+      parameters:
+        - in: path
+          name: integration_id
+          schema:
+            type: string
+          required: true
+      responses:
+        200:
+          description: Disconnected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        404:
+          description: Integration not found
+      tags:
+        - Integrations
+
+components:
+  schemas:
+    IntegrationDTO:
+      type: object
+      required:
+        - id
+        - app_name
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+        app_name:
+          type: string
+        identifier:
+          type: string
+          nullable: true
+        status:
+          type: string
+        created_at:
+          type: string
+
+    InstallRequest:
+      type: object
+      required:
+        - state
+        - redirect_uri
+      properties:
+        state:
+          type: string
+          description: "Frontend-generated CSRF state"
+        redirect_uri:
+          type: string
+          description: "Frontend callback URL"
+        form_data:
+          type: object
+          additionalProperties: true
+          nullable: true
+          description: "For form-based OAuth2 — user-supplied fields (e.g., tenant URL)"
+
+    InstallResponse:
+      type: object
+      required:
+        - authorize_url
+        - state
+      properties:
+        authorize_url:
+          type: string
+        state:
+          type: string
+
+    ExchangeRequest:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+
+    ConnectRequest:
+      type: object
+      required:
+        - credentials
+      properties:
+        credentials:
+          type: object
+          additionalProperties: true
+          description: "Fields matching app.meta.form_fields"
+
+    ConnectResponse:
+      type: object
+      required:
+        - integration_id
+        - app_name
+        - status
+      properties:
+        integration_id:
+          type: string
+        app_name:
+          type: string
+        identifier:
+          type: string
+          nullable: true
+        status:
+          type: string
+
+    OkResponse:
+      type: object
+      required:
+        - ok
+      properties:
+        ok:
+          type: boolean

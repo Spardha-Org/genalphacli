@@ -3,44 +3,63 @@
 from __future__ import annotations
 
 import logging
+import time
 
+import sqlalchemy as sa
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from services.tps.crypto import decrypt_config, encrypt_config
 from services.tps.handlers import get_handler
-from services.tps.models import Integration, utc_now
+from services.tps.handlers.base import OAuthHandler
+from services.tps.models import AppMarketplace, Integration, utc_now
 
 logger = logging.getLogger(__name__)
+
+REFRESH_BUFFER_SECONDS = 120  # refresh 2 minutes before actual expiry
 
 
 async def get_or_refresh(
     db: AsyncSession,
     integration_id: str,
-    workspace_id: str,
+    user_id: str,
 ) -> dict:
     """Get an integration's decrypted config, refreshing the token if expired.
 
-    This is the TPS equivalent of ClientConfigResolver.getOrRefresh().
+    Uses SELECT FOR UPDATE to prevent concurrent refresh race conditions.
     """
-    stmt = select(Integration).where(
-        Integration.id == integration_id,
-        Integration.workspace_id == workspace_id,
-        Integration.status == "active",
+    # Lock the row to prevent concurrent refresh
+    stmt = (
+        select(Integration)
+        .where(
+            Integration.id == integration_id,
+            Integration.user_id == user_id,
+            Integration.status == "active",
+        )
+        .with_for_update()
     )
     result = await db.exec(stmt)
     integration = result.first()
 
     if not integration:
-        raise ValueError(f"Integration {integration_id} not found for workspace {workspace_id}")
+        raise ValueError(f"Integration {integration_id} not found for workspace {user_id}")
 
     config = decrypt_config(integration.config_encrypted)
     handler = get_handler(integration.app_name)
 
-    if handler.is_token_expired(config):
+    # Check expiry — use plaintext expires_at column for fast check
+    needs_refresh = False
+    if isinstance(handler, OAuthHandler):
+        if integration.expires_at and time.time() >= (integration.expires_at - REFRESH_BUFFER_SECONDS):
+            needs_refresh = True
+        elif handler.is_token_expired(config):
+            needs_refresh = True
+
+    if needs_refresh:
         logger.info("Token expired for integration %s, refreshing", integration_id)
         config = await handler.refresh_token(config)
         integration.config_encrypted = encrypt_config(config)
+        integration.expires_at = config.get("expires_at")
         integration.updated_at = utc_now()
         db.add(integration)
         await db.commit()
@@ -50,15 +69,27 @@ async def get_or_refresh(
 
 async def create_integration(
     db: AsyncSession,
-    workspace_id: str,
+    user_id: str,
     app_name: str,
     config: dict,
-    github_username: str | None = None,
+    identifier: str | None = None,
+    expires_at: float | None = None,
 ) -> Integration:
-    """Create a new integration with encrypted config."""
-    # Check for existing integration for this workspace + app
+    """Create or update an integration with encrypted config.
+
+    Upserts: if an active integration exists for workspace+app, updates it.
+    """
+    # Look up the app to get app_id
+    app_result = await db.exec(
+        select(AppMarketplace).where(AppMarketplace.app_name == app_name)
+    )
+    app = app_result.first()
+    if not app:
+        raise ValueError(f"App '{app_name}' not found in marketplace")
+
+    # Check for existing active integration
     stmt = select(Integration).where(
-        Integration.workspace_id == workspace_id,
+        Integration.user_id == user_id,
         Integration.app_name == app_name,
         Integration.status == "active",
     )
@@ -66,9 +97,9 @@ async def create_integration(
     existing = result.first()
 
     if existing:
-        # Update existing integration
         existing.config_encrypted = encrypt_config(config)
-        existing.github_username = github_username
+        existing.identifier = identifier
+        existing.expires_at = expires_at
         existing.updated_at = utc_now()
         existing.status = "active"
         db.add(existing)
@@ -76,12 +107,13 @@ async def create_integration(
         await db.refresh(existing)
         return existing
 
-    # Create new
     integration = Integration(
-        workspace_id=workspace_id,
+        user_id=user_id,
+        app_id=app.id,
         app_name=app_name,
         config_encrypted=encrypt_config(config),
-        github_username=github_username,
+        identifier=identifier,
+        expires_at=expires_at,
     )
     db.add(integration)
     await db.commit()
@@ -92,12 +124,12 @@ async def create_integration(
 async def delete_integration(
     db: AsyncSession,
     integration_id: str,
-    workspace_id: str,
+    user_id: str,
 ) -> bool:
-    """Delete (revoke) an integration."""
+    """Revoke an integration — wipes credentials, calls provider revocation."""
     stmt = select(Integration).where(
         Integration.id == integration_id,
-        Integration.workspace_id == workspace_id,
+        Integration.user_id == user_id,
     )
     result = await db.exec(stmt)
     integration = result.first()
@@ -105,8 +137,18 @@ async def delete_integration(
     if not integration:
         return False
 
+    # Best-effort token revocation at the provider
+    try:
+        handler = get_handler(integration.app_name)
+        if isinstance(handler, OAuthHandler):
+            config = decrypt_config(integration.config_encrypted)
+            await handler.revoke_token(config)
+    except Exception as e:
+        logger.warning("Token revocation failed for %s: %s", integration.app_name, e)
+
     integration.status = "revoked"
-    integration.config_encrypted = encrypt_config({})  # Clear tokens
+    integration.config_encrypted = encrypt_config({})
+    integration.expires_at = None
     integration.updated_at = utc_now()
     db.add(integration)
     await db.commit()

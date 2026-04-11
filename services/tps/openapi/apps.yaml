@@ -1,0 +1,153 @@
+openapi: "3.0.2"
+info:
+  title: TPS App Marketplace APIs
+  version: "1.0"
+servers:
+  - url: http://localhost:8001
+
+tags:
+  - name: Apps
+    description: App marketplace APIs
+
+paths:
+  /apps:
+    get:
+      summary: List all active apps in the marketplace
+      operationId: listApps
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: integer
+          required: false
+          description: "Filter by category (1=source_control, 2=hosting, 3=distribution, 4=coming_soon)"
+      responses:
+        200:
+          description: List of available apps
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AppMarketplaceDTO"
+      tags:
+        - Apps
+
+  /apps/{identifier}:
+    get:
+      summary: Get a single app by app_name or app_code
+      operationId: getApp
+      parameters:
+        - in: path
+          name: identifier
+          schema:
+            type: string
+          required: true
+          description: "App name (e.g., 'github') or app code (e.g., '1')"
+      responses:
+        200:
+          description: App details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppMarketplaceDTO"
+        404:
+          description: App not found
+      tags:
+        - Apps
+
+components:
+  schemas:
+    AuthType:
+      type: integer
+      enum: [1, 2, 3, 4, 5]
+      x-enum-labels:
+        1: oauth2
+        2: api_key
+        3: basic_auth
+        4: form_based_oauth2
+        5: mtls
+
+    AppCategory:
+      type: integer
+      enum: [1, 2, 3, 4]
+      x-enum-labels:
+        1: source_control
+        2: hosting
+        3: distribution
+        4: coming_soon
+
+    AppProvider:
+      type: integer
+      enum: [1]
+      x-enum-labels:
+        1: native
+
+    AppMeta:
+      type: object
+      properties:
+        icon:
+          type: string
+        description:
+          type: string
+        keywords:
+          type: string
+        form_fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/FormField"
+
+    FormField:
+      type: object
+      required:
+        - reference_key
+        - type
+        - display_name
+        - required
+      properties:
+        reference_key:
+          type: string
+        type:
+          type: string
+          enum: [SHORT_TEXT, password, url, email]
+        display_name:
+          type: string
+        required:
+          type: boolean
+        placeholder:
+          type: string
+
+    AppMarketplaceDTO:
+      type: object
+      required:
+        - id
+        - app_code
+        - app_name
+        - display_name
+        - auth_type
+        - category
+        - provider
+        - meta
+        - is_install_required
+      properties:
+        id:
+          type: string
+        app_code:
+          type: integer
+        app_name:
+          type: string
+        display_name:
+          type: string
+        auth_type:
+          type: string
+          description: "Resolved label from AuthType enum"
+        category:
+          type: string
+          description: "Resolved label from AppCategory enum"
+        provider:
+          type: string
+          description: "Resolved label from AppProvider enum"
+        meta:
+          $ref: "#/components/schemas/AppMeta"
+        is_install_required:
+          type: boolean

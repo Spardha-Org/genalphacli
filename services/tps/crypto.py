@@ -1,29 +1,34 @@
-"""Fernet encryption for integration credentials."""
+"""MultiFernet encryption for integration credentials.
+
+Supports key rotation via comma-separated TPS_FERNET_KEYS env var.
+The first key is the active encryption key; all keys are tried for decryption.
+"""
 
 from __future__ import annotations
 
 import json
 import logging
 
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
 from services.tps.config import settings
 
 logger = logging.getLogger(__name__)
 
-_fernet: Fernet | None = None
+_fernet: MultiFernet | None = None
 
 
-def get_fernet() -> Fernet:
-    """Get the Fernet instance (lazy singleton)."""
+def get_fernet() -> MultiFernet:
+    """Get the MultiFernet instance (lazy singleton)."""
     global _fernet
     if _fernet is None:
-        if not settings.fernet_key:
+        if not settings.fernet_keys:
             raise RuntimeError(
-                "TPS_FERNET_KEY not set. Generate one with: "
+                "TPS_FERNET_KEYS not set. Generate one with: "
                 'python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
             )
-        _fernet = Fernet(settings.fernet_key.encode())
+        keys = [k.strip() for k in settings.fernet_keys.split(",") if k.strip()]
+        _fernet = MultiFernet([Fernet(k.encode()) for k in keys])
     return _fernet
 
 
