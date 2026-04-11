@@ -129,23 +129,6 @@ class TestCredentialConnectFlow:
         assert any(i["app_name"] == "cloudflare" for i in integrations)
 
 
-class TestResolveState:
-    """GET /integrations/resolve-state"""
-
-    async def test_resolve_valid_state(self, client, seed_data):
-        # Install to create a state
-        install_resp = await client.post("/integrations/github/install")
-        state = install_resp.json()["state"]
-
-        resp = await client.get(f"/integrations/resolve-state?state={state}")
-        assert resp.status_code == 200
-        assert resp.json()["app_name"] == "github"
-
-    async def test_resolve_invalid_state(self, client):
-        resp = await client.get("/integrations/resolve-state?state=bogus")
-        assert resp.status_code == 404
-
-
 class TestListIntegrations:
     """GET /integrations"""
 

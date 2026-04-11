@@ -27,29 +27,21 @@ function CallbackHandler() {
     // Clear sensitive params from URL
     window.history.replaceState({}, "", "/settings/integrations/callback");
 
-    // Step 1: Resolve state to get the app_name (no longer hardcoded to github)
-    fetch(`/api/integrations/resolve-state?state=${encodeURIComponent(state)}`, {
-      credentials: "include",
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("State resolution failed");
-        return res.json();
-      })
-      .then((data) => {
-        const resolvedApp = data.app_name || "app";
-        setAppName(resolvedApp);
+    // Retrieve app_name from sessionStorage (set before OAuth redirect)
+    const storedApp = sessionStorage.getItem("oauth_app_name") || "github";
+    setAppName(storedApp);
+    sessionStorage.removeItem("oauth_app_name");
 
-        // Step 2: Exchange code+state for token using resolved app_name
-        return fetch(`/api/integrations/${resolvedApp}/exchange`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Requested-With": "XMLHttpRequest",
-          },
-          credentials: "include",
-          body: JSON.stringify({ code, state }),
-        });
-      })
+    // Exchange code+state for token
+    fetch(`/api/integrations/${storedApp}/exchange`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      credentials: "include",
+      body: JSON.stringify({ code, state }),
+    })
       .then((res) => {
         if (res.ok) {
           router.replace("/integrations?connected=true");

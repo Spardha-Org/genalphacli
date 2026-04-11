@@ -37,20 +37,8 @@ class IntegrationsApi(Protocol):
         """POST /integrations/{app_name}/connect — connect credential-based app."""
         ...
 
-    async def resolve_state(
-        self, state: str, db: DbDep, _auth: TpsAuthDep
-    ) -> dict:
-        """GET /integrations/resolve-state — resolve OAuth state to app_name."""
-        ...
-
     async def remove_integration(
         self, integration_id: str, db: DbDep, workspace_id: WorkspaceIdDep, _auth: TpsAuthDep
     ) -> dict:
         """DELETE /integrations/{integration_id} — disconnect."""
-        ...
-
-    async def clone_repo(
-        self, integration_id: str, body: dict, db: DbDep, workspace_id: WorkspaceIdDep, _auth: TpsAuthDep
-    ) -> dict:
-        """POST /integrations/{integration_id}/clone — clone repo with credentials."""
         ...

@@ -114,28 +114,6 @@ paths:
       tags:
         - Integrations
 
-  /integrations/resolve-state:
-    get:
-      summary: Resolve OAuth state to app_name (for callback page)
-      operationId: resolveState
-      parameters:
-        - in: query
-          name: state
-          schema:
-            type: string
-          required: true
-      responses:
-        200:
-          description: Resolved app name
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ResolveStateResponse"
-        404:
-          description: State not found or expired
-      tags:
-        - Integrations
-
   /integrations/{integration_id}:
     delete:
       summary: Disconnect an integration — revokes token and wipes credentials
@@ -155,34 +133,6 @@ paths:
                 $ref: "#/components/schemas/OkResponse"
         404:
           description: Integration not found
-      tags:
-        - Integrations
-
-  /integrations/{integration_id}/clone:
-    post:
-      summary: Clone a repo using integration credentials
-      operationId: cloneRepo
-      parameters:
-        - in: path
-          name: integration_id
-          schema:
-            type: string
-          required: true
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CloneRequest"
-      responses:
-        200:
-          description: Clone result
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CloneResponse"
-        401:
-          description: No access token available
       tags:
         - Integrations
 
@@ -264,36 +214,6 @@ components:
           type: string
           nullable: true
         status:
-          type: string
-
-    ResolveStateResponse:
-      type: object
-      required:
-        - app_name
-      properties:
-        app_name:
-          type: string
-
-    CloneRequest:
-      type: object
-      required:
-        - repo_url
-      properties:
-        repo_url:
-          type: string
-
-    CloneResponse:
-      type: object
-      required:
-        - clone_dir
-        - owner
-        - repo
-      properties:
-        clone_dir:
-          type: string
-        owner:
-          type: string
-        repo:
           type: string
 
     OkResponse:

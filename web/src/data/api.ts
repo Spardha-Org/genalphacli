@@ -137,9 +137,6 @@ export const integrationsApi = {
       { method: "POST", body: JSON.stringify({ credentials }) },
     ),
 
-  resolveState: (state: string) =>
-    apiFetch<{ app_name: string }>(`/integrations/resolve-state?state=${encodeURIComponent(state)}`),
-
   delete: (id: string) =>
     apiFetch<{ ok: boolean }>(`/integrations/${id}`, { method: "DELETE" }),
 };

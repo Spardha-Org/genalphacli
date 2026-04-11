@@ -80,16 +80,6 @@ async def connect_app(
     )
 
 
-@router.get("/resolve-state")
-async def resolve_state(state: str, workspace: CurrentWorkspaceDep):
-    """Resolve an OAuth state to get the app_name for the callback page."""
-    return await tps_request(
-        "GET",
-        f"/integrations/resolve-state?state={state}",
-        workspace_id=workspace.id,
-    )
-
-
 @router.delete("/{integration_id}")
 async def delete_integration(integration_id: str, workspace: CurrentWorkspaceDep):
     """Disconnect an integration."""

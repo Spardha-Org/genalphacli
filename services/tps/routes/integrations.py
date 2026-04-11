@@ -11,8 +11,6 @@ from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
 from services.tps.api.generated.integrations_models import (
-    CloneRequest,
-    CloneResponse,
     ConnectRequest,
     ConnectResponse,
     ExchangeRequest,
@@ -20,7 +18,6 @@ from services.tps.api.generated.integrations_models import (
     InstallResponse,
     IntegrationDTO,
     OkResponse,
-    ResolveStateResponse,
 )
 from services.tps.config import settings
 from services.tps.deps import DbDep, TpsAuthDep, WorkspaceIdDep
@@ -30,7 +27,6 @@ from services.tps.integration_service import (
     cleanup_expired_states,
     create_integration,
     delete_integration,
-    get_or_refresh,
 )
 from services.tps.models import AppMarketplace, Integration, OAuthState
 
@@ -218,24 +214,7 @@ async def connect_app(
     )
 
 
-# ── State Resolution (for callback page) ──
-
-
-@router.get("/resolve-state", response_model=ResolveStateResponse)
-async def resolve_state(
-    state: str,
-    db: DbDep,
-    _auth: TpsAuthDep,
-):
-    """Resolve an OAuth state to get the app_name. Used by the callback page."""
-    result = await db.exec(select(OAuthState).where(OAuthState.state == state))
-    oauth_state = result.first()
-    if not oauth_state:
-        raise HTTPException(status_code=404, detail="State not found or expired")
-    return ResolveStateResponse(app_name=oauth_state.app_name)
-
-
-# ── List / Delete / Clone ──
+# ── List / Delete ──
 
 
 @router.get("", response_model=list[IntegrationDTO])
@@ -274,27 +253,3 @@ async def remove_integration(
     if not deleted:
         raise HTTPException(status_code=404, detail="Integration not found")
     return OkResponse(ok=True)
-
-
-@router.post("/{integration_id}/clone", response_model=CloneResponse)
-async def clone_repo_with_integration(
-    integration_id: str,
-    body: CloneRequest,
-    db: DbDep,
-    workspace_id: WorkspaceIdDep,
-    _auth: TpsAuthDep,
-):
-    """Clone a repo using the integration's credentials."""
-    config = await get_or_refresh(db, integration_id, workspace_id)
-    access_token = config.get("access_token")
-
-    if not access_token:
-        raise HTTPException(status_code=401, detail="No access token available")
-
-    from genalphacli.github import clone_repo, fetch_repo_info, parse_github_url
-
-    owner, repo_name = parse_github_url(body.repo_url)
-    info = fetch_repo_info(owner, repo_name, token=access_token)
-    clone_dir = clone_repo(info, token=access_token)
-
-    return CloneResponse(clone_dir=str(clone_dir), owner=owner, repo=repo_name)
