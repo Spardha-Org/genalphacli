@@ -36,6 +36,7 @@ V<app_code>_<epoch>__<migration_type>.py
 | 11 | Railway | hosting |
 | 12 | Fly.io | hosting |
 | 20 | PyPI | distribution |
+| 21 | npm | distribution |
 
 ## How to Create a Migration
 
