@@ -6,6 +6,7 @@ import { useProjects, useCreateService, useServiceStatus, useServicesByProject, 
 import type { ServiceStatusValue } from "@/data/types";
 import Link from "next/link";
 import { Breadcrumb } from "@/components/dashboard/breadcrumb";
+import { FrameworkIcon } from "@/components/dashboard/framework-icon";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -142,40 +143,40 @@ export default function ProjectPage() {
                   isInProgress ? "opacity-70" : ""
                 }`}
               >
-                {/* Header: name + status */}
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <svg className="w-4 h-4 shrink-0 text-[var(--text-dim)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
-                    </svg>
-                    <span className="font-[family-name:var(--font-jetbrains-mono)] text-sm font-semibold text-[var(--text)] truncate">
-                      {service.name}
-                    </span>
-                  </div>
+                {/* Status badge — top right */}
+                <div className="flex justify-end">
                   <span className={`shrink-0 px-2 py-0.5 text-[10px] font-[family-name:var(--font-jetbrains-mono)] font-semibold rounded-full border ${STATUS_BADGE[service.status] || STATUS_BADGE.pending}`}>
                     {isInProgress ? `${service.status}...` : service.status}
                   </span>
                 </div>
 
-                {/* Repo URL */}
-                {service.repo_url && (
-                  <div className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-[var(--text-muted)] truncate mb-3">
-                    {service.repo_url.replace(/^https?:\/\//, "")}
-                  </div>
-                )}
+                {/* Centered icon + name */}
+                <div className="flex-1 flex flex-col items-center justify-center gap-3">
+                  <FrameworkIcon framework={service.framework} size={48} />
+                  <span className="font-[family-name:var(--font-jetbrains-mono)] text-sm font-semibold text-[var(--text)] text-center">
+                    {service.name}
+                  </span>
+                </div>
 
-                {/* Tags at bottom */}
-                <div className="flex gap-2 flex-wrap mt-auto">
-                  {service.framework && (
-                    <span className="px-2 py-0.5 text-[10px] font-[family-name:var(--font-jetbrains-mono)] font-semibold rounded bg-[var(--violet)]/10 border border-[var(--violet)]/20 text-[var(--violet)] uppercase">
-                      {service.framework}
-                    </span>
+                {/* Bottom: repo URL + framework tag */}
+                <div className="mt-auto">
+                  {service.repo_url && (
+                    <div className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-[var(--text-muted)] truncate mb-2">
+                      {service.repo_url.replace(/^https?:\/\//, "")}
+                    </div>
                   )}
-                  {isInProgress && !service.framework && (
-                    <span className="px-2 py-0.5 text-[10px] font-[family-name:var(--font-jetbrains-mono)] font-semibold rounded bg-[var(--text-muted)]/10 border border-[var(--text-muted)]/20 text-[var(--text-muted)]">
-                      detecting framework...
-                    </span>
-                  )}
+                  <div className="flex gap-2 flex-wrap">
+                    {service.framework && (
+                      <span className="px-2 py-0.5 text-[10px] font-[family-name:var(--font-jetbrains-mono)] font-semibold rounded bg-[var(--violet)]/10 border border-[var(--violet)]/20 text-[var(--violet)] uppercase">
+                        {service.framework}
+                      </span>
+                    )}
+                    {isInProgress && !service.framework && (
+                      <span className="px-2 py-0.5 text-[10px] font-[family-name:var(--font-jetbrains-mono)] font-semibold rounded bg-[var(--text-muted)]/10 border border-[var(--text-muted)]/20 text-[var(--text-muted)]">
+                        detecting framework...
+                      </span>
+                    )}
+                  </div>
                 </div>
               </Link>
             );
