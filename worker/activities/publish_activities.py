@@ -76,30 +76,38 @@ def _upload_to_pypi(token: str, dist_file: Path, name: str, version: str) -> Non
     sha256 = hashlib.sha256(file_bytes).hexdigest()
     md5 = hashlib.md5(file_bytes).hexdigest()
 
-    # Determine filetype
-    if dist_file.suffix == ".gz":
-        filetype = "sdist"
-    elif dist_file.suffix == ".whl":
+    # Determine filetype and pyversion
+    if dist_file.suffix == ".whl":
         filetype = "bdist_wheel"
+        # Extract pyversion from wheel filename: name-ver-pyver-abi-platform.whl
+        parts = dist_file.stem.split("-")
+        pyversion = parts[2] if len(parts) >= 3 else "py3"
+    elif dist_file.name.endswith(".tar.gz"):
+        filetype = "sdist"
+        pyversion = "source"
     else:
         filetype = "sdist"
+        pyversion = "source"
 
-    logger.info("Uploading %s to PyPI (%d bytes, type=%s)", dist_file.name, len(file_bytes), filetype)
+    logger.info("Uploading %s to PyPI (%d bytes, type=%s, pyversion=%s)", dist_file.name, len(file_bytes), filetype, pyversion)
+
+    form_data = {
+        ":action": "file_upload",
+        "protocol_version": "1",
+        "name": name,
+        "version": version,
+        "filetype": filetype,
+        "pyversion": pyversion,
+        "md5_digest": md5,
+        "sha256_digest": sha256,
+        "metadata_version": "2.1",
+    }
 
     with httpx.Client(timeout=120.0) as client:
         resp = client.post(
             PYPI_UPLOAD_URL,
             auth=("__token__", token),
-            data={
-                ":action": "file_upload",
-                "protocol_version": "1",
-                "name": name,
-                "version": version,
-                "filetype": filetype,
-                "md5_digest": md5,
-                "sha256_digest": sha256,
-                "metadata_version": "2.1",
-            },
+            data=form_data,
             files={
                 "content": (dist_file.name, file_bytes, "application/octet-stream"),
             },
