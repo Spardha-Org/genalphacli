@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useRef } from "react";
 import type { RouteGraph, Subcommand } from "@/data/types";
 
 const METHOD_COLORS: Record<string, { bg: string; text: string }> = {
@@ -44,11 +44,46 @@ interface RouteMindmapProps {
 
 export function RouteMindmap({ routeGraph, onRouteClick }: RouteMindmapProps) {
   const [scale, setScale] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const panStart = useRef({ x: 0, y: 0 });
 
   const groups = useMemo(() => groupRoutes(routeGraph.subcommands || []), [routeGraph]);
 
   const zoom = useCallback((delta: number) => {
     setScale((s) => Math.max(0.5, Math.min(2, s + delta)));
+  }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only drag on background, not on nodes
+    if ((e.target as HTMLElement).closest(".mindmap-node-click")) return;
+    isDragging.current = true;
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    panStart.current = { ...pan };
+  }, [pan]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging.current) return;
+    setPan({
+      x: panStart.current.x + (e.clientX - dragStart.current.x) / scale,
+      y: panStart.current.y + (e.clientY - dragStart.current.y) / scale,
+    });
+  }, [scale]);
+
+  const handleMouseUp = useCallback(() => {
+    isDragging.current = false;
+  }, []);
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.05 : 0.05;
+    setScale((s) => Math.max(0.5, Math.min(2, s + delta)));
+  }, []);
+
+  const resetView = useCallback(() => {
+    setScale(1);
+    setPan({ x: 0, y: 0 });
   }, []);
 
   // Layout calculations
@@ -60,7 +95,15 @@ export function RouteMindmap({ routeGraph, onRouteClick }: RouteMindmapProps) {
   const groupStartY = rootY - ((groups.length - 1) * groupSpacing) / 2;
 
   return (
-    <div className="h-[500px] bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] relative overflow-hidden">
+    <div
+      className="h-[500px] bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] relative overflow-hidden select-none"
+      style={{ cursor: isDragging.current ? "grabbing" : "grab" }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onWheel={handleWheel}
+    >
       {/* Controls */}
       <div className="absolute bottom-3 right-3 flex gap-1 z-10">
         <button
@@ -76,7 +119,7 @@ export function RouteMindmap({ routeGraph, onRouteClick }: RouteMindmapProps) {
           −
         </button>
         <button
-          onClick={() => setScale(1)}
+          onClick={resetView}
           className="w-7 h-7 flex items-center justify-center bg-[var(--elevated)] border border-[var(--border)] rounded-md text-[var(--text-dim)] hover:text-[var(--text)] transition-colors font-[family-name:var(--font-jetbrains-mono)] text-[10px]"
         >
           [ ]
@@ -84,8 +127,8 @@ export function RouteMindmap({ routeGraph, onRouteClick }: RouteMindmapProps) {
       </div>
 
       <div
-        className="absolute inset-0 transition-transform duration-200"
-        style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
+        className="absolute inset-0"
+        style={{ transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)`, transformOrigin: "center center", transition: isDragging.current ? "none" : "transform 0.2s" }}
       >
         {/* SVG Edges */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none">
@@ -157,7 +200,7 @@ export function RouteMindmap({ routeGraph, onRouteClick }: RouteMindmapProps) {
                   <div
                     key={ei}
                     onClick={() => onRouteClick?.(ep.subcommand)}
-                    className="absolute px-3 py-1.5 rounded-lg font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold whitespace-nowrap bg-[var(--bg)] text-[var(--text-dim)] border border-[var(--border)] flex items-center gap-1.5 cursor-pointer hover:shadow-[0_0_12px_rgba(20,184,166,0.3)] transition-shadow"
+                    className="mindmap-node-click absolute px-3 py-1.5 rounded-lg font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold whitespace-nowrap bg-[var(--bg)] text-[var(--text-dim)] border border-[var(--border)] flex items-center gap-1.5 cursor-pointer hover:shadow-[0_0_12px_rgba(20,184,166,0.3)] transition-shadow"
                     style={{ left: endpointX, top: ey - 12 }}
                   >
                     <span
