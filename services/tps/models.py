@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from typing import Optional
 
@@ -111,25 +111,3 @@ class Integration(SQLModel, table=True):
     expires_at: Optional[float] = None  # Unix timestamp, plaintext for fast expiry checks
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
-
-
-# ── OAuth States ──
-
-
-def default_state_expiry() -> datetime:
-    return datetime.utcnow() + timedelta(minutes=15)
-
-
-class OAuthState(SQLModel, table=True):
-    """Stores OAuth state parameters for CSRF validation. DB-backed so it survives process restarts."""
-
-    __tablename__ = "tps_oauth_states"
-
-    state: str = Field(
-        default_factory=lambda: secrets.token_urlsafe(32), primary_key=True
-    )
-    user_id: str
-    app_name: str
-    meta: Optional[dict] = Field(default=None, sa_column=Column(JSON))  # form fields for form-based OAuth
-    created_at: datetime = Field(default_factory=utc_now)
-    expires_at: datetime = Field(default_factory=default_state_expiry)

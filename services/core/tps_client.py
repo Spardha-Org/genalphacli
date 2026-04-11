@@ -21,7 +21,6 @@ from services.tps.integration_service import (
     create_integration as _create_integration,
     delete_integration as _delete_integration,
     get_or_refresh as _get_or_refresh,
-    cleanup_expired_states as _cleanup_expired_states,
 )
 from services.tps.models import (
     AppMarketplace,
@@ -29,7 +28,6 @@ from services.tps.models import (
     AppCategory,
     AppProvider,
     Integration,
-    OAuthState,
 )
 from services.tps.handlers import get_oauth_handler, get_credential_handler
 from services.tps.crypto import decrypt_config
@@ -134,43 +132,34 @@ class TpsClient:
 
     # ── OAuth ──
 
-    async def start_oauth_install(
-        self, db: AsyncSession, user_id: str, app_name: str,
-        redirect_uri: str, form_data: dict | None = None,
+    async def build_oauth_url(
+        self, db: AsyncSession, app_name: str,
+        state: str, redirect_uri: str, form_data: dict | None = None,
     ) -> dict:
-        """Start OAuth flow — returns authorize_url and state."""
+        """Build OAuth authorize URL. Core owns state — TPS is stateless."""
+        # Validate app exists
+        app = await self.get_app(db, app_name)
+        if not app:
+            raise ValueError(f"App '{app_name}' not found")
+        if not app["is_install_required"]:
+            raise ValueError(f"App '{app_name}' uses credential flow, not OAuth")
+
         handler = get_oauth_handler(app_name)
-        await _cleanup_expired_states(db)
-
-        authorize_url, state = handler.get_authorize_url(redirect_uri, form_data)
-
-        oauth_state = OAuthState(
-            state=state, user_id=user_id, app_name=app_name, meta=form_data,
+        authorize_url, _ = handler.get_authorize_url(redirect_uri, form_data)
+        # Replace handler-generated state with Core's encrypted state
+        authorize_url = authorize_url.replace(
+            authorize_url.split("state=")[1].split("&")[0], state
         )
-        db.add(oauth_state)
-        await db.commit()
-
-        return {"authorize_url": authorize_url, "state": state}
+        return {"authorize_url": authorize_url}
 
     async def exchange_oauth_code(
         self, db: AsyncSession, user_id: str, app_name: str,
-        code: str, state: str, redirect_uri: str,
+        code: str, redirect_uri: str,
     ) -> dict:
-        """Exchange OAuth code+state for token, store integration."""
-        # Validate state
-        result = await db.exec(select(OAuthState).where(OAuthState.state == state))
-        oauth_state = result.first()
-        if not oauth_state or oauth_state.app_name != app_name:
-            raise ValueError("Invalid or expired OAuth state")
-
-        form_data = oauth_state.meta
-        await db.delete(oauth_state)
-        await db.commit()
-
+        """Exchange OAuth code for token, store integration. No state validation — Core owns it."""
         handler = get_oauth_handler(app_name)
-        config = await handler.exchange_code(code, redirect_uri, form_data)
+        config = await handler.exchange_code(code, redirect_uri)
 
-        # Fetch user info
         try:
             user_info = await handler.get_user_info(config)
         except Exception:

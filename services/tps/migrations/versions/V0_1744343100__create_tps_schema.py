@@ -39,17 +39,6 @@ def upgrade() -> None:
     op.create_index("ix_tps_app_marketplace_app_name", "tps_app_marketplace", ["app_name"])
 
     op.create_table(
-        "tps_oauth_states",
-        sa.Column("state", sa.String(), nullable=False),
-        sa.Column("user_id", sa.String(), nullable=False),
-        sa.Column("app_name", sa.String(), nullable=False),
-        sa.Column("meta", sa.JSON(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.Column("expires_at", sa.DateTime(), nullable=False),
-        sa.PrimaryKeyConstraint("state"),
-    )
-
-    op.create_table(
         "tps_integrations",
         sa.Column("id", sa.String(), nullable=False),
         sa.Column("user_id", sa.String(), nullable=False),
@@ -71,5 +60,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("tps_integrations")
-    op.drop_table("tps_oauth_states")
     op.drop_table("tps_app_marketplace")

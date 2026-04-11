@@ -20,7 +20,7 @@ import os
 from cryptography.fernet import Fernet
 os.environ.setdefault("TPS_FERNET_KEYS", Fernet.generate_key().decode())
 
-from services.tps.models import AppMarketplace, Integration, OAuthState
+from services.tps.models import AppMarketplace, Integration
 import services.tps.crypto as crypto_module
 from services.tps.crypto import encrypt_config
 

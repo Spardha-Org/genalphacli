@@ -5,10 +5,7 @@ from __future__ import annotations
 import time
 
 import pytest
-from sqlmodel import select
-
 from services.tps.crypto import encrypt_config, decrypt_config
-from services.tps.models import AppMarketplace, Integration, OAuthState
 
 pytestmark = pytest.mark.asyncio
 
@@ -59,25 +56,33 @@ class TestAppMarketplace:
 
 
 class TestOAuthInstallFlow:
-    """POST /integrations/{app_name}/install"""
+    """POST /integrations/{app_name}/install — TPS is stateless"""
 
     async def test_install_nonexistent_app(self, client):
-        resp = await client.post("/integrations/nonexistent/install")
+        resp = await client.post(
+            "/integrations/nonexistent/install",
+            json={"state": "test-state", "redirect_uri": "http://localhost/callback"},
+        )
         assert resp.status_code == 404
 
     async def test_install_credential_app_rejects(self, client, seed_data):
-        """Cloudflare is API key — install should reject it."""
-        resp = await client.post("/integrations/cloudflare/install")
+        resp = await client.post(
+            "/integrations/cloudflare/install",
+            json={"state": "test-state", "redirect_uri": "http://localhost/callback"},
+        )
         assert resp.status_code == 400
         assert "credential flow" in resp.json()["detail"]
 
     async def test_install_github_returns_authorize_url(self, client, seed_data):
-        resp = await client.post("/integrations/github/install")
+        resp = await client.post(
+            "/integrations/github/install",
+            json={"state": "my-encrypted-state", "redirect_uri": "http://localhost/callback"},
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert "authorize_url" in data
-        assert "state" in data
         assert "github.com/login/oauth/authorize" in data["authorize_url"]
+        assert "my-encrypted-state" in data["authorize_url"]
 
 
 class TestCredentialConnectFlow:
@@ -193,20 +198,6 @@ class TestDeleteIntegration:
         )
         assert reconnect_resp.status_code == 200
         assert reconnect_resp.json()["status"] == "active"
-
-
-class TestOAuthStateExpiry:
-    """OAuthState should have an expiry timestamp."""
-
-    async def test_state_has_expiry(self, client, db, seed_data):
-        resp = await client.post("/integrations/github/install")
-        state_str = resp.json()["state"]
-
-        result = await db.exec(select(OAuthState).where(OAuthState.state == state_str))
-        oauth_state = result.first()
-        assert oauth_state is not None
-        assert oauth_state.expires_at is not None
-        assert oauth_state.expires_at > oauth_state.created_at
 
 
 class TestMultiFernet:

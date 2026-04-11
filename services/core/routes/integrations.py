@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from services.core.config import settings
 from services.core.deps import CurrentUserDep, DbDep
+from services.core.oauth_state import OAuthState, encode_state
 from services.core.tps_client import tps
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
@@ -16,13 +20,11 @@ router = APIRouter(prefix="/integrations", tags=["integrations"])
 
 @router.get("/apps")
 async def list_apps(db: DbDep, user: CurrentUserDep):
-    """List available apps from TPS marketplace."""
     return await tps.list_apps(db)
 
 
 @router.get("/apps/{identifier}")
 async def get_app(identifier: str, db: DbDep, user: CurrentUserDep):
-    """Get a single app by name or code."""
     app = await tps.get_app(db, identifier)
     if not app:
         raise HTTPException(status_code=404, detail=f"App '{identifier}' not found")
@@ -34,13 +36,11 @@ async def get_app(identifier: str, db: DbDep, user: CurrentUserDep):
 
 @router.get("")
 async def list_integrations(db: DbDep, user: CurrentUserDep):
-    """List connected integrations for this user."""
     return await tps.list_integrations(db, user.id)
 
 
 @router.get("/{identifier}")
 async def get_integration(identifier: str, db: DbDep, user: CurrentUserDep):
-    """Get a single integration by app_name or integration_id."""
     integration = await tps.get_integration(db, user.id, identifier)
     if not integration:
         raise HTTPException(status_code=404, detail="Integration not found")
@@ -51,43 +51,36 @@ async def get_integration(identifier: str, db: DbDep, user: CurrentUserDep):
 
 
 class InstallRequest(BaseModel):
-    form_data: dict | None = None
+    callback_path: str = "/integrations"  # frontend path to redirect after success
+    form_data: dict | None = None  # for form-based OAuth2
 
 
 @router.post("/{app_name}/install")
 async def install_app(
-    app_name: str, db: DbDep, user: CurrentUserDep, body: InstallRequest | None = None,
+    app_name: str, body: InstallRequest, db: DbDep, user: CurrentUserDep,
 ):
-    """Start OAuth flow — returns authorize URL."""
-    from services.tps.config import settings
-    redirect_uri = settings.github_redirect_uri  # TODO: per-app redirect URIs
+    """Start OAuth flow. Core generates encrypted state, TPS builds the URL."""
+    # Build encrypted state with user/app context
+    state = OAuthState(
+        user_id=user.id,
+        app_name=app_name,
+        timestamp=time.time(),
+        callback_path=body.callback_path,
+        form_data=body.form_data,
+    )
+    encoded_state = encode_state(state)
+
+    # redirect_uri is Core's own callback endpoint (not frontend)
+    redirect_uri = f"{settings.app_url}/api/oauth/callback"
+
     try:
-        return await tps.start_oauth_install(
-            db, user.id, app_name, redirect_uri,
-            form_data=body.form_data if body else None,
+        result = await tps.build_oauth_url(
+            db, app_name, encoded_state, redirect_uri, body.form_data,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
-class ExchangeRequest(BaseModel):
-    code: str
-    state: str
-
-
-@router.post("/{app_name}/exchange")
-async def exchange_oauth_code(
-    app_name: str, body: ExchangeRequest, db: DbDep, user: CurrentUserDep,
-):
-    """Exchange OAuth code+state for token."""
-    from services.tps.config import settings
-    redirect_uri = settings.github_redirect_uri
-    try:
-        return await tps.exchange_oauth_code(
-            db, user.id, app_name, body.code, body.state, redirect_uri,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    return result
 
 
 # ── Credential Flow ──
@@ -113,7 +106,6 @@ async def connect_app(
 
 @router.delete("/{integration_id}")
 async def delete_integration(integration_id: str, db: DbDep, user: CurrentUserDep):
-    """Disconnect an integration."""
     deleted = await tps.delete_integration(db, integration_id, user.id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Integration not found")

@@ -12,7 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from services.tps.crypto import decrypt_config, encrypt_config
 from services.tps.handlers import get_handler
 from services.tps.handlers.base import OAuthHandler
-from services.tps.models import AppMarketplace, Integration, OAuthState, utc_now
+from services.tps.models import AppMarketplace, Integration, utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -153,16 +153,3 @@ async def delete_integration(
     db.add(integration)
     await db.commit()
     return True
-
-
-async def cleanup_expired_states(db: AsyncSession) -> int:
-    """Delete OAuth states older than their expiry. Returns count deleted."""
-    now = utc_now()
-    stmt = select(OAuthState).where(OAuthState.expires_at < now)
-    result = await db.exec(stmt)
-    expired = result.all()
-    for s in expired:
-        await db.delete(s)
-    if expired:
-        await db.commit()
-    return len(expired)

@@ -198,7 +198,16 @@ components:
 
     InstallRequest:
       type: object
+      required:
+        - state
+        - redirect_uri
       properties:
+        state:
+          type: string
+          description: "Frontend-generated CSRF state"
+        redirect_uri:
+          type: string
+          description: "Frontend callback URL"
         form_data:
           type: object
           additionalProperties: true
@@ -220,11 +229,8 @@ components:
       type: object
       required:
         - code
-        - state
       properties:
         code:
-          type: string
-        state:
           type: string
 
     ConnectRequest:
