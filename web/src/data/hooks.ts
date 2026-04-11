@@ -200,7 +200,10 @@ export function useIntegrations() {
 
 export function useInstallApp() {
   return useMutation({
-    mutationFn: integrationsApi.install,
+    mutationFn: (args: string | { appName: string; callbackPath?: string; formData?: Record<string, unknown> }) => {
+      if (typeof args === "string") return integrationsApi.install(args);
+      return integrationsApi.install(args.appName, args.callbackPath, args.formData);
+    },
   });
 }
 

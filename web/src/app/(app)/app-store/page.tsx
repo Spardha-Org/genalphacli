@@ -1,71 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { useApps, useIntegrations, useInstallApp, useDeleteIntegration, useConnectApp } from "@/data/hooks";
+import { useApps, useIntegrations } from "@/data/hooks";
 import type { AppMarketplace, Integration } from "@/data/types";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import Link from "next/link";
 
-export default function AppStorePage() {
+function AppStoreContent() {
   const searchParams = useSearchParams();
   const connected = searchParams.get("connected");
   const error = searchParams.get("error");
 
-  const { data: apps, isLoading: appsLoading } = useApps();
+  const { data: apps, isLoading } = useApps();
   const { data: integrations } = useIntegrations();
-  const installApp = useInstallApp();
-  const connectApp = useConnectApp();
-  const deleteIntegration = useDeleteIntegration();
-
-  const [disconnectApp, setDisconnectApp] = useState<{ name: string; integrationId: string } | null>(null);
-  const [connectForm, setConnectForm] = useState<AppMarketplace | null>(null);
-  const [formValues, setFormValues] = useState<Record<string, string>>({});
 
   function getIntegration(appName: string): Integration | undefined {
     return integrations?.find((i) => i.app_name === appName);
-  }
-
-  async function handleConnect(app: AppMarketplace) {
-    if (app.is_install_required) {
-      // OAuth flow — redirect
-      const result = await installApp.mutateAsync(app.app_name);
-      window.location.href = result.authorize_url;
-    } else {
-      // Credential flow — show form
-      setConnectForm(app);
-      setFormValues({});
-    }
-  }
-
-  async function handleCredentialSubmit() {
-    if (!connectForm) return;
-    await connectApp.mutateAsync({ appName: connectForm.app_name, credentials: formValues });
-    setConnectForm(null);
-    setFormValues({});
-  }
-
-  async function handleDisconnect() {
-    if (!disconnectApp) return;
-    await deleteIntegration.mutateAsync(disconnectApp.integrationId);
-    setDisconnectApp(null);
   }
 
   // Group apps by category
@@ -87,7 +37,6 @@ export default function AppStorePage() {
 
   return (
     <div>
-      {/* Success/error banners */}
       {connected && (
         <div className="mb-6 px-4 py-3 bg-[var(--accent)]/10 border border-[var(--accent)]/20 rounded-lg text-[var(--accent)] text-sm font-[family-name:var(--font-jetbrains-mono)]">
           Successfully connected {connected}!
@@ -104,7 +53,7 @@ export default function AppStorePage() {
         <p className="text-sm text-[var(--text-dim)] mt-1">Connect your code hosting and deployment platforms</p>
       </div>
 
-      {appsLoading ? (
+      {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="aspect-square bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] animate-pulse" />
@@ -126,24 +75,14 @@ export default function AppStorePage() {
                   const integration = getIntegration(app.app_name);
                   const isConnected = !!integration;
 
-                  return (
-                    <button
-                      key={app.app_name}
-                      onClick={() => {
-                        if (isComingSoon) return;
-                        if (isConnected) {
-                          setDisconnectApp({ name: app.display_name, integrationId: integration.id });
-                        } else {
-                          handleConnect(app);
-                        }
-                      }}
-                      disabled={isComingSoon}
+                  const card = (
+                    <div
                       className={`aspect-square bg-[var(--surface)] border rounded-[var(--radius)] flex flex-col items-center justify-center gap-3 transition-all relative ${
                         isComingSoon
                           ? "border-[var(--border)] opacity-40 cursor-not-allowed"
                           : isConnected
                             ? "border-[var(--accent)]/30 hover:border-[var(--accent)]"
-                            : "border-[var(--border)] hover:border-[var(--accent)] cursor-pointer"
+                            : "border-[var(--border)] hover:border-[var(--accent)]"
                       }`}
                     >
                       {isConnected && (
@@ -165,7 +104,17 @@ export default function AppStorePage() {
                       <span className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-[var(--text)]">
                         {app.display_name}
                       </span>
-                    </button>
+                    </div>
+                  );
+
+                  if (isComingSoon) {
+                    return <div key={app.app_name}>{card}</div>;
+                  }
+
+                  return (
+                    <Link key={app.app_name} href={`/app-store/${app.app_name}`} className="no-underline">
+                      {card}
+                    </Link>
                   );
                 })}
               </div>
@@ -173,82 +122,14 @@ export default function AppStorePage() {
           );
         })
       )}
-
-      {/* Disconnect dialog */}
-      <AlertDialog open={!!disconnectApp} onOpenChange={() => setDisconnectApp(null)}>
-        <AlertDialogContent className="bg-[var(--elevated)] border-[var(--border)]">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="font-[family-name:var(--font-jetbrains-mono)] text-[var(--text)]">
-              Disconnect {disconnectApp?.name}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-[var(--text-dim)]">
-              This will revoke access. You can reconnect anytime.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="text-[var(--text-dim)]">Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDisconnect}
-              className="bg-[var(--rose)] text-white hover:bg-[var(--rose)]/80"
-            >
-              Disconnect
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Credential connect form dialog */}
-      <Dialog open={!!connectForm} onOpenChange={() => setConnectForm(null)}>
-        <DialogContent className="bg-[var(--elevated)] border-[var(--border)] text-[var(--text)]">
-          <DialogHeader>
-            <div className="flex items-center gap-3">
-              {connectForm && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={connectForm.meta?.icon || `https://cdn.simpleicons.org/${connectForm.app_name}/white`}
-                  width={28}
-                  height={28}
-                  alt=""
-                />
-              )}
-              <DialogTitle className="font-[family-name:var(--font-jetbrains-mono)]">
-                Connect {connectForm?.display_name}
-              </DialogTitle>
-            </div>
-            <DialogDescription className="text-[var(--text-dim)]">
-              {connectForm?.meta?.description || "Enter your credentials to connect."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            {connectForm?.meta?.form_fields?.map((field) => (
-              <div key={field.reference_key}>
-                <label className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-[var(--text-muted)] uppercase tracking-wider block mb-1.5">
-                  {field.display_name} {field.required && <span className="text-[var(--rose)]">*</span>}
-                </label>
-                <Input
-                  type={field.type === "password" ? "password" : "text"}
-                  placeholder={field.placeholder || ""}
-                  value={formValues[field.reference_key] || ""}
-                  onChange={(e) => setFormValues((v) => ({ ...v, [field.reference_key]: e.target.value }))}
-                  className="bg-[var(--surface)] border-[var(--border)] text-[var(--text)] font-[family-name:var(--font-jetbrains-mono)] text-sm"
-                />
-              </div>
-            ))}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="ghost" onClick={() => setConnectForm(null)} className="text-[var(--text-dim)]">
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCredentialSubmit}
-                disabled={connectApp.isPending}
-                className="bg-[var(--accent)] text-[var(--bg)] hover:bg-[var(--accent-bright)]"
-              >
-                {connectApp.isPending ? "Connecting..." : "Connect"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
+  );
+}
+
+export default function AppStorePage() {
+  return (
+    <Suspense>
+      <AppStoreContent />
+    </Suspense>
   );
 }
