@@ -51,7 +51,7 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] pb-16">
       {/* Minimal top bar */}
       <header className="flex items-center justify-between px-6 py-3 border-b border-[var(--border)] sticky top-0 z-50 bg-[var(--bg)]/80 backdrop-blur-xl">
-        <Link href="/" className="font-[family-name:var(--font-jetbrains-mono)] font-extrabold text-sm tracking-wider text-[var(--text)] no-underline">
+        <Link href="/dashboard" className="font-[family-name:var(--font-jetbrains-mono)] font-extrabold text-sm tracking-wider text-[var(--text)] no-underline">
           <span className="text-[var(--accent)]">//</span> GenAlpha
         </Link>
         <button
@@ -68,9 +68,9 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
       {/* Bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-2 px-6 py-3 bg-[var(--surface)] border-t border-[var(--border)]">
         <Link
-          href="/"
+          href="/dashboard"
           className={`font-[family-name:var(--font-jetbrains-mono)] text-[11px] font-semibold px-4 py-2 rounded-lg transition-all no-underline ${
-            pathname === "/" || pathname.startsWith("/projects")
+            pathname === "/dashboard" || pathname.startsWith("/projects")
               ? "bg-[var(--accent)] text-[var(--bg)]"
               : "text-[var(--text-dim)] hover:text-[var(--text)]"
           }`}
