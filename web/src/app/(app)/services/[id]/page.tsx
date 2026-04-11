@@ -427,15 +427,25 @@ ${cliName} <command> [options]`}
 }
 
 // ── Host Tab ──
+
+const HOST_APP_ICONS: Record<string, string> = {
+  pypi: "https://cdn.simpleicons.org/pypi/3775A9",
+  cloudflare: "https://cdn.simpleicons.org/cloudflare/F38020",
+  railway: "https://cdn.simpleicons.org/railway/white",
+  flyio: "https://cdn.simpleicons.org/flydotio/7B36ED",
+};
+
 function HostPanel({ serviceId, serviceName, serviceStatus, routeGraph, metadata }: { serviceId: string; serviceName: string; serviceStatus: string; routeGraph?: any; metadata?: Record<string, unknown> | null }) {
-  const [selectedHost, setSelectedHost] = useState("pypi");
   const [outputTypes, setOutputTypes] = useState<string[]>(["cli"]);
   const [error, setError] = useState<string | null>(null);
   const cliName = serviceName.toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^[^a-z]/, "a");
   const publish = usePublish();
   const { data: integrations } = useIntegrations();
 
-  const pypiConnected = integrations?.some((i) => i.app_name === "pypi" && i.status === "active");
+  // Only show connected apps that are hosting/distribution targets
+  const connectedHosts = (integrations || []).filter((i) => i.status === "active" && ["pypi", "cloudflare", "railway", "flyio"].includes(i.app_name));
+  const [selectedHost, setSelectedHost] = useState(connectedHosts[0]?.app_name || "");
+
   const isPublishing = ["generating", "packaging", "publishing"].includes(serviceStatus);
   const baseUrl = routeGraph?.base_url || "http://localhost:8000";
 
@@ -455,34 +465,53 @@ function HostPanel({ serviceId, serviceName, serviceStatus, routeGraph, metadata
     );
   }
 
+  // No connected hosting/distribution apps
+  if (connectedHosts.length === 0) {
+    return (
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] p-8 text-center">
+        <div className="w-12 h-12 rounded-full bg-[var(--text-muted)]/10 flex items-center justify-center mx-auto mb-4">
+          <svg className="w-6 h-6 text-[var(--text-muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+          </svg>
+        </div>
+        <h3 className="font-[family-name:var(--font-jetbrains-mono)] text-sm font-semibold mb-1">No deploy targets connected</h3>
+        <p className="text-xs text-[var(--text-dim)] mb-4">Connect a hosting or distribution app to publish your packages.</p>
+        <a href="/app-store" className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--accent)] text-[var(--bg)] rounded-lg hover:bg-[var(--accent-bright)] transition-colors font-[family-name:var(--font-jetbrains-mono)] text-xs font-semibold">
+          Go to App Store
+        </a>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] p-6">
         <h3 className="font-[family-name:var(--font-jetbrains-mono)] text-sm font-semibold mb-1.5">Deploy</h3>
-        <p className="text-xs text-[var(--text-dim)] mb-5">Generate and publish packages directly to PyPI using your connected account.</p>
+        <p className="text-xs text-[var(--text-dim)] mb-5">Publish packages to your connected accounts.</p>
 
+        {/* Connected deploy targets */}
         <div className="mb-4">
           <label className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-[var(--text-muted)] uppercase tracking-wider block mb-2">Deploy To</label>
           <div className="flex gap-2 flex-wrap">
-            {[
-              { id: "cloudflare", label: "Cloudflare", icon: "https://cdn.simpleicons.org/cloudflare/F38020" },
-              { id: "pypi", label: "PyPI", icon: "https://cdn.simpleicons.org/pypi/3775A9" },
-            ].map((host) => (
+            {connectedHosts.map((integration) => (
               <button
-                key={host.id}
-                onClick={() => setSelectedHost(host.id)}
+                key={integration.app_name}
+                onClick={() => setSelectedHost(integration.app_name)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border font-[family-name:var(--font-jetbrains-mono)] text-xs transition-all ${
-                  selectedHost === host.id
+                  selectedHost === integration.app_name
                     ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/10"
                     : "border-[var(--border)] text-[var(--text-dim)] hover:border-[var(--text-muted)] hover:text-[var(--text)]"
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={host.icon} width={20} height={20} alt="" />
-                {host.label}
+                <img src={HOST_APP_ICONS[integration.app_name] || ""} width={20} height={20} alt="" />
+                {integration.app_name === "pypi" ? "PyPI" : integration.app_name}
               </button>
             ))}
           </div>
+          <a href="/app-store" className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-[var(--text)] hover:text-[var(--accent)] no-underline mt-2 inline-block transition-colors">
+            Connect more at App Store &rarr;
+          </a>
         </div>
 
         {selectedHost === "pypi" && (
@@ -506,12 +535,7 @@ function HostPanel({ serviceId, serviceName, serviceStatus, routeGraph, metadata
               </div>
             </div>
 
-            {!pypiConnected ? (
-              <a href="/app-store/pypi" className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--amber)]/15 border border-[var(--amber)]/25 text-[var(--amber)] rounded-lg hover:bg-[var(--amber)]/25 transition-colors font-[family-name:var(--font-jetbrains-mono)] text-xs font-semibold">
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
-                Connect PyPI Account First
-              </a>
-            ) : isPublishing ? (
+            {isPublishing ? (
               <Button disabled className="w-full bg-[var(--accent)] text-[var(--bg)] font-[family-name:var(--font-jetbrains-mono)] text-xs font-semibold justify-center opacity-80">
                 <svg className="w-3.5 h-3.5 mr-1.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
@@ -531,13 +555,6 @@ function HostPanel({ serviceId, serviceName, serviceStatus, routeGraph, metadata
 
             {error && <p className="mt-2 text-sm text-[var(--rose)] font-[family-name:var(--font-jetbrains-mono)]">{error}</p>}
           </>
-        )}
-
-        {selectedHost === "cloudflare" && (
-          <Button className="w-full bg-[var(--accent)] text-[var(--bg)] hover:bg-[var(--accent-bright)] font-[family-name:var(--font-jetbrains-mono)] text-xs font-semibold justify-center">
-            <svg className="w-3.5 h-3.5 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
-            Deploy to Cloudflare
-          </Button>
         )}
       </div>
 
@@ -579,23 +596,6 @@ function HostPanel({ serviceId, serviceName, serviceStatus, routeGraph, metadata
 {`pip install ${metadata?.package_name || cliName}
 
 # PyPI: ${metadata?.pypi_url || `https://pypi.org/project/${cliName}/`}`}
-            </pre>
-          </>
-        ) : selectedHost === "cloudflare" ? (
-          <>
-            <h3 className="font-[family-name:var(--font-jetbrains-mono)] text-sm font-semibold mb-1">Hosted Endpoint</h3>
-            <p className="text-xs text-[var(--text-dim)] mb-4">Your MCP server will be live at:</p>
-            <pre className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-[var(--text-dim)] bg-[var(--bg)] p-4 rounded-lg overflow-x-auto leading-relaxed">
-{`https://${cliName}.genalpha.dev/mcp
-
-# Add to Claude Desktop config:
-{
-  "mcpServers": {
-    "${cliName}": {
-      "url": "https://${cliName}.genalpha.dev/mcp"
-    }
-  }
-}`}
             </pre>
           </>
         ) : (
