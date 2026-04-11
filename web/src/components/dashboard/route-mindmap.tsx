@@ -87,9 +87,9 @@ export function RouteMindmap({ routeGraph, onRouteClick }: RouteMindmapProps) {
   }, []);
 
   // Layout calculations — dynamic spacing based on endpoint count per group
-  const rootX = 60;
-  const groupX = 280;
-  const endpointX = 520;
+  const rootX = 40;
+  const groupX = 340;
+  const endpointX = 580;
   const endpointH = 32; // height per endpoint node
   const endpointGap = 6; // gap between endpoint nodes
   const groupGap = 30; // gap between groups
@@ -154,8 +154,8 @@ export function RouteMindmap({ routeGraph, onRouteClick }: RouteMindmapProps) {
         <svg className="absolute top-0 left-0" style={{ width: "100%", height: totalHeight, minHeight: "100%" }}>
           {groups.map((group, gi) => {
             const layout = groupLayouts[gi];
-            const rootCx = rootX + 120;
-            const groupCx = groupX - 20;
+            const rootCx = rootX + 200;
+            const groupCx = groupX - 10;
 
             return (
               <g key={group.prefix}>
@@ -167,7 +167,7 @@ export function RouteMindmap({ routeGraph, onRouteClick }: RouteMindmapProps) {
                 />
                 {group.endpoints.slice(0, 5).map((_ep, ei) => {
                   const ey = layout.endpointStartY + ei * (endpointH + endpointGap) + endpointH / 2;
-                  const gRightX = groupX + 80;
+                  const gRightX = groupX + 120;
                   const eLeftX = endpointX - 10;
                   return (
                     <path
