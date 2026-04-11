@@ -78,15 +78,18 @@ export default function ProjectsPage() {
             <Link
               key={project.id}
               href={`/projects/${project.id}`}
-              className="group aspect-square bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] overflow-hidden flex flex-col no-underline hover:border-[var(--accent)] transition-colors relative"
+              className="group aspect-square bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] overflow-hidden no-underline hover:border-[var(--accent)] hover:-translate-y-0.5 hover:shadow-[0_4px_24px_rgba(0,0,0,0.3)] transition-all duration-200 relative"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`https://picsum.photos/seed/${project.id}/200/200`}
                 alt=""
-                className="w-full flex-1 object-cover opacity-60 group-hover:opacity-80 transition-opacity"
+                className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 transition-opacity"
               />
-              <div className="p-3">
+              {/* Gradient overlay for text readability */}
+              <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/40 to-transparent" />
+              {/* Content overlay */}
+              <div className="absolute bottom-0 left-0 right-0 p-4">
                 <div className="font-[family-name:var(--font-jetbrains-mono)] text-sm font-bold text-[var(--text)] truncate">
                   {project.name}
                 </div>
