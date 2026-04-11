@@ -86,13 +86,33 @@ export function RouteMindmap({ routeGraph, onRouteClick }: RouteMindmapProps) {
     setPan({ x: 0, y: 0 });
   }, []);
 
-  // Layout calculations
+  // Layout calculations — dynamic spacing based on endpoint count per group
   const rootX = 60;
-  const rootY = 240;
   const groupX = 280;
-  const endpointX = 500;
-  const groupSpacing = Math.min(100, 480 / Math.max(groups.length, 1));
-  const groupStartY = rootY - ((groups.length - 1) * groupSpacing) / 2;
+  const endpointX = 520;
+  const endpointH = 32; // height per endpoint node
+  const endpointGap = 6; // gap between endpoint nodes
+  const groupGap = 30; // gap between groups
+
+  // Calculate each group's Y center and total height
+  const groupLayouts = useMemo(() => {
+    const layouts: { gy: number; endpointStartY: number; endpointCount: number }[] = [];
+    let currentY = 40;
+
+    for (const group of groups) {
+      const count = Math.min(group.endpoints.length, 5);
+      const blockHeight = count * (endpointH + endpointGap) - endpointGap;
+      const gy = currentY + blockHeight / 2;
+      layouts.push({ gy, endpointStartY: currentY, endpointCount: count });
+      currentY += blockHeight + groupGap;
+    }
+    return layouts;
+  }, [groups]);
+
+  const totalHeight = groupLayouts.length > 0
+    ? groupLayouts[groupLayouts.length - 1].endpointStartY + groupLayouts[groupLayouts.length - 1].endpointCount * (endpointH + endpointGap) + 40
+    : 500;
+  const rootY = totalHeight / 2;
 
   return (
     <div
@@ -131,32 +151,28 @@ export function RouteMindmap({ routeGraph, onRouteClick }: RouteMindmapProps) {
         style={{ transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)`, transformOrigin: "center center", transition: isDragging.current ? "none" : "transform 0.2s" }}
       >
         {/* SVG Edges */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none">
+        <svg className="absolute top-0 left-0" style={{ width: "100%", height: totalHeight, minHeight: "100%" }}>
           {groups.map((group, gi) => {
-            const gy = groupStartY + gi * groupSpacing;
-            // Root → Group
+            const layout = groupLayouts[gi];
             const rootCx = rootX + 120;
             const groupCx = groupX - 20;
-            const endpointStartY = gy - ((group.endpoints.length - 1) * 40) / 2;
 
             return (
               <g key={group.prefix}>
-                {/* Root → Group edge */}
                 <path
-                  d={`M ${rootCx},${rootY} C ${(rootCx + groupCx) / 2},${rootY} ${(rootCx + groupCx) / 2},${gy} ${groupCx},${gy}`}
+                  d={`M ${rootCx},${rootY} C ${(rootCx + groupCx) / 2},${rootY} ${(rootCx + groupCx) / 2},${layout.gy} ${groupCx},${layout.gy}`}
                   fill="none"
                   stroke="rgba(20, 184, 166, 0.25)"
                   strokeWidth="1.5"
                 />
-                {/* Group → Endpoint edges */}
-                {group.endpoints.slice(0, 5).map((ep, ei) => {
-                  const ey = endpointStartY + ei * 40;
+                {group.endpoints.slice(0, 5).map((_ep, ei) => {
+                  const ey = layout.endpointStartY + ei * (endpointH + endpointGap) + endpointH / 2;
                   const gRightX = groupX + 80;
                   const eLeftX = endpointX - 10;
                   return (
                     <path
                       key={ei}
-                      d={`M ${gRightX},${gy} C ${(gRightX + eLeftX) / 2},${gy} ${(gRightX + eLeftX) / 2},${ey} ${eLeftX},${ey}`}
+                      d={`M ${gRightX},${layout.gy} C ${(gRightX + eLeftX) / 2},${layout.gy} ${(gRightX + eLeftX) / 2},${ey} ${eLeftX},${ey}`}
                       fill="none"
                       stroke="rgba(255,255,255,0.06)"
                       strokeWidth="1.5"
@@ -178,22 +194,19 @@ export function RouteMindmap({ routeGraph, onRouteClick }: RouteMindmapProps) {
 
         {/* Groups + Endpoints */}
         {groups.map((group, gi) => {
-          const gy = groupStartY + gi * groupSpacing;
-          const endpointStartY = gy - ((group.endpoints.length - 1) * 40) / 2;
+          const layout = groupLayouts[gi];
 
           return (
             <div key={group.prefix}>
-              {/* Group node */}
               <div
                 className="absolute px-3.5 py-2 rounded-lg font-[family-name:var(--font-jetbrains-mono)] text-[11px] font-semibold whitespace-nowrap bg-[var(--elevated)] text-[var(--text)] border border-white/10 hover:shadow-[0_0_12px_rgba(20,184,166,0.3)] transition-shadow"
-                style={{ left: groupX, top: gy - 14 }}
+                style={{ left: groupX, top: layout.gy - 14 }}
               >
                 {group.prefix}
               </div>
 
-              {/* Endpoint nodes */}
               {group.endpoints.slice(0, 5).map((ep, ei) => {
-                const ey = endpointStartY + ei * 40;
+                const ey = layout.endpointStartY + ei * (endpointH + endpointGap);
                 const mc = METHOD_COLORS[ep.method] || { bg: "rgba(255,255,255,0.1)", text: "var(--text-muted)" };
 
                 return (
@@ -201,7 +214,7 @@ export function RouteMindmap({ routeGraph, onRouteClick }: RouteMindmapProps) {
                     key={ei}
                     onClick={() => onRouteClick?.(ep.subcommand)}
                     className="mindmap-node-click absolute px-3 py-1.5 rounded-lg font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold whitespace-nowrap bg-[var(--bg)] text-[var(--text-dim)] border border-[var(--border)] flex items-center gap-1.5 cursor-pointer hover:shadow-[0_0_12px_rgba(20,184,166,0.3)] transition-shadow"
-                    style={{ left: endpointX, top: ey - 12 }}
+                    style={{ left: endpointX, top: ey }}
                   >
                     <span
                       className="text-[9px] font-bold px-1.5 py-px rounded uppercase"
@@ -216,7 +229,7 @@ export function RouteMindmap({ routeGraph, onRouteClick }: RouteMindmapProps) {
               {group.endpoints.length > 5 && (
                 <div
                   className="absolute px-3 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[9px] text-[var(--text-muted)]"
-                  style={{ left: endpointX, top: endpointStartY + 5 * 40 - 12 }}
+                  style={{ left: endpointX, top: layout.endpointStartY + 5 * (endpointH + endpointGap) }}
                 >
                   +{group.endpoints.length - 5} more
                 </div>
