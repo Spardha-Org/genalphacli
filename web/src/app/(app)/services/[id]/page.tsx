@@ -220,7 +220,7 @@ function RoutesPanel({ subcommands }: { subcommands: Subcommand[] }) {
 // ── Generate Tab ──
 function GeneratePanel({ serviceId, serviceName, baseUrl, artifactId }: { serviceId: string; serviceName: string; baseUrl?: string; artifactId?: string | null }) {
   const [outputTypes, setOutputTypes] = useState<string[]>(["cli"]);
-  const [cliName, setCliName] = useState(serviceName.toLowerCase().replace(/[^a-z0-9_-]/g, "-"));
+  const [cliName, setCliName] = useState(serviceName.toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^[^a-z]/, "a"));
   const generate = useGenerate();
 
   function toggleOutput(type: string) {
