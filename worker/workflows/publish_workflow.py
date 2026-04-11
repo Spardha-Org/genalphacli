@@ -74,10 +74,10 @@ class PublishWorkflow:
                 start_to_close_timeout=timedelta(seconds=10),
             )
 
-            # Publish each output type
-            publish_result = None
+            # Publish each output type as a separate PyPI package
+            published_packages = []
             for pkg_type in input.output_types:
-                publish_result = await workflow.execute_activity(
+                result = await workflow.execute_activity(
                     publish_to_pypi_activity,
                     PublishToPyPIInput(
                         service_id=input.service_id,
@@ -89,8 +89,14 @@ class PublishWorkflow:
                     start_to_close_timeout=timedelta(seconds=180),
                     retry_policy=RetryPolicy(maximum_attempts=2),
                 )
+                published_packages.append({
+                    "type": pkg_type,
+                    "package_name": result.package_name,
+                    "version": result.version,
+                    "pypi_url": result.published_url,
+                })
 
-            # Step 3: Mark complete
+            # Step 3: Mark complete with all published packages
             await workflow.execute_activity(
                 update_service_status,
                 StatusUpdateInput(
@@ -98,18 +104,18 @@ class PublishWorkflow:
                     status="complete",
                     metadata={
                         "published_to_pypi": True,
-                        "package_name": publish_result.package_name,
-                        "package_version": publish_result.version,
-                        "pypi_url": publish_result.published_url,
+                        "published_packages": published_packages,
                     },
                 ),
                 start_to_close_timeout=timedelta(seconds=10),
             )
 
+            # Return the first package as the primary result
+            primary = published_packages[0]
             return PublishWorkflowOutput(
-                package_name=publish_result.package_name,
-                version=publish_result.version,
-                published_url=publish_result.published_url,
+                package_name=primary["package_name"],
+                version=primary["version"],
+                published_url=primary["pypi_url"],
             )
 
         except Exception as e:
