@@ -29,6 +29,7 @@ dev = [
     "fastapi>=0.110.0",
     "pytest-asyncio>=0.23.0",
     "aiosqlite>=0.20.0",
+    "datamodel-code-generator>=0.26.0",
 ]
 worker = [
     "temporalio>=1.25.0",

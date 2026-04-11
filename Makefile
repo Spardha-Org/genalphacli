@@ -1,4 +1,4 @@
-.PHONY: infra core tps worker web dev stop logs clean help migrate
+.PHONY: infra core tps worker web dev stop logs clean help migrate generate-api
 
 # ── Configuration ──
 SHELL := /bin/bash
@@ -36,6 +36,22 @@ core: ## Start Core service (:8000)
 	@printf "  \033[0;32m●\033[0m Core starting on :8000...\n"
 	set -a && source $(ENV_FILE) && set +a && \
 		PYTHONPATH=.:src uv run uvicorn services.core.main:app --port 8000 --reload --log-level info
+
+generate-api: ## Generate Pydantic models from OpenAPI specs
+	@printf "  \033[0;32m●\033[0m Generating API models from OpenAPI specs...\n"
+	@uv run datamodel-codegen \
+		--input services/tps/openapi/apps.yaml \
+		--output services/tps/api/generated/apps_models.py \
+		--output-model-type pydantic_v2.BaseModel \
+		--target-python-version 3.11 \
+		--use-annotated --field-constraints
+	@uv run datamodel-codegen \
+		--input services/tps/openapi/integrations.yaml \
+		--output services/tps/api/generated/integrations_models.py \
+		--output-model-type pydantic_v2.BaseModel \
+		--target-python-version 3.11 \
+		--use-annotated --field-constraints
+	@printf "  \033[0;32m●\033[0m API models generated\n"
 
 migrate: ## Run TPS Alembic migrations
 	@printf "  \033[0;32m●\033[0m Running TPS migrations...\n"

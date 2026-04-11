@@ -1,13 +1,27 @@
-"""Integration routes — OAuth install, credential connect, management."""
+"""Integration controller — implements IntegrationsApi interface.
+
+Routes only handle HTTP concerns. Uses generated DTOs from OpenAPI specs.
+"""
 
 from __future__ import annotations
 
 import logging
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from sqlmodel import select
 
+from services.tps.api.generated.integrations_models import (
+    CloneRequest,
+    CloneResponse,
+    ConnectRequest,
+    ConnectResponse,
+    ExchangeRequest,
+    InstallRequest,
+    InstallResponse,
+    IntegrationDTO,
+    OkResponse,
+    ResolveStateResponse,
+)
 from services.tps.config import settings
 from services.tps.deps import DbDep, TpsAuthDep, WorkspaceIdDep
 from services.tps.handlers import get_handler, get_oauth_handler, get_credential_handler
@@ -27,11 +41,7 @@ router = APIRouter(prefix="/integrations", tags=["integrations"])
 # ── OAuth Flow ──
 
 
-class InstallRequest(BaseModel):
-    form_data: dict | None = None  # For form-based OAuth2 (tenant URL, etc.)
-
-
-@router.post("/{app_name}/install")
+@router.post("/{app_name}/install", response_model=InstallResponse)
 async def install_app(
     app_name: str,
     db: DbDep,
@@ -77,18 +87,10 @@ async def install_app(
     db.add(oauth_state)
     await db.commit()
 
-    return {
-        "authorize_url": authorize_url,
-        "state": state,
-    }
+    return InstallResponse(authorize_url=authorize_url, state=state)
 
 
-class ExchangeRequest(BaseModel):
-    code: str
-    state: str
-
-
-@router.post("/{app_name}/exchange")
+@router.post("/{app_name}/exchange", response_model=ConnectResponse)
 async def exchange_oauth_code(
     app_name: str,
     body: ExchangeRequest,
@@ -147,22 +149,18 @@ async def exchange_oauth_code(
         expires_at=expires_at,
     )
 
-    return {
-        "integration_id": integration.id,
-        "app_name": app_name,
-        "identifier": identifier,
-        "status": "active",
-    }
+    return ConnectResponse(
+        integration_id=integration.id,
+        app_name=app_name,
+        identifier=identifier,
+        status="active",
+    )
 
 
 # ── Credential Flow (API Key, Basic Auth, mTLS) ──
 
 
-class ConnectRequest(BaseModel):
-    credentials: dict  # fields matching app.meta.form_fields
-
-
-@router.post("/{app_name}/connect")
+@router.post("/{app_name}/connect", response_model=ConnectResponse)
 async def connect_app(
     app_name: str,
     body: ConnectRequest,
@@ -212,18 +210,18 @@ async def connect_app(
         identifier=body.credentials.get("email") or body.credentials.get("username"),
     )
 
-    return {
-        "integration_id": integration.id,
-        "app_name": app_name,
-        "identifier": integration.identifier,
-        "status": "active",
-    }
+    return ConnectResponse(
+        integration_id=integration.id,
+        app_name=app_name,
+        identifier=integration.identifier,
+        status="active",
+    )
 
 
 # ── State Resolution (for callback page) ──
 
 
-@router.get("/resolve-state")
+@router.get("/resolve-state", response_model=ResolveStateResponse)
 async def resolve_state(
     state: str,
     db: DbDep,
@@ -234,13 +232,13 @@ async def resolve_state(
     oauth_state = result.first()
     if not oauth_state:
         raise HTTPException(status_code=404, detail="State not found or expired")
-    return {"app_name": oauth_state.app_name}
+    return ResolveStateResponse(app_name=oauth_state.app_name)
 
 
 # ── List / Delete / Clone ──
 
 
-@router.get("")
+@router.get("", response_model=list[IntegrationDTO])
 async def list_integrations(
     db: DbDep,
     workspace_id: WorkspaceIdDep,
@@ -252,21 +250,19 @@ async def list_integrations(
         Integration.status == "active",
     )
     result = await db.exec(stmt)
-    integrations = result.all()
-
     return [
-        {
-            "id": i.id,
-            "app_name": i.app_name,
-            "identifier": i.identifier,
-            "status": i.status,
-            "created_at": i.created_at.isoformat(),
-        }
-        for i in integrations
+        IntegrationDTO(
+            id=i.id,
+            app_name=i.app_name,
+            identifier=i.identifier,
+            status=i.status,
+            created_at=i.created_at.isoformat(),
+        )
+        for i in result.all()
     ]
 
 
-@router.delete("/{integration_id}")
+@router.delete("/{integration_id}", response_model=OkResponse)
 async def remove_integration(
     integration_id: str,
     db: DbDep,
@@ -277,14 +273,10 @@ async def remove_integration(
     deleted = await delete_integration(db, integration_id, workspace_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Integration not found")
-    return {"ok": True}
+    return OkResponse(ok=True)
 
 
-class CloneRequest(BaseModel):
-    repo_url: str
-
-
-@router.post("/{integration_id}/clone")
+@router.post("/{integration_id}/clone", response_model=CloneResponse)
 async def clone_repo_with_integration(
     integration_id: str,
     body: CloneRequest,
@@ -301,12 +293,8 @@ async def clone_repo_with_integration(
 
     from genalphacli.github import clone_repo, fetch_repo_info, parse_github_url
 
-    owner, repo = parse_github_url(body.repo_url)
-    info = fetch_repo_info(owner, repo, token=access_token)
+    owner, repo_name = parse_github_url(body.repo_url)
+    info = fetch_repo_info(owner, repo_name, token=access_token)
     clone_dir = clone_repo(info, token=access_token)
 
-    return {
-        "clone_dir": str(clone_dir),
-        "owner": owner,
-        "repo": repo,
-    }
+    return CloneResponse(clone_dir=str(clone_dir), owner=owner, repo=repo_name)

@@ -207,7 +207,6 @@ components:
           type: string
         created_at:
           type: string
-          format: date-time
 
     InstallRequest:
       type: object
