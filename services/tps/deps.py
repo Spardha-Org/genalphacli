@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, Header, HTTPException, Request
+from fastapi import Depends, Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -40,13 +40,13 @@ async def validate_tps_secret(
 TpsAuthDep = Annotated[None, Depends(validate_tps_secret)]
 
 
-async def get_workspace_id(
-    x_workspace_id: str = Header(..., alias="X-Workspace-ID"),
+async def get_user_id(
+    x_user_id: str = Header(..., alias="X-User-ID"),
 ) -> str:
-    """Extract workspace_id from header."""
-    if not x_workspace_id:
-        raise HTTPException(status_code=400, detail="X-Workspace-ID header required")
-    return x_workspace_id
+    """Extract user_id from header."""
+    if not x_user_id:
+        raise HTTPException(status_code=400, detail="X-User-ID header required")
+    return x_user_id
 
 
-WorkspaceIdDep = Annotated[str, Depends(get_workspace_id)]
+UserIdDep = Annotated[str, Depends(get_user_id)]

@@ -9,10 +9,25 @@ tags:
   - name: Integrations
     description: Integration lifecycle APIs
 
+# Common headers — all endpoints require X-TPS-Secret, most require X-User-ID
+x-common-headers:
+  - name: X-TPS-Secret
+    in: header
+    required: true
+    schema:
+      type: string
+    description: Shared secret for Core→TPS authentication
+  - name: X-User-ID
+    in: header
+    required: true
+    schema:
+      type: string
+    description: User ID for scoping integrations
+
 paths:
   /integrations:
     get:
-      summary: List all active integrations for a workspace
+      summary: List all active integrations for a user
       operationId: listIntegrations
       responses:
         200:

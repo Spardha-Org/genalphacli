@@ -116,7 +116,7 @@ async def seed_data(db):
 async def client(engine, seed_data):
     """Create an async test client with dependency overrides."""
     from services.tps.main import app
-    from services.tps.deps import get_db, validate_tps_secret, get_workspace_id
+    from services.tps.deps import get_db, validate_tps_secret, get_user_id
 
     async def override_get_db():
         async with AsyncSession(engine, expire_on_commit=False) as session:
@@ -125,12 +125,12 @@ async def client(engine, seed_data):
     async def override_validate_tps_secret():
         return None
 
-    async def override_get_workspace_id():
-        return "test-ws"
+    async def override_get_user_id():
+        return "test-user"
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[validate_tps_secret] = override_validate_tps_secret
-    app.dependency_overrides[get_workspace_id] = override_get_workspace_id
+    app.dependency_overrides[get_user_id] = override_get_user_id
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:

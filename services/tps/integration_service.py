@@ -22,7 +22,7 @@ REFRESH_BUFFER_SECONDS = 120  # refresh 2 minutes before actual expiry
 async def get_or_refresh(
     db: AsyncSession,
     integration_id: str,
-    workspace_id: str,
+    user_id: str,
 ) -> dict:
     """Get an integration's decrypted config, refreshing the token if expired.
 
@@ -33,7 +33,7 @@ async def get_or_refresh(
         select(Integration)
         .where(
             Integration.id == integration_id,
-            Integration.workspace_id == workspace_id,
+            Integration.user_id == user_id,
             Integration.status == "active",
         )
         .with_for_update()
@@ -42,7 +42,7 @@ async def get_or_refresh(
     integration = result.first()
 
     if not integration:
-        raise ValueError(f"Integration {integration_id} not found for workspace {workspace_id}")
+        raise ValueError(f"Integration {integration_id} not found for workspace {user_id}")
 
     config = decrypt_config(integration.config_encrypted)
     handler = get_handler(integration.app_name)
@@ -69,7 +69,7 @@ async def get_or_refresh(
 
 async def create_integration(
     db: AsyncSession,
-    workspace_id: str,
+    user_id: str,
     app_name: str,
     config: dict,
     identifier: str | None = None,
@@ -89,7 +89,7 @@ async def create_integration(
 
     # Check for existing active integration
     stmt = select(Integration).where(
-        Integration.workspace_id == workspace_id,
+        Integration.user_id == user_id,
         Integration.app_name == app_name,
         Integration.status == "active",
     )
@@ -108,7 +108,7 @@ async def create_integration(
         return existing
 
     integration = Integration(
-        workspace_id=workspace_id,
+        user_id=user_id,
         app_id=app.id,
         app_name=app_name,
         config_encrypted=encrypt_config(config),
@@ -124,12 +124,12 @@ async def create_integration(
 async def delete_integration(
     db: AsyncSession,
     integration_id: str,
-    workspace_id: str,
+    user_id: str,
 ) -> bool:
     """Revoke an integration — wipes credentials, calls provider revocation."""
     stmt = select(Integration).where(
         Integration.id == integration_id,
-        Integration.workspace_id == workspace_id,
+        Integration.user_id == user_id,
     )
     result = await db.exec(stmt)
     integration = result.first()

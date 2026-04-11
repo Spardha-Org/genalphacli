@@ -102,7 +102,7 @@ class Integration(SQLModel, table=True):
     __tablename__ = "tps_integrations"
 
     id: str = Field(default_factory=generate_cuid, primary_key=True)
-    workspace_id: str = Field(index=True)
+    user_id: str = Field(index=True)
     app_id: str = Field(foreign_key="tps_app_marketplace.id", index=True)
     app_name: str = Field(index=True)  # denormalized for quick lookups
     config_encrypted: str  # MultiFernet ciphertext
@@ -128,7 +128,7 @@ class OAuthState(SQLModel, table=True):
     state: str = Field(
         default_factory=lambda: secrets.token_urlsafe(32), primary_key=True
     )
-    workspace_id: str
+    user_id: str
     app_name: str
     meta: Optional[dict] = Field(default=None, sa_column=Column(JSON))  # form fields for form-based OAuth
     created_at: datetime = Field(default_factory=utc_now)

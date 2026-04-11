@@ -20,7 +20,7 @@ from services.tps.api.generated.integrations_models import (
     OkResponse,
 )
 from services.tps.config import settings
-from services.tps.deps import DbDep, TpsAuthDep, WorkspaceIdDep
+from services.tps.deps import DbDep, TpsAuthDep, UserIdDep
 from services.tps.handlers import get_handler, get_oauth_handler, get_credential_handler
 from services.tps.handlers.base import OAuthHandler
 from services.tps.integration_service import (
@@ -41,7 +41,7 @@ router = APIRouter(prefix="/integrations", tags=["integrations"])
 async def install_app(
     app_name: str,
     db: DbDep,
-    workspace_id: WorkspaceIdDep,
+    user_id: UserIdDep,
     _auth: TpsAuthDep,
     body: InstallRequest | None = None,
 ):
@@ -76,7 +76,7 @@ async def install_app(
     # Persist state in DB with form_data for Form-based OAuth2
     oauth_state = OAuthState(
         state=state,
-        workspace_id=workspace_id,
+        user_id=user_id,
         app_name=app_name,
         meta=form_data,
     )
@@ -91,7 +91,7 @@ async def exchange_oauth_code(
     app_name: str,
     body: ExchangeRequest,
     db: DbDep,
-    workspace_id: WorkspaceIdDep,
+    user_id: UserIdDep,
     _auth: TpsAuthDep,
 ):
     """Exchange OAuth code+state for token. Validates state, stores encrypted token."""
@@ -138,7 +138,7 @@ async def exchange_oauth_code(
 
     integration = await create_integration(
         db,
-        workspace_id=workspace_id,
+        user_id=user_id,
         app_name=app_name,
         config=config,
         identifier=identifier,
@@ -161,7 +161,7 @@ async def connect_app(
     app_name: str,
     body: ConnectRequest,
     db: DbDep,
-    workspace_id: WorkspaceIdDep,
+    user_id: UserIdDep,
     _auth: TpsAuthDep,
 ):
     """Connect a credential-based app (API Key, Basic Auth, mTLS).
@@ -200,7 +200,7 @@ async def connect_app(
     # Store encrypted integration
     integration = await create_integration(
         db,
-        workspace_id=workspace_id,
+        user_id=user_id,
         app_name=app_name,
         config=body.credentials,
         identifier=body.credentials.get("email") or body.credentials.get("username"),
@@ -220,12 +220,12 @@ async def connect_app(
 @router.get("", response_model=list[IntegrationDTO])
 async def list_integrations(
     db: DbDep,
-    workspace_id: WorkspaceIdDep,
+    user_id: UserIdDep,
     _auth: TpsAuthDep,
 ):
     """List all active integrations for a workspace."""
     stmt = select(Integration).where(
-        Integration.workspace_id == workspace_id,
+        Integration.user_id == user_id,
         Integration.status == "active",
     )
     result = await db.exec(stmt)
@@ -245,13 +245,13 @@ async def list_integrations(
 async def get_integration(
     identifier: str,
     db: DbDep,
-    workspace_id: WorkspaceIdDep,
+    user_id: UserIdDep,
     _auth: TpsAuthDep,
 ):
     """Get a single integration by integration_id or app_name."""
     # Try by app_name first (more common lookup)
     stmt = select(Integration).where(
-        Integration.workspace_id == workspace_id,
+        Integration.user_id == user_id,
         Integration.app_name == identifier,
         Integration.status == "active",
     )
@@ -262,7 +262,7 @@ async def get_integration(
     if not integration:
         stmt = select(Integration).where(
             Integration.id == identifier,
-            Integration.workspace_id == workspace_id,
+            Integration.user_id == user_id,
             Integration.status == "active",
         )
         result = await db.exec(stmt)
@@ -284,11 +284,11 @@ async def get_integration(
 async def remove_integration(
     integration_id: str,
     db: DbDep,
-    workspace_id: WorkspaceIdDep,
+    user_id: UserIdDep,
     _auth: TpsAuthDep,
 ):
     """Disconnect an integration — revokes token and wipes credentials."""
-    deleted = await delete_integration(db, integration_id, workspace_id)
+    deleted = await delete_integration(db, integration_id, user_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Integration not found")
     return OkResponse(ok=True)

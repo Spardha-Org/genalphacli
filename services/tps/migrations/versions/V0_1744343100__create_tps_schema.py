@@ -41,7 +41,7 @@ def upgrade() -> None:
     op.create_table(
         "tps_oauth_states",
         sa.Column("state", sa.String(), nullable=False),
-        sa.Column("workspace_id", sa.String(), nullable=False),
+        sa.Column("user_id", sa.String(), nullable=False),
         sa.Column("app_name", sa.String(), nullable=False),
         sa.Column("meta", sa.JSON(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
@@ -52,7 +52,7 @@ def upgrade() -> None:
     op.create_table(
         "tps_integrations",
         sa.Column("id", sa.String(), nullable=False),
-        sa.Column("workspace_id", sa.String(), nullable=False),
+        sa.Column("user_id", sa.String(), nullable=False),
         sa.Column("app_id", sa.String(), nullable=False),
         sa.Column("app_name", sa.String(), nullable=False),
         sa.Column("config_encrypted", sa.String(), nullable=False),
@@ -64,7 +64,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["app_id"], ["tps_app_marketplace.id"]),
     )
-    op.create_index("ix_tps_integrations_workspace_id", "tps_integrations", ["workspace_id"])
+    op.create_index("ix_tps_integrations_user_id", "tps_integrations", ["user_id"])
     op.create_index("ix_tps_integrations_app_id", "tps_integrations", ["app_id"])
     op.create_index("ix_tps_integrations_app_name", "tps_integrations", ["app_name"])
 
