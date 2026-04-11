@@ -146,11 +146,34 @@ export default function ServiceDetailPage() {
 // ── Mindmap Tab ──
 function MindmapPanel({ service, onSelectRoute }: { service: any; onSelectRoute: (r: Subcommand) => void }) {
   if (!service.route_graph || (service.status !== "parsed" && service.status !== "complete")) {
+    const isFailed = service.status === "failed" || service.status === "timed_out";
     return (
-      <div className="h-[500px] bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] flex items-center justify-center">
-        <p className="text-[var(--text-muted)] font-[family-name:var(--font-jetbrains-mono)] text-sm">
-          {service.status === "failed" ? "Parsing failed — no graph available" : "Waiting for parsing to complete..."}
-        </p>
+      <div className="h-[500px] bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] flex flex-col items-center justify-center gap-3">
+        {isFailed ? (
+          <>
+            <div className="w-10 h-10 rounded-full bg-[var(--rose)]/10 flex items-center justify-center">
+              <svg className="w-5 h-5 text-[var(--rose)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" /><path d="M15 9l-6 6M9 9l6 6" />
+              </svg>
+            </div>
+            <p className="text-[var(--text-dim)] font-[family-name:var(--font-jetbrains-mono)] text-sm">Parsing failed</p>
+            {service.error_message && (
+              <p className="text-[var(--text-muted)] text-xs max-w-md text-center">{service.error_message}</p>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="w-10 h-10 rounded-full bg-[var(--accent)]/10 flex items-center justify-center animate-pulse">
+              <svg className="w-5 h-5 text-[var(--accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+              </svg>
+            </div>
+            <p className="text-[var(--text-dim)] font-[family-name:var(--font-jetbrains-mono)] text-sm">
+              {service.status === "cloning" ? "Cloning repository..." : service.status === "parsing" ? "Parsing routes..." : "Processing..."}
+            </p>
+            <p className="text-[var(--text-muted)] text-xs">Polling every 3s — graph will appear automatically</p>
+          </>
+        )}
       </div>
     );
   }

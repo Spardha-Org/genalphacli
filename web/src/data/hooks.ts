@@ -135,8 +135,13 @@ export function useService(id: string) {
     queryKey: keys.service(id),
     queryFn: () => servicesApi.get(id),
     enabled: Boolean(id),
-    staleTime: 30_000,
+    staleTime: 0,
     gcTime: 5 * 60_000,
+    refetchInterval: (query: { state: { data?: Service } }) => {
+      const status = query.state.data?.status;
+      if (!status) return 3000;
+      return TERMINAL_STATUSES.has(status) ? false : 3000;
+    },
   });
 }
 
