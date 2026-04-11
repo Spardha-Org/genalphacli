@@ -78,27 +78,29 @@ export default function ProjectsPage() {
             <Link
               key={project.id}
               href={`/projects/${project.id}`}
-              className="group aspect-square bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] overflow-hidden no-underline hover:border-[var(--accent)] hover:-translate-y-0.5 hover:shadow-[0_4px_24px_rgba(0,0,0,0.3)] transition-all duration-200 relative"
+              className="group aspect-square bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] p-5 flex flex-col no-underline hover:border-[rgba(20,184,166,0.2)] hover:-translate-y-0.5 hover:shadow-[0_4px_24px_rgba(0,0,0,0.3)] transition-all duration-200"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`https://picsum.photos/seed/${project.id}/200/200`}
-                alt=""
-                className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 transition-opacity"
-              />
-              {/* Gradient overlay for text readability */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/40 to-transparent" />
-              {/* Content overlay */}
-              <div className="absolute bottom-0 left-0 right-0 p-4">
-                <div className="font-[family-name:var(--font-jetbrains-mono)] text-sm font-bold text-[var(--text)] truncate">
-                  {project.name}
+              {/* Centered icon + name */}
+              <div className="flex-1 flex flex-col items-center justify-center gap-3">
+                <div
+                  className="shrink-0 rounded-xl flex items-center justify-center"
+                  style={{ width: 56, height: 56, backgroundColor: "rgba(20,184,166,0.1)", color: "var(--accent)" }}
+                >
+                  <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
                 </div>
-                {project.description && (
-                  <div className="text-[11px] text-[var(--text-dim)] mt-1 line-clamp-2">
-                    {project.description}
-                  </div>
-                )}
+                <span className="font-[family-name:var(--font-jetbrains-mono)] text-sm font-semibold text-[var(--text)] text-center">
+                  {project.name}
+                </span>
               </div>
+
+              {/* Bottom: description */}
+              {project.description && (
+                <div className="mt-auto text-[11px] text-[var(--text-dim)] line-clamp-2 text-center">
+                  {project.description}
+                </div>
+              )}
             </Link>
           ))}
 
