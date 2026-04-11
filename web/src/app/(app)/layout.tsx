@@ -78,6 +78,16 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
           Projects
         </Link>
         <Link
+          href="/services"
+          className={`font-[family-name:var(--font-jetbrains-mono)] text-[11px] font-semibold px-4 py-2 rounded-lg transition-all no-underline ${
+            pathname.startsWith("/services")
+              ? "bg-[var(--accent)] text-[var(--bg)]"
+              : "text-[var(--text-dim)] hover:text-[var(--text)]"
+          }`}
+        >
+          Services
+        </Link>
+        <Link
           href="/app-store"
           className={`font-[family-name:var(--font-jetbrains-mono)] text-[11px] font-semibold px-4 py-2 rounded-lg transition-all no-underline ${
             pathname.startsWith("/app-store")

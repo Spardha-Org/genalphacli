@@ -81,11 +81,22 @@ export const projectsApi = {
 
 // ── Services API ──
 
+export type ServiceListItem = {
+  id: string;
+  project_id: string;
+  name: string;
+  repo_url: string | null;
+  framework: string | null;
+  status: string;
+  error_message: string | null;
+  created_at: string;
+};
+
 export const servicesApi = {
+  list: () => apiFetch<ServiceListItem[]>("/services"),
+
   listByProject: (projectId: string) =>
-    apiFetch<Array<{ id: string; name: string; repo_url: string | null; framework: string | null; status: string; error_message: string | null; created_at: string }>>(
-      `/services/by-project/${projectId}`,
-    ),
+    apiFetch<ServiceListItem[]>(`/services/by-project/${projectId}`),
 
   get: (id: string) => apiFetch<Service>(`/services/${id}`),
 

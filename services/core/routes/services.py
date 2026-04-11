@@ -18,6 +18,34 @@ class CreateServiceRequest(BaseModel):
     project_id: str
 
 
+@router.get("")
+async def list_all_services(
+    db: DbDep,
+    workspace: CurrentWorkspaceDep,
+):
+    """List all services across all projects for the current workspace."""
+    result = await db.exec(
+        select(Service)
+        .join(Project)
+        .where(Project.workspace_id == workspace.id)
+    )
+    services = result.all()
+
+    return [
+        {
+            "id": s.id,
+            "project_id": s.project_id,
+            "name": s.name,
+            "repo_url": s.repo_url,
+            "framework": s.framework,
+            "status": s.status,
+            "error_message": s.error_message,
+            "created_at": s.created_at.isoformat(),
+        }
+        for s in services
+    ]
+
+
 @router.get("/by-project/{project_id}")
 async def list_services_by_project(
     project_id: str,
