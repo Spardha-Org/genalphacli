@@ -88,10 +88,7 @@ class AppMarketplace(SQLModel, table=True):
     auth_type: int  # AuthType enum value (1=oauth2, 2=api_key, etc.)
     category: int  # AppCategory enum value (1=source_control, 2=hosting, etc.)
     provider: int = Field(default=1)  # AppProvider enum value (1=native)
-    meta: dict = Field(default_factory=dict, sa_column=Column(JSON))
-    authorize_url: Optional[str] = None
-    token_url: Optional[str] = None
-    scopes: Optional[str] = None
+    meta: dict = Field(default_factory=dict, sa_column=Column(JSON))  # icon, description, fields, keywords
     is_install_required: bool = True  # true=OAuth redirect, false=form submit
     active: bool = True
     created_at: datetime = Field(default_factory=utc_now)

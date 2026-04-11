@@ -58,9 +58,6 @@ async def seed_data(db):
             "icon": "https://cdn.simpleicons.org/github/white",
             "description": "Connect your GitHub repositories",
         },
-        authorize_url="https://github.com/login/oauth/authorize",
-        token_url="https://github.com/login/oauth/access_token",
-        scopes="read:user user:email repo",
         is_install_required=True,
     )
     db.add(github_app)

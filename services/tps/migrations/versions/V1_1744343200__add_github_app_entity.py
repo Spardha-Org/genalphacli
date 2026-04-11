@@ -26,12 +26,10 @@ def upgrade() -> None:
         sa.text("""
             INSERT INTO tps_app_marketplace (
                 id, app_code, app_name, display_name, auth_type, category,
-                provider, meta, authorize_url, token_url, scopes,
-                is_install_required, active, created_at, updated_at
+                provider, meta, is_install_required, active, created_at, updated_at
             ) VALUES (
                 :id, :app_code, :app_name, :display_name, :auth_type, :category,
-                :provider, CAST(:meta AS json), :authorize_url, :token_url, :scopes,
-                :is_install_required, :active, NOW(), NOW()
+                :provider, CAST(:meta AS json), :is_install_required, :active, NOW(), NOW()
             ) ON CONFLICT (app_name) DO NOTHING
         """),
         {
@@ -45,10 +43,8 @@ def upgrade() -> None:
             "meta": json.dumps({
                 "icon": "https://cdn.simpleicons.org/github/white",
                 "description": "Connect your GitHub repositories for parsing",
+                "keywords": "GitHub, Git, repositories, source control",
             }),
-            "authorize_url": "https://github.com/login/oauth/authorize",
-            "token_url": "https://github.com/login/oauth/access_token",
-            "scopes": "read:user user:email repo",
             "is_install_required": True,
             "active": True,
         },
