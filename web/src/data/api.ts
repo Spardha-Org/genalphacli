@@ -75,6 +75,12 @@ export const projectsApi = {
       body: JSON.stringify(payload),
     }),
 
+  update: (payload: { id: string; name?: string; description?: string }) =>
+    apiFetch<Project>(`/projects/${payload.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name: payload.name, description: payload.description }),
+    }),
+
   delete: (id: string) =>
     apiFetch<{ ok: boolean }>(`/projects/${id}`, { method: "DELETE" }),
 };

@@ -101,6 +101,16 @@ export function useCreateProject() {
   });
 }
 
+export function useUpdateProject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: projectsApi.update,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.projects() });
+    },
+  });
+}
+
 export function useDeleteProject() {
   const queryClient = useQueryClient();
   return useMutation({

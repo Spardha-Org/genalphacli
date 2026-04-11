@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useProjects, useCreateService, useServiceStatus, useServicesByProject, useDeleteService } from "@/data/hooks";
+import { useProjects, useCreateService, useServiceStatus, useServicesByProject, useDeleteService, useUpdateProject, useDeleteProject } from "@/data/hooks";
 import type { ServiceStatusValue } from "@/data/types";
 import Link from "next/link";
 import { Breadcrumb } from "@/components/dashboard/breadcrumb";
@@ -16,6 +16,17 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const STATUS_BADGE: Record<string, string> = {
   parsed: "bg-[var(--green)]/10 border-[var(--green)]/20 text-[var(--green)]",
@@ -34,8 +45,13 @@ export default function ProjectPage() {
   const { data: projects, isLoading } = useProjects();
   const { data: services, isLoading: servicesLoading } = useServicesByProject(id);
   const [showAddService, setShowAddService] = useState(false);
+  const [showEditProject, setShowEditProject] = useState(false);
   const [repoUrl, setRepoUrl] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
   const createService = useCreateService();
+  const updateProject = useUpdateProject();
+  const deleteProject = useDeleteProject();
   const router = useRouter();
 
   const project = projects?.find((p) => p.id === id);
@@ -69,6 +85,14 @@ export default function ProjectPage() {
     (s) => ["parsed", "generating", "packaging", "complete"].includes(s.status)
   ).length ?? 0;
 
+  function handleUpdateProject() {
+    if (!editName.trim()) return;
+    updateProject.mutate(
+      { id, name: editName.trim(), description: editDescription.trim() || undefined },
+      { onSuccess: () => setShowEditProject(false) },
+    );
+  }
+
   async function handleAddService() {
     if (!repoUrl.trim()) return;
     createService.mutate(
@@ -90,7 +114,7 @@ export default function ProjectPage() {
         { label: project.name },
       ]} />
 
-      {/* Page header — matches HTML preview */}
+      {/* Page header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-[family-name:var(--font-jetbrains-mono)] text-xl font-bold">
@@ -100,7 +124,7 @@ export default function ProjectPage() {
             <p className="text-sm text-[var(--text-dim)] mt-1">{project.description}</p>
           )}
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {/* Slot indicator */}
           <div className="flex items-center gap-2 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-[var(--text-muted)]">
             <span>{activeCount}/{services?.length ?? 0} slots</span>
@@ -111,6 +135,52 @@ export default function ProjectPage() {
               />
             </div>
           </div>
+
+          {/* Edit */}
+          <button
+            onClick={() => {
+              setEditName(project.name);
+              setEditDescription(project.description || "");
+              setShowEditProject(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-white/5 font-[family-name:var(--font-jetbrains-mono)] text-xs cursor-pointer transition-colors border border-[var(--border)]"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            Edit
+          </button>
+
+          {/* Delete */}
+          <AlertDialog>
+            <AlertDialogTrigger className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[var(--rose)] hover:bg-[var(--rose)]/10 font-[family-name:var(--font-jetbrains-mono)] text-xs cursor-pointer transition-colors border border-[var(--rose)]/20">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              Delete
+            </AlertDialogTrigger>
+            <AlertDialogContent className="bg-[var(--elevated)] border-[var(--border)]">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-[var(--text)]">Delete project?</AlertDialogTitle>
+                <AlertDialogDescription className="text-[var(--text-dim)]">
+                  This will permanently delete <strong>{project.name}</strong> and all its services. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="text-[var(--text-dim)]">Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    deleteProject.mutate(project.id, { onSuccess: () => router.push("/projects") });
+                  }}
+                  className="bg-[var(--rose)] text-white hover:bg-[var(--rose)]/80"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           <Button
             onClick={() => setShowAddService(true)}
             className="bg-[var(--accent)] text-[var(--bg)] hover:bg-[var(--accent-bright)] font-[family-name:var(--font-jetbrains-mono)] text-xs font-semibold"
@@ -234,6 +304,62 @@ export default function ProjectPage() {
                 className="bg-[var(--accent)] text-[var(--bg)] hover:bg-[var(--accent-bright)]"
               >
                 {createService.isPending ? "Starting..." : "Parse"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Project Dialog */}
+      <Dialog open={showEditProject} onOpenChange={setShowEditProject}>
+        <DialogContent className="bg-[var(--elevated)] border-[var(--border)] text-[var(--text)]">
+          <DialogHeader>
+            <DialogTitle className="font-[family-name:var(--font-jetbrains-mono)]">Edit Project</DialogTitle>
+            <DialogDescription className="text-[var(--text-dim)]">
+              Update the project name or description.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div>
+              <label className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-[var(--text-muted)] uppercase tracking-wider block mb-1.5">
+                Name
+              </label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="bg-[var(--surface)] border-[var(--border)] text-[var(--text)] font-[family-name:var(--font-jetbrains-mono)] text-sm"
+                onKeyDown={(e) => e.key === "Enter" && handleUpdateProject()}
+              />
+            </div>
+            <div>
+              <label className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-[var(--text-muted)] uppercase tracking-wider block mb-1.5">
+                Description
+              </label>
+              <Input
+                placeholder="Optional description"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                className="bg-[var(--surface)] border-[var(--border)] text-[var(--text)] font-[family-name:var(--font-jetbrains-mono)] text-sm"
+                onKeyDown={(e) => e.key === "Enter" && handleUpdateProject()}
+              />
+            </div>
+
+            {updateProject.isError && (
+              <p className="text-sm text-[var(--rose)]">
+                {updateProject.error?.message || "Failed to update project"}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => setShowEditProject(false)} className="text-[var(--text-dim)]">
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUpdateProject}
+                disabled={!editName.trim() || updateProject.isPending}
+                className="bg-[var(--accent)] text-[var(--bg)] hover:bg-[var(--accent-bright)]"
+              >
+                {updateProject.isPending ? "Saving..." : "Save"}
               </Button>
             </div>
           </div>
