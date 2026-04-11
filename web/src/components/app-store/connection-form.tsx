@@ -69,12 +69,13 @@ export function ConnectionForm({ app, integration }: ConnectionFormProps) {
 
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button
-              variant="ghost"
-              className="text-[var(--rose)] hover:text-[var(--rose)] hover:bg-[var(--rose)]/10 font-[family-name:var(--font-jetbrains-mono)] text-xs"
+            <span
+              role="button"
+              tabIndex={0}
+              className="inline-flex items-center px-3 py-2 rounded-md text-[var(--rose)] hover:bg-[var(--rose)]/10 font-[family-name:var(--font-jetbrains-mono)] text-xs cursor-pointer transition-colors"
             >
               Disconnect {app.display_name}
-            </Button>
+            </span>
           </AlertDialogTrigger>
           <AlertDialogContent className="bg-[var(--elevated)] border-[var(--border)]">
             <AlertDialogHeader>
