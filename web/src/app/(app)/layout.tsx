@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useSession, useLogout } from "@/data/hooks";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 
 function makeQueryClient() {
@@ -29,6 +29,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const { data: session, isLoading, isError } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   const logout = useLogout();
 
   if (isError) {
@@ -47,28 +48,46 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] pb-16">
       {/* Minimal top bar */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-[var(--border)]">
-        <Link href="/dashboard" className="font-[family-name:var(--font-jetbrains-mono)] font-extrabold text-sm tracking-wider text-[var(--text)] no-underline">
+      <header className="flex items-center justify-between px-6 py-3 border-b border-[var(--border)] sticky top-0 z-50 bg-[var(--bg)]/80 backdrop-blur-xl">
+        <Link href="/" className="font-[family-name:var(--font-jetbrains-mono)] font-extrabold text-sm tracking-wider text-[var(--text)] no-underline">
           <span className="text-[var(--accent)]">//</span> GenAlpha
         </Link>
-        <div className="flex items-center gap-4">
-          <Link href="/integrations" className="text-[12px] text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors no-underline font-[family-name:var(--font-jetbrains-mono)]">
-            Integrations
-          </Link>
-          <span className="text-[11px] text-[var(--text-muted)]">{session.user.email}</span>
-          <button
-            onClick={() => logout.mutate()}
-            disabled={logout.isPending}
-            className="text-[11px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors font-[family-name:var(--font-jetbrains-mono)]"
-          >
-            Sign out
-          </button>
-        </div>
+        <button
+          onClick={() => logout.mutate()}
+          disabled={logout.isPending}
+          className="text-[11px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors font-[family-name:var(--font-jetbrains-mono)]"
+        >
+          Sign out
+        </button>
       </header>
 
-      <main className="p-6">{children}</main>
+      <main className="p-6 max-w-[1200px] mx-auto">{children}</main>
+
+      {/* Bottom nav */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-2 px-6 py-3 bg-[var(--surface)] border-t border-[var(--border)]">
+        <Link
+          href="/"
+          className={`font-[family-name:var(--font-jetbrains-mono)] text-[11px] font-semibold px-4 py-2 rounded-lg transition-all no-underline ${
+            pathname === "/" || pathname.startsWith("/projects")
+              ? "bg-[var(--accent)] text-[var(--bg)]"
+              : "text-[var(--text-dim)] hover:text-[var(--text)]"
+          }`}
+        >
+          Projects
+        </Link>
+        <Link
+          href="/app-store"
+          className={`font-[family-name:var(--font-jetbrains-mono)] text-[11px] font-semibold px-4 py-2 rounded-lg transition-all no-underline ${
+            pathname === "/app-store"
+              ? "bg-[var(--accent)] text-[var(--bg)]"
+              : "text-[var(--text-dim)] hover:text-[var(--text)]"
+          }`}
+        >
+          App Store
+        </Link>
+      </nav>
     </div>
   );
 }

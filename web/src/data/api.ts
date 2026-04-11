@@ -122,7 +122,7 @@ export const integrationsApi = {
   /** Start OAuth flow — Core generates encrypted state, returns authorize URL.
    *  Frontend just does `window.location.href = result.authorize_url`.
    *  No callback page needed — Core handles the redirect. */
-  install: (appName: string, callbackPath = "/integrations", formData?: Record<string, unknown>) =>
+  install: (appName: string, callbackPath = "/app-store", formData?: Record<string, unknown>) =>
     apiFetch<{ authorize_url: string }>(
       `/integrations/${appName}/install`,
       { method: "POST", body: JSON.stringify({ callback_path: callbackPath, form_data: formData }) },

@@ -204,6 +204,17 @@ export function useInstallApp() {
   });
 }
 
+export function useConnectApp() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ appName, credentials }: { appName: string; credentials: Record<string, string> }) =>
+      integrationsApi.connect(appName, credentials),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.integrations() });
+    },
+  });
+}
+
 export function useDeleteIntegration() {
   const queryClient = useQueryClient();
   return useMutation({
