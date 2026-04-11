@@ -147,8 +147,13 @@ def publish_to_pypi_activity(input: PublishToPyPIInput) -> PublishToPyPIOutput:
 
     # If multiple packages (cli + mcp), pick the right one
     if len(package_dirs) > 1:
-        suffix = "_mcp" if input.package_type == "mcp" else ""
-        package_dirs = [d for d in package_dirs if d.name.endswith(suffix) == bool(suffix)]
+        if input.package_type == "mcp":
+            package_dirs = [d for d in package_dirs if d.name.endswith("_mcp")]
+        else:
+            package_dirs = [d for d in package_dirs if not d.name.endswith("_mcp")]
+
+    if not package_dirs:
+        raise ValueError(f"No {input.package_type} package found in {output_dir}")
 
     package_dir = package_dirs[0]
     name, version = _extract_metadata(package_dir)
