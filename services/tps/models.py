@@ -22,23 +22,57 @@ def utc_now() -> datetime:
 # ── Enums ──
 
 
-class AuthType(str, Enum):
-    OAUTH2 = "oauth2"
-    API_KEY = "api_key"
-    BASIC_AUTH = "basic_auth"
-    FORM_BASED_OAUTH2 = "form_based_oauth2"
-    MTLS = "mtls"
+class AuthType(int, Enum):
+    OAUTH2 = 1
+    API_KEY = 2
+    BASIC_AUTH = 3
+    FORM_BASED_OAUTH2 = 4
+    MTLS = 5
+
+    @property
+    def label(self) -> str:
+        return _AUTH_TYPE_LABELS[self]
 
 
-class AppCategory(str, Enum):
-    SOURCE_CONTROL = "source_control"
-    HOSTING = "hosting"
-    DISTRIBUTION = "distribution"
-    COMING_SOON = "coming_soon"
+_AUTH_TYPE_LABELS = {
+    AuthType.OAUTH2: "oauth2",
+    AuthType.API_KEY: "api_key",
+    AuthType.BASIC_AUTH: "basic_auth",
+    AuthType.FORM_BASED_OAUTH2: "form_based_oauth2",
+    AuthType.MTLS: "mtls",
+}
 
 
-class AppProvider(str, Enum):
-    NATIVE = "native"
+class AppCategory(int, Enum):
+    SOURCE_CONTROL = 1
+    HOSTING = 2
+    DISTRIBUTION = 3
+    COMING_SOON = 4
+
+    @property
+    def label(self) -> str:
+        return _CATEGORY_LABELS[self]
+
+
+_CATEGORY_LABELS = {
+    AppCategory.SOURCE_CONTROL: "source_control",
+    AppCategory.HOSTING: "hosting",
+    AppCategory.DISTRIBUTION: "distribution",
+    AppCategory.COMING_SOON: "coming_soon",
+}
+
+
+class AppProvider(int, Enum):
+    NATIVE = 1
+
+    @property
+    def label(self) -> str:
+        return _PROVIDER_LABELS[self]
+
+
+_PROVIDER_LABELS = {
+    AppProvider.NATIVE: "native",
+}
 
 
 # ── App Marketplace ──
@@ -51,9 +85,9 @@ class AppMarketplace(SQLModel, table=True):
     app_code: int = Field(unique=True)  # stable integer ID: 14=GitHub, 95=GitLab
     app_name: str = Field(unique=True, index=True)  # slug: "github", "gitlab"
     display_name: str
-    auth_type: str  # AuthType value
-    category: str  # AppCategory value
-    provider: str = Field(default="native")  # AppProvider value
+    auth_type: int  # AuthType enum value (1=oauth2, 2=api_key, etc.)
+    category: int  # AppCategory enum value (1=source_control, 2=hosting, etc.)
+    provider: int = Field(default=1)  # AppProvider enum value (1=native)
     meta: dict = Field(default_factory=dict, sa_column=Column(JSON))
     authorize_url: Optional[str] = None
     token_url: Optional[str] = None

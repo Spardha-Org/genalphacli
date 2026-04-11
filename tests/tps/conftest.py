@@ -51,9 +51,9 @@ async def seed_data(db):
         app_code=1,
         app_name="github",
         display_name="GitHub",
-        auth_type="oauth2",
-        category="source_control",
-        provider="native",
+        auth_type=1,       # AuthType.OAUTH2
+        category=1,       # AppCategory.SOURCE_CONTROL
+        provider=1,       # AppProvider.NATIVE
         meta={
             "icon": "https://cdn.simpleicons.org/github/white",
             "description": "Connect your GitHub repositories",
@@ -71,9 +71,9 @@ async def seed_data(db):
         app_code=90,
         app_name="cloudflare",
         display_name="Cloudflare",
-        auth_type="api_key",
-        category="hosting",
-        provider="native",
+        auth_type=2,       # AuthType.API_KEY
+        category=2,       # AppCategory.HOSTING
+        provider=1,       # AppProvider.NATIVE
         meta={
             "icon": "https://cdn.simpleicons.org/cloudflare/F38020",
             "description": "Deploy to Cloudflare Workers",
@@ -97,9 +97,9 @@ async def seed_data(db):
         app_code=91,
         app_name="railway",
         display_name="Railway",
-        auth_type="oauth2",
-        category="coming_soon",
-        provider="native",
+        auth_type=1,       # AuthType.OAUTH2
+        category=4,       # AppCategory.COMING_SOON
+        provider=1,       # AppProvider.NATIVE
         meta={"icon": "https://cdn.simpleicons.org/railway/white"},
         is_install_required=True,
         active=False,
