@@ -75,17 +75,34 @@ export const projectsApi = {
       body: JSON.stringify(payload),
     }),
 
+  update: (payload: { id: string; name?: string; description?: string }) =>
+    apiFetch<Project>(`/projects/${payload.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name: payload.name, description: payload.description }),
+    }),
+
   delete: (id: string) =>
     apiFetch<{ ok: boolean }>(`/projects/${id}`, { method: "DELETE" }),
 };
 
 // ── Services API ──
 
+export type ServiceListItem = {
+  id: string;
+  project_id: string;
+  name: string;
+  repo_url: string | null;
+  framework: string | null;
+  status: string;
+  error_message: string | null;
+  created_at: string;
+};
+
 export const servicesApi = {
+  list: () => apiFetch<ServiceListItem[]>("/services"),
+
   listByProject: (projectId: string) =>
-    apiFetch<Array<{ id: string; name: string; repo_url: string | null; framework: string | null; status: string; error_message: string | null; created_at: string }>>(
-      `/services/by-project/${projectId}`,
-    ),
+    apiFetch<ServiceListItem[]>(`/services/by-project/${projectId}`),
 
   get: (id: string) => apiFetch<Service>(`/services/${id}`),
 
@@ -122,7 +139,7 @@ export const integrationsApi = {
   /** Start OAuth flow — Core generates encrypted state, returns authorize URL.
    *  Frontend just does `window.location.href = result.authorize_url`.
    *  No callback page needed — Core handles the redirect. */
-  install: (appName: string, callbackPath = "/integrations", formData?: Record<string, unknown>) =>
+  install: (appName: string, callbackPath = "/app-store", formData?: Record<string, unknown>) =>
     apiFetch<{ authorize_url: string }>(
       `/integrations/${appName}/install`,
       { method: "POST", body: JSON.stringify({ callback_path: callbackPath, form_data: formData }) },

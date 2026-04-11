@@ -59,6 +59,46 @@ async def create_project(
     }
 
 
+class UpdateProjectRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+
+
+@router.patch("/{project_id}")
+async def update_project(
+    project_id: str,
+    body: UpdateProjectRequest,
+    db: DbDep,
+    workspace: CurrentWorkspaceDep,
+):
+    """Update a project's name or description."""
+    stmt = select(Project).where(
+        Project.id == project_id,
+        Project.workspace_id == workspace.id,
+    )
+    result = await db.exec(stmt)
+    project = result.first()
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if body.name is not None:
+        project.name = body.name.strip()
+    if body.description is not None:
+        project.description = body.description.strip() or None
+
+    db.add(project)
+    await db.commit()
+    await db.refresh(project)
+
+    return {
+        "id": project.id,
+        "name": project.name,
+        "description": project.description,
+        "created_at": project.created_at.isoformat(),
+    }
+
+
 @router.delete("/{project_id}")
 async def delete_project(
     project_id: str,

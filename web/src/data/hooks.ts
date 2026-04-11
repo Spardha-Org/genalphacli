@@ -101,6 +101,16 @@ export function useCreateProject() {
   });
 }
 
+export function useUpdateProject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: projectsApi.update,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.projects() });
+    },
+  });
+}
+
 export function useDeleteProject() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -112,6 +122,14 @@ export function useDeleteProject() {
 }
 
 // ── Service Hooks ──
+
+export function useAllServices() {
+  return useQuery({
+    queryKey: ["services"] as const,
+    queryFn: servicesApi.list,
+    staleTime: 10_000,
+  });
+}
 
 export function useServicesByProject(projectId: string) {
   return useQuery({
@@ -127,8 +145,13 @@ export function useService(id: string) {
     queryKey: keys.service(id),
     queryFn: () => servicesApi.get(id),
     enabled: Boolean(id),
-    staleTime: 30_000,
+    staleTime: 0,
     gcTime: 5 * 60_000,
+    refetchInterval: (query: { state: { data?: Service } }) => {
+      const status = query.state.data?.status;
+      if (!status) return 3000;
+      return TERMINAL_STATUSES.has(status) ? false : 3000;
+    },
   });
 }
 
@@ -200,7 +223,21 @@ export function useIntegrations() {
 
 export function useInstallApp() {
   return useMutation({
-    mutationFn: integrationsApi.install,
+    mutationFn: (args: string | { appName: string; callbackPath?: string; formData?: Record<string, unknown> }) => {
+      if (typeof args === "string") return integrationsApi.install(args);
+      return integrationsApi.install(args.appName, args.callbackPath, args.formData);
+    },
+  });
+}
+
+export function useConnectApp() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ appName, credentials }: { appName: string; credentials: Record<string, string> }) =>
+      integrationsApi.connect(appName, credentials),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.integrations() });
+    },
   });
 }
 

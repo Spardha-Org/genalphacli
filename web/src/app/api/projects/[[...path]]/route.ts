@@ -8,6 +8,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ path?: string[
   return proxyToCore(req, ctx.params, "/projects");
 }
 
+export async function PATCH(req: Request, ctx: { params: Promise<{ path?: string[] }> }) {
+  return proxyToCore(req, ctx.params, "/projects");
+}
+
 export async function DELETE(req: Request, ctx: { params: Promise<{ path?: string[] }> }) {
   return proxyToCore(req, ctx.params, "/projects");
 }

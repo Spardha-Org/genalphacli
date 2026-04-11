@@ -68,8 +68,8 @@ export default function IntegrationsPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium capitalize">{integration.app_name}</p>
-                        {integration.github_username && (
-                          <p className="text-xs text-zinc-500">@{integration.github_username}</p>
+                        {integration.identifier && (
+                          <p className="text-xs text-zinc-500">@{integration.identifier}</p>
                         )}
                       </div>
                     </div>
@@ -117,11 +117,7 @@ export default function IntegrationsPage() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-zinc-800 rounded-full flex items-center justify-center">
-                          {app.icon_url ? (
-                            <img src={app.icon_url} alt="" className="w-5 h-5" />
-                          ) : (
-                            <span className="text-xs">{app.display_name[0]}</span>
-                          )}
+                          <span className="text-xs">{app.display_name[0]}</span>
                         </div>
                         <div>
                           <p className="text-sm font-medium">{app.display_name}</p>
