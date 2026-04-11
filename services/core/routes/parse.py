@@ -12,6 +12,7 @@ from sqlmodel import select
 from services.core.deps import CurrentWorkspaceDep, DbDep
 from services.core.models import Project, Service
 from services.core.temporal_client import get_temporal_client
+from services.core.tps_client import tps
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["parse"])
@@ -41,6 +42,10 @@ async def start_parse(
         )
 
     owner, repo = match.group(1), match.group(2)
+
+    # Look up user's GitHub integration from TPS
+    github_integration = await tps.get_integration(workspace.owner_id, "github")
+    integration_id = github_integration["id"] if github_integration else ""
 
     # Validate project belongs to workspace
     project_result = await db.exec(
@@ -77,7 +82,7 @@ async def start_parse(
                 "service_id": service.id,
                 "command_name": repo,
                 "workspace_id": workspace.id,
-                "integration_id": workspace.integration_id or "",
+                "integration_id": integration_id,
             },
             id=workflow_id,
             task_queue="genalpha-parse",

@@ -184,6 +184,20 @@ async def get_integration(identifier: str, db: DbDep, user_id: UserIdDep, _auth:
                           created_at=integration.created_at.isoformat())
 
 
+@router.get("/{integration_id}/token")
+async def get_token(integration_id: str, db: DbDep, user_id: UserIdDep, _auth: TpsAuthDep):
+    """Return decrypted access token for an integration (used by Worker for authenticated API calls)."""
+    from services.tps.integration_service import get_or_refresh
+    try:
+        config = await get_or_refresh(db, integration_id, user_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Integration not found")
+    access_token = config.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=400, detail="No access token in integration config")
+    return {"access_token": access_token}
+
+
 @router.delete("/{integration_id}", response_model=OkResponse)
 async def remove_integration(integration_id: str, db: DbDep, user_id: UserIdDep, _auth: TpsAuthDep):
     deleted = await delete_integration(db, integration_id, user_id)
