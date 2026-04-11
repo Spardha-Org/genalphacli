@@ -60,6 +60,7 @@ export type ServiceStatusValue =
   | "parsed"
   | "generating"
   | "packaging"
+  | "publishing"
   | "complete"
   | "failed"
   | "timed_out";

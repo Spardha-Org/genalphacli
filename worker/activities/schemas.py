@@ -102,6 +102,26 @@ class UploadArtifactOutput:
 
 
 @dataclass
+class PublishToPyPIInput:
+    """Input for publish_to_pypi_activity."""
+
+    service_id: str
+    user_id: str
+    output_dir: str  # Path to the generated package directory
+    package_type: str  # "cli" or "mcp"
+    integration_id: str  # TPS integration ID for PyPI token
+
+
+@dataclass
+class PublishToPyPIOutput:
+    """Output from publish_to_pypi_activity."""
+
+    package_name: str
+    version: str
+    published_url: str  # https://pypi.org/project/{name}/{version}/
+
+
+@dataclass
 class FetchPyPISdistInput:
     """Input for fetch_pypi_sdist_activity."""
 

@@ -192,7 +192,8 @@ async def get_token(integration_id: str, db: DbDep, user_id: UserIdDep, _auth: T
         config = await get_or_refresh(db, integration_id, user_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Integration not found")
-    access_token = config.get("access_token")
+    # Check common token keys: access_token (OAuth), api_token (API key)
+    access_token = config.get("access_token") or config.get("api_token")
     if not access_token:
         raise HTTPException(status_code=400, detail="No access token in integration config")
     return {"access_token": access_token}
