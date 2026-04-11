@@ -72,17 +72,11 @@ export default function ServiceDetailPage() {
       <div className="flex items-center justify-between mb-2">
         <h1 className="font-[family-name:var(--font-jetbrains-mono)] text-xl font-bold">{service.name}</h1>
         <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <span
-              role="button"
-              tabIndex={0}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[var(--rose)] hover:bg-[var(--rose)]/10 font-[family-name:var(--font-jetbrains-mono)] text-xs cursor-pointer transition-colors border border-[var(--rose)]/20"
-            >
+          <AlertDialogTrigger className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[var(--rose)] hover:bg-[var(--rose)]/10 font-[family-name:var(--font-jetbrains-mono)] text-xs cursor-pointer transition-colors border border-[var(--rose)]/20">
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
               </svg>
               Delete
-            </span>
           </AlertDialogTrigger>
           <AlertDialogContent className="bg-[var(--elevated)] border-[var(--border)]">
             <AlertDialogHeader>
