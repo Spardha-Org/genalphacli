@@ -77,12 +77,12 @@ function AppStoreContent() {
 
                   const card = (
                     <div
-                      className={`aspect-square bg-[var(--surface)] border rounded-[var(--radius)] flex flex-col items-center justify-center gap-3 transition-all relative ${
+                      className={`aspect-square bg-[var(--surface)] border rounded-[var(--radius)] flex flex-col items-center justify-center gap-3 relative ${
                         isComingSoon
                           ? "border-[var(--border)] opacity-40 cursor-not-allowed"
                           : isConnected
-                            ? "border-[var(--accent)]/30 hover:border-[var(--accent)]"
-                            : "border-[var(--border)] hover:border-[var(--accent)]"
+                            ? "border-[var(--accent)]/30 hover:border-[var(--accent)] hover:-translate-y-0.5 hover:shadow-[0_4px_24px_rgba(0,0,0,0.3)] transition-all duration-200"
+                            : "border-[var(--border)] hover:border-[rgba(20,184,166,0.2)] hover:-translate-y-0.5 hover:shadow-[0_4px_24px_rgba(0,0,0,0.3)] transition-all duration-200"
                       }`}
                     >
                       {isConnected && (

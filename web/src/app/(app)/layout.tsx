@@ -65,8 +65,8 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
 
       <main className="p-6 max-w-[1200px] mx-auto">{children}</main>
 
-      {/* Bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-2 px-6 py-3 bg-[var(--surface)] border-t border-[var(--border)]">
+      {/* Floating bottom nav pill */}
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex gap-1 bg-[var(--elevated)] border border-[var(--border)] rounded-xl p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
         <Link
           href="/projects"
           className={`font-[family-name:var(--font-jetbrains-mono)] text-[11px] font-semibold px-4 py-2 rounded-lg transition-all no-underline ${
@@ -80,7 +80,7 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
         <Link
           href="/app-store"
           className={`font-[family-name:var(--font-jetbrains-mono)] text-[11px] font-semibold px-4 py-2 rounded-lg transition-all no-underline ${
-            pathname === "/app-store"
+            pathname.startsWith("/app-store")
               ? "bg-[var(--accent)] text-[var(--bg)]"
               : "text-[var(--text-dim)] hover:text-[var(--text)]"
           }`}
