@@ -1,4 +1,4 @@
-.PHONY: infra core tps worker web dev stop logs clean help
+.PHONY: infra core tps worker web dev stop logs clean help migrate
 
 # ── Configuration ──
 SHELL := /bin/bash
@@ -37,7 +37,13 @@ core: ## Start Core service (:8000)
 	set -a && source $(ENV_FILE) && set +a && \
 		PYTHONPATH=.:src uv run uvicorn services.core.main:app --port 8000 --reload --log-level info
 
-tps: ## Start TPS service (:8001)
+migrate: ## Run TPS Alembic migrations
+	@printf "  \033[0;32m●\033[0m Running TPS migrations...\n"
+	@set -a && source $(ENV_FILE) && set +a && \
+		PYTHONPATH=.:src uv run alembic upgrade head
+	@printf "  \033[0;32m●\033[0m Migrations applied\n"
+
+tps: migrate ## Start TPS service (:8001)
 	@printf "  \033[0;32m●\033[0m TPS starting on :8001...\n"
 	set -a && source $(ENV_FILE) && set +a && \
 		PYTHONPATH=.:src uv run uvicorn services.tps.main:app --port 8001 --reload --log-level info
@@ -65,6 +71,10 @@ dev: infra ## Start everything (infra + core + tps + worker + web)
 		> .logs/core.log 2>&1 & echo $$! > .pids/core.pid
 	@sleep 1
 	@printf "  \033[0;32m●\033[0m Core API       \033[2mhttp://localhost:8000/docs\033[0m\n"
+	@# Run TPS migrations
+	@set -a && source $(ENV_FILE) && set +a && \
+		PYTHONPATH=.:src uv run alembic upgrade head > .logs/migrate.log 2>&1 || true
+	@printf "  \033[0;32m●\033[0m TPS migrations  \033[2mapplied\033[0m\n"
 	@# Start TPS
 	@set -a && source $(ENV_FILE) && set +a && \
 		PYTHONPATH=.:src uv run uvicorn services.tps.main:app --port 8001 --reload --log-level info \

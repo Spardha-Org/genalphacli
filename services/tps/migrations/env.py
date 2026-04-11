@@ -22,6 +22,10 @@ import services.tps.models  # noqa: F401
 
 target_metadata = SQLModel.metadata
 
+# Override URL from app settings (reads TPS_DATABASE_URL from .env / environment)
+from services.tps.config import settings
+config.set_main_option("sqlalchemy.url", settings.database_url)
+
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
