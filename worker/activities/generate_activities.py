@@ -42,10 +42,7 @@ def generate_packages_activity(input: GeneratePackagesInput) -> GeneratePackages
     config = BuildConfig(
         cli_name=input.cli_name,
         base_url=input.base_url,
-        auth=AuthConfig(
-            type=graph.auth.type if graph.auth else "none",
-            env_var=graph.auth.env_var if graph.auth else None,
-        ),
+        auth=graph.auth if graph.auth else AuthConfig(),
     )
 
     output_dir = Path(tempfile.mkdtemp(prefix=f"genalpha-gen-{input.service_id}-"))
