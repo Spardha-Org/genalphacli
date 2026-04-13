@@ -74,6 +74,34 @@ async def {{ cmd.func_name }}(
         raise ToolError(str(e)) from e
 {% endfor %}
 
+{% if has_auth_lifecycle %}
+
+@mcp.tool()
+async def authenticate(
+{% for param in auth_params %}
+    {{ param }}: str,
+{% endfor %}
+) -> str:
+    """Authenticate and store token for subsequent tool calls."""
+    from {{ cli_name }}_mcp.auth import extract_token, save_auth
+
+    try:
+        result = await api_call("POST", "{{ auth_endpoint }}", json_data={
+{% for param in auth_params %}
+            "{{ param }}": {{ param }},
+{% endfor %}
+        })
+    except Exception as e:
+        raise ToolError(f"Authentication failed: {e}") from e
+
+    token, field_path = extract_token(result)
+    if not token:
+        return json.dumps({"error": "Could not extract token from response", "response_keys": list(result.keys())})
+
+    save_auth(token, field_path)
+    return json.dumps({"status": "authenticated", "token_field": field_path})
+{% endif %}
+
 
 def main() -> None:
     """Entry point for the MCP server."""
