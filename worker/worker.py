@@ -22,6 +22,7 @@ from worker.activities.github_activities import (
     clone_repo_activity,
 )
 from worker.activities.parse_activities import parse_routes_activity
+from worker.activities.auth_activities import detect_auth_activity
 from worker.activities.publish_activities import publish_to_pypi_activity
 from worker.activities.pypi_activities import fetch_pypi_sdist_activity
 from worker.activities.status_activities import update_service_status
@@ -65,6 +66,7 @@ async def main() -> None:
             upload_artifact_activity,
             fetch_pypi_sdist_activity,
             publish_to_pypi_activity,
+            detect_auth_activity,
         ],
         max_concurrent_activities=10,
         activity_executor=activity_executor,

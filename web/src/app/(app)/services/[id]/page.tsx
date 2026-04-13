@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useService, useGenerate, usePublish, useDeleteService, useProjects, useIntegrations } from "@/data/hooks";
+import { useService, useGenerate, usePublish, useDeleteService, useProjects, useIntegrations, useSetAuthConfig } from "@/data/hooks";
 import type { Subcommand } from "@/data/types";
 import { Breadcrumb } from "@/components/dashboard/breadcrumb";
 import { RouteMindmap } from "@/components/dashboard/route-mindmap";
@@ -140,7 +140,7 @@ export default function ServiceDetailPage() {
       {/* Tab panels */}
       {activeTab === "Mindmap" && <MindmapPanel service={service} onSelectRoute={setSelectedRoute} />}
       {activeTab === "Routes" && <RoutesPanel subcommands={subcommands} />}
-      {activeTab === "Generate" && <GeneratePanel serviceId={service.id} serviceName={service.name} serviceStatus={service.status} routeGraph={service.route_graph} artifactId={service.artifact_id} />}
+      {activeTab === "Generate" && <GeneratePanel serviceId={service.id} serviceName={service.name} serviceStatus={service.status} routeGraph={service.route_graph} artifactId={service.artifact_id} metadata={service.metadata} />}
       {activeTab === "Host" && <HostPanel serviceId={service.id} serviceName={service.name} serviceStatus={service.status} routeGraph={service.route_graph} metadata={service.metadata} />}
     </div>
   );
@@ -221,10 +221,17 @@ function RoutesPanel({ subcommands }: { subcommands: Subcommand[] }) {
 }
 
 // ── Generate Tab ──
-function GeneratePanel({ serviceId, serviceName, serviceStatus, routeGraph, artifactId }: { serviceId: string; serviceName: string; serviceStatus: string; routeGraph?: any; artifactId?: string | null }) {
+function GeneratePanel({ serviceId, serviceName, serviceStatus, routeGraph, artifactId, metadata }: { serviceId: string; serviceName: string; serviceStatus: string; routeGraph?: any; artifactId?: string | null; metadata?: Record<string, unknown> | null }) {
   const [outputTypes, setOutputTypes] = useState<string[]>(["cli"]);
   const [cliName, setCliName] = useState(serviceName.toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^[^a-z]/, "a"));
   const generate = useGenerate();
+  const setAuthConfig = useSetAuthConfig();
+
+  // Auth candidates from detect_auth_activity
+  const authCandidates = (metadata?.auth_candidates as any[]) || [];
+  const hasAuthConfig = !!(metadata?.auth_config);
+  const [candidateRoles, setCandidateRoles] = useState<Record<string, string>>({});
+  const [authConfigSaved, setAuthConfigSaved] = useState(hasAuthConfig);
 
   const isGenerating = ["generating", "packaging"].includes(serviceStatus);
   const isComplete = serviceStatus === "complete";
@@ -258,7 +265,99 @@ function GeneratePanel({ serviceId, serviceName, serviceStatus, routeGraph, arti
     setOutputTypes((prev) => prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]);
   }
 
+  function handleConfirmAuth() {
+    const loginCandidate = Object.entries(candidateRoles).find(([_, role]) => role === "login");
+    const refreshCandidate = Object.entries(candidateRoles).find(([_, role]) => role === "refresh");
+
+    if (!loginCandidate) return;
+
+    const loginRoute = authCandidates.find((c: any) => c.endpoint === loginCandidate[0]);
+    if (!loginRoute) return;
+
+    const refreshRoute = refreshCandidate
+      ? authCandidates.find((c: any) => c.endpoint === refreshCandidate[0])
+      : null;
+
+    setAuthConfig.mutate(
+      {
+        serviceId,
+        config: {
+          login_endpoint: loginRoute.endpoint,
+          login_params: loginRoute.params || [],
+          refresh_endpoint: refreshRoute?.endpoint || "",
+          auth_type: routeGraph?.auth?.type || "bearer",
+        },
+      },
+      { onSuccess: () => setAuthConfigSaved(true) },
+    );
+  }
+
+  function handleSkipAuth() {
+    setAuthConfigSaved(true);
+  }
+
   return (
+    <div className="space-y-6">
+      {/* Auth Configuration — show when candidates exist and not yet configured */}
+      {authCandidates.length > 0 && !authConfigSaved && (
+        <div className="bg-[var(--surface)] border border-[var(--amber)]/20 rounded-[var(--radius)] p-6">
+          <h3 className="font-[family-name:var(--font-jetbrains-mono)] text-sm font-semibold mb-1">Configure Authentication</h3>
+          <p className="text-xs text-[var(--text-dim)] mb-4">We detected potential auth endpoints. Assign roles so the generated CLI has a <code className="text-[var(--accent)]">login</code> command.</p>
+
+          <div className="space-y-3 mb-4">
+            {authCandidates.map((candidate: any) => (
+              <div key={candidate.endpoint} className="flex items-center gap-3 bg-[var(--bg)] rounded-lg p-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-bold px-2 py-0.5 rounded bg-[var(--blue)]/12 text-[var(--blue)] uppercase">{candidate.method}</span>
+                    <span className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-[var(--text)]">{candidate.endpoint}</span>
+                  </div>
+                  {candidate.params?.length > 0 && (
+                    <p className="text-[11px] text-[var(--text-muted)] mt-1 font-[family-name:var(--font-jetbrains-mono)]">
+                      Params: {candidate.params.join(", ")}
+                    </p>
+                  )}
+                </div>
+                <select
+                  value={candidateRoles[candidate.endpoint] || "skip"}
+                  onChange={(e) => setCandidateRoles((prev) => ({ ...prev, [candidate.endpoint]: e.target.value }))}
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-md px-2 py-1.5 text-xs font-[family-name:var(--font-jetbrains-mono)] text-[var(--text)] outline-none focus:border-[var(--accent)]"
+                >
+                  <option value="skip">Skip</option>
+                  <option value="login">Login</option>
+                  <option value="refresh">Refresh</option>
+                </select>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              onClick={handleConfirmAuth}
+              disabled={!Object.values(candidateRoles).includes("login") || setAuthConfig.isPending}
+              className="bg-[var(--accent)] text-[var(--bg)] hover:bg-[var(--accent-bright)] font-[family-name:var(--font-jetbrains-mono)] text-xs font-semibold"
+            >
+              {setAuthConfig.isPending ? "Saving..." : "Confirm"}
+            </Button>
+            <Button
+              onClick={handleSkipAuth}
+              className="border border-[var(--border)] text-[var(--text-dim)] hover:text-[var(--text)] font-[family-name:var(--font-jetbrains-mono)] text-xs"
+            >
+              Skip — no login needed
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {authConfigSaved && hasAuthConfig && (
+        <div className="bg-[var(--green)]/5 border border-[var(--green)]/20 rounded-[var(--radius)] px-4 py-3 flex items-center gap-2">
+          <svg className="w-4 h-4 text-[var(--green)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7" /></svg>
+          <span className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-[var(--green)]">
+            Auth configured — generated CLI will have a <code>login</code> command
+          </span>
+        </div>
+      )}
+
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Left: Config + Generate */}
       <div className="space-y-4">
@@ -422,6 +521,7 @@ ${cliName} <command> [options]`}
           </>
         )}
       </div>
+    </div>
     </div>
   );
 }

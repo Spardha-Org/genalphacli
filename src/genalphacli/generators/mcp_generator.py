@@ -39,6 +39,10 @@ def generate(graph: CommandGraph, config: BuildConfig, output_dir: Path) -> Path
     _render_template(env, "mcp_package/client.py.j2", src_dir / "client.py", context)
     _render_template(env, "mcp_package/server.py.j2", src_dir / "server.py", context)
 
+    # Generate auth module if auth lifecycle is configured (same template as CLI)
+    if context.get("has_auth_lifecycle"):
+        _render_template(env, "pip_package/auth.py.j2", src_dir / "auth.py", context)
+
     # Write __init__.py
     (src_dir / "__init__.py").write_text(f'"""MCP server for {config.cli_name}."""\n')
 

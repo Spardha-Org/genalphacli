@@ -16,6 +16,7 @@ from genalphacli.models import (
     RESPONSE_CLASS_MAP,
     HttpMethod,
     ParamLocation,
+    ParamType,
     ParsedRoute,
     ParseWarning,
     ResponseFormat,
@@ -347,8 +348,23 @@ class _RouteExtractor(ast.NodeVisitor):
             if name in ("self", "cls"):
                 continue
 
-            # Skip FastAPI dependency injection params
+            # Skip FastAPI dependency injection params — but recover
+            # known standard form types (OAuth2PasswordRequestForm)
             if _is_dependency_param(arg, name):
+                # Check if this DI param is OAuth2PasswordRequestForm.
+                # It's a standard FastAPI class (fastapi.security) implementing
+                # RFC 6749 Section 4.3. Fields are spec-defined: username + password.
+                # TODO: For future frameworks, handle their standard auth classes.
+                # TODO: For custom Depends(), resolve chain to __init__ params.
+                if _is_oauth2_password_form(arg.annotation):
+                    params.append(RouteParam(
+                        name="username", location=ParamLocation.QUERY,
+                        param_type=ParamType.STRING, raw_type="str", required=True,
+                    ))
+                    params.append(RouteParam(
+                        name="password", location=ParamLocation.QUERY,
+                        param_type=ParamType.STRING, raw_type="str", required=True,
+                    ))
                 continue
 
             # Determine type from annotation
@@ -483,6 +499,30 @@ def _extract_response_from_decorator(
 def _extract_path_params(path: str) -> set[str]:
     """Extract parameter names from a path string like /users/{user_id}."""
     return set(re.findall(r"\{(\w+)\}", path))
+
+
+def _is_oauth2_password_form(annotation: ast.expr | None) -> bool:
+    """Check if an annotation references OAuth2PasswordRequestForm.
+
+    Handles:
+        form_data: OAuth2PasswordRequestForm
+        form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+    """
+    if annotation is None:
+        return False
+
+    # Direct: OAuth2PasswordRequestForm
+    if isinstance(annotation, ast.Name) and annotation.id == "OAuth2PasswordRequestForm":
+        return True
+
+    # Annotated[OAuth2PasswordRequestForm, Depends()]
+    if isinstance(annotation, ast.Subscript) and isinstance(annotation.value, ast.Name):
+        if annotation.value.id == "Annotated" and isinstance(annotation.slice, ast.Tuple):
+            for elt in annotation.slice.elts:
+                if isinstance(elt, ast.Name) and elt.id == "OAuth2PasswordRequestForm":
+                    return True
+
+    return False
 
 
 def _annotation_to_str(annotation: ast.expr) -> str:

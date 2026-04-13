@@ -36,13 +36,14 @@ async def api_call(
     path: str,
     params: dict[str, Any] | None = None,
     json_data: dict[str, Any] | None = None,
+    form_data: dict[str, Any] | None = None,
 ) -> Any:
     """Make an async HTTP request to the API."""
     client = await get_client()
     headers = _build_headers()
 
     response = await client.request(
-        method, path, params=params, json=json_data, headers=headers
+        method, path, params=params, json=json_data, data=form_data, headers=headers
     )
 
     if not response.is_success:
@@ -56,10 +57,15 @@ async def api_call(
 def _build_headers() -> dict[str, str]:
     """Build request headers with auth token."""
     headers: dict[str, str] = {}
+{% if has_auth_lifecycle %}
+    from {{ cli_name }}_mcp.auth import get_token
+    token = get_token()
+{% else %}
     token = os.environ.get(AUTH_ENV_VAR, "")
+{% endif %}
 
     if token and ("\r" in token or "\n" in token or "\x00" in token):
-        raise RuntimeError(f"{AUTH_ENV_VAR} contains invalid characters")
+        raise RuntimeError("Token contains invalid characters")
 
     if token:
         if AUTH_TYPE == "bearer":
@@ -72,7 +78,11 @@ def _build_headers() -> dict[str, str]:
 def _raise_error(response: httpx.Response) -> None:
     """Raise an exception with a friendly error message."""
     messages = {
+{% if has_auth_lifecycle %}
+        401: "Authentication failed. Call the 'authenticate' tool first.",
+{% else %}
         401: f"Authentication failed. Set {AUTH_ENV_VAR} environment variable.",
+{% endif %}
         403: "Permission denied.",
         404: "Resource not found.",
         429: "Rate limited. Try again later.",

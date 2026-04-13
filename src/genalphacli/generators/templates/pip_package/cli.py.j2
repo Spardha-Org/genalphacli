@@ -90,6 +90,59 @@ def {{ cmd.func_name }}(
         raise typer.Exit(1)
 {% endfor %}
 
+{% if has_auth_lifecycle %}
+
+@app.command(name="login")
+def login(
+{% for param in auth_params %}
+{% if "password" in param or "secret" in param or "passwd" in param %}
+    {{ param }}: str = typer.Option(..., prompt=True, hide_input=True, help="{{ param }}"),
+{% else %}
+    {{ param }}: str = typer.Option(..., prompt=True, help="{{ param }}"),
+{% endif %}
+{% endfor %}
+) -> None:
+    """Authenticate and store token for subsequent commands."""
+    from {{ cli_name }}.auth import extract_token, save_auth
+
+    try:
+        # OAuth2 password grant uses form encoding, not JSON
+        result = api_call("POST", "{{ auth_endpoint }}", form_data={
+{% for param in auth_params %}
+            "{{ param }}": {{ param }},
+{% endfor %}
+        })
+    except ApiError as e:
+        typer.echo(f"Login failed: {e.message}", err=True)
+        raise typer.Exit(1)
+
+    token, field_path = extract_token(result)
+    if not token:
+        # Level 3: Ask user to pick the token field
+        typer.echo("Could not auto-detect token. Response fields:")
+        items = [(k, v) for k, v in result.items() if isinstance(v, str)]
+        for i, (k, v) in enumerate(items):
+            typer.echo(f"  [{i}] {k}: {str(v)[:50]}...")
+        idx = typer.prompt("Which field is the token?", type=int)
+        if 0 <= idx < len(items):
+            token, field_path = items[idx][1], items[idx][0]
+        else:
+            typer.echo("Invalid selection.", err=True)
+            raise typer.Exit(1)
+
+    save_auth(token, field_path)
+    typer.echo("Logged in successfully.")
+
+
+@app.command(name="logout")
+def logout() -> None:
+    """Clear stored authentication token."""
+    from {{ cli_name }}.auth import clear_auth
+
+    clear_auth()
+    typer.echo("Logged out. Token removed.")
+{% endif %}
+
 
 if __name__ == "__main__":
     app()

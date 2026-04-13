@@ -77,6 +77,10 @@ def generate(graph: CommandGraph, config: BuildConfig, output_dir: Path) -> Path
 
     _render_template(env, "pip_package/cli.py.j2", src_dir / "cli.py", context)
 
+    # Generate auth module if auth lifecycle is configured
+    if context.get("has_auth_lifecycle"):
+        _render_template(env, "pip_package/auth.py.j2", src_dir / "auth.py", context)
+
     # Write __init__.py (no template needed)
     (src_dir / "__init__.py").write_text(f'"""Auto-generated CLI for {config.cli_name}."""\n')
 
@@ -98,12 +102,18 @@ def _build_context(graph: CommandGraph, config: BuildConfig) -> dict[str, Any]:
         cmd = _build_command_context(sub)
         commands.append(cmd)
 
+    has_auth_lifecycle = bool(config.auth.login_endpoint)
+
     return {
         "cli_name": _sanitize(config.cli_name),
         "base_url": _sanitize(config.base_url),
         "auth_type": _sanitize(config.auth.type.value),
         "auth_env_var": _sanitize(config.auth.env_var or f"{config.cli_name.upper()}_TOKEN"),
         "commands": commands,
+        "has_auth_lifecycle": has_auth_lifecycle,
+        "auth_endpoint": config.auth.login_endpoint,
+        "auth_params": config.auth.login_params,
+        "refresh_endpoint": config.auth.refresh_endpoint,
     }
 
 

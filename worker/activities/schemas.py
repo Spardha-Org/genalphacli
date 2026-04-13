@@ -122,6 +122,22 @@ class PublishToPyPIOutput:
 
 
 @dataclass
+class DetectAuthInput:
+    """Input for detect_auth_activity — framework-agnostic."""
+
+    route_graph: dict
+    service_id: str
+
+
+@dataclass
+class DetectAuthOutput:
+    """Output from detect_auth_activity."""
+
+    candidates: list[dict]  # [{endpoint, method, params, response_model, description}]
+    auth_type: str  # "bearer" | "api_key" | "none"
+
+
+@dataclass
 class FetchPyPISdistInput:
     """Input for fetch_pypi_sdist_activity."""
 
