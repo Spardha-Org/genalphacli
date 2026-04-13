@@ -9,10 +9,8 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from sqlmodel import SQLModel
 
 from services.core.config import settings
-from services.core.deps import get_engine
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,11 +21,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create database tables on startup."""
-    engine = get_engine()
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-    logger.info("Core service started — tables created")
+    """Startup/shutdown lifecycle. Schema managed by Alembic (make migrate)."""
+    logger.info("Core service started")
     yield
     logger.info("Core service shutting down")
 
