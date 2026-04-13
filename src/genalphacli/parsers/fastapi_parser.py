@@ -347,8 +347,26 @@ class _RouteExtractor(ast.NodeVisitor):
             if name in ("self", "cls"):
                 continue
 
-            # Skip FastAPI dependency injection params
+            # Skip FastAPI dependency injection params — but recover
+            # known standard form types (OAuth2PasswordRequestForm)
             if _is_dependency_param(arg, name):
+                # OAuth2PasswordRequestForm is a standard FastAPI class
+                # (fastapi.security) implementing RFC 6749 Section 4.3.
+                # Its fields are spec-defined: username + password.
+                # TODO: For future frameworks (Django, Express, Spring),
+                # each parser should handle their own standard auth classes.
+                # TODO: For custom Depends() classes, resolve the chain
+                # by following the type to its __init__ params in source.
+                type_name = _annotation_to_str(arg.annotation) if arg.annotation else ""
+                if "OAuth2PasswordRequestForm" in type_name:
+                    params.append(RouteParam(
+                        name="username", location=ParamLocation.QUERY,
+                        param_type=ParamType.STRING, raw_type="str", required=True,
+                    ))
+                    params.append(RouteParam(
+                        name="password", location=ParamLocation.QUERY,
+                        param_type=ParamType.STRING, raw_type="str", required=True,
+                    ))
                 continue
 
             # Determine type from annotation
