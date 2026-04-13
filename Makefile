@@ -1,4 +1,4 @@
-.PHONY: infra core tps worker web dev stop logs clean help migrate migrate-core migrate-tps generate-api
+.PHONY: infra core tps worker web dev stop restart-worker logs clean help migrate migrate-core migrate-tps generate-api
 
 # ── Configuration ──
 SHELL := /bin/bash
@@ -136,6 +136,7 @@ stop: ## Stop all background services
 	@-kill $$(cat .pids/tps.pid 2>/dev/null) 2>/dev/null; rm -f .pids/tps.pid
 	@-kill $$(cat .pids/worker.pid 2>/dev/null) 2>/dev/null; rm -f .pids/worker.pid
 	@-kill $$(cat .pids/web.pid 2>/dev/null) 2>/dev/null; rm -f .pids/web.pid
+	@-pkill -f "worker.worker" 2>/dev/null || true
 	@-lsof -ti:8000 2>/dev/null | xargs kill -9 2>/dev/null || true
 	@-lsof -ti:8001 2>/dev/null | xargs kill -9 2>/dev/null || true
 	@-lsof -ti:3000 2>/dev/null | xargs kill -9 2>/dev/null || true
@@ -143,6 +144,17 @@ stop: ## Stop all background services
 	@docker compose stop 2>/dev/null || true
 	@rm -f .logs/*.log
 	@printf " \033[0;32mdone\033[0m\n\n"
+
+restart-worker: ## Restart the Temporal worker (picks up new code)
+	@printf "  Restarting worker..."
+	@-kill $$(cat .pids/worker.pid 2>/dev/null) 2>/dev/null
+	@-pkill -f "worker.worker" 2>/dev/null || true
+	@sleep 1
+	@set -a && source $(ENV_FILE) && set +a && \
+		PYTHONPATH=.:src uv run python -m worker.worker \
+		> .logs/worker.log 2>&1 & echo $$! > .pids/worker.pid
+	@sleep 2
+	@printf " \033[0;32mdone\033[0m\n"
 
 logs: ## Tail all service logs
 	@echo ""
