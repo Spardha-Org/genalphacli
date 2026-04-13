@@ -53,10 +53,10 @@ generate-api: ## Generate Pydantic models from OpenAPI specs
 		--use-annotated --field-constraints
 	@printf "  \033[0;32m●\033[0m API models generated\n"
 
-migrate-core: ## Run Core schema migrations (ALTER TABLE for new columns)
+migrate-core: ## Run Core Alembic migrations
 	@printf "  \033[0;32m●\033[0m Running Core migrations...\n"
 	@set -a && source $(ENV_FILE) && set +a && \
-		PYTHONPATH=.:src uv run python -m services.core.migrate
+		PYTHONPATH=.:src uv run alembic -c services/core/alembic.ini upgrade head
 	@printf "  \033[0;32m●\033[0m Core migrations applied\n"
 
 migrate-tps: ## Run TPS Alembic migrations
@@ -95,11 +95,11 @@ dev: infra ## Start everything (infra + core + tps + worker + web)
 		> .logs/core.log 2>&1 & echo $$! > .pids/core.pid
 	@sleep 1
 	@printf "  \033[0;32m●\033[0m Core API       \033[2mhttp://localhost:8000/docs\033[0m\n"
-	@# Run Core migrations
+	@# Run Core Alembic migrations
 	@set -a && source $(ENV_FILE) && set +a && \
-		PYTHONPATH=.:src uv run python -m services.core.migrate > .logs/migrate-core.log 2>&1 || true
+		PYTHONPATH=.:src uv run alembic -c services/core/alembic.ini upgrade head > .logs/migrate-core.log 2>&1 || true
 	@printf "  \033[0;32m●\033[0m Core migrations \033[2mapplied\033[0m\n"
-	@# Run TPS migrations
+	@# Run TPS Alembic migrations
 	@set -a && source $(ENV_FILE) && set +a && \
 		PYTHONPATH=.:src uv run alembic upgrade head > .logs/migrate-tps.log 2>&1 || true
 	@printf "  \033[0;32m●\033[0m TPS migrations  \033[2mapplied\033[0m\n"
