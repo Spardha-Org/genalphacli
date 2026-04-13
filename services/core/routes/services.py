@@ -170,8 +170,9 @@ async def set_auth_config(
         raise HTTPException(status_code=404, detail="Service not found")
 
     # Merge into route_graph.auth so generators read from established path
-    route_graph = service.route_graph or {}
-    auth = route_graph.get("auth", {})
+    # Must reassign the whole dict — SQLAlchemy doesn't detect in-place JSON mutations
+    route_graph = dict(service.route_graph or {})
+    auth = dict(route_graph.get("auth", {}))
     auth["login_endpoint"] = body.login_endpoint
     auth["login_params"] = body.login_params
     auth["refresh_endpoint"] = body.refresh_endpoint
@@ -179,9 +180,13 @@ async def set_auth_config(
     service.route_graph = route_graph
 
     # Also store in metadata for frontend reference
-    metadata = service.metadata_json or {}
+    metadata = dict(service.metadata_json or {})
     metadata["auth_config"] = body.model_dump()
     service.metadata_json = metadata
+
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(service, "route_graph")
+    flag_modified(service, "metadata_json")
 
     db.add(service)
     await db.commit()
