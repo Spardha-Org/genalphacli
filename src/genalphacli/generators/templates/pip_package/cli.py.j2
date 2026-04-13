@@ -106,7 +106,8 @@ def login(
     from {{ cli_name }}.auth import extract_token, save_auth
 
     try:
-        result = api_call("POST", "{{ auth_endpoint }}", json_data={
+        # OAuth2 password grant uses form encoding, not JSON
+        result = api_call("POST", "{{ auth_endpoint }}", form_data={
 {% for param in auth_params %}
             "{{ param }}": {{ param }},
 {% endfor %}

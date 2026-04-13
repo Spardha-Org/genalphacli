@@ -36,13 +36,14 @@ async def api_call(
     path: str,
     params: dict[str, Any] | None = None,
     json_data: dict[str, Any] | None = None,
+    form_data: dict[str, Any] | None = None,
 ) -> Any:
     """Make an async HTTP request to the API."""
     client = await get_client()
     headers = _build_headers()
 
     response = await client.request(
-        method, path, params=params, json=json_data, headers=headers
+        method, path, params=params, json=json_data, data=form_data, headers=headers
     )
 
     if not response.is_success:

@@ -86,7 +86,7 @@ async def authenticate(
     from {{ cli_name }}_mcp.auth import extract_token, save_auth
 
     try:
-        result = await api_call("POST", "{{ auth_endpoint }}", json_data={
+        result = await api_call("POST", "{{ auth_endpoint }}", form_data={
 {% for param in auth_params %}
             "{{ param }}": {{ param }},
 {% endfor %}

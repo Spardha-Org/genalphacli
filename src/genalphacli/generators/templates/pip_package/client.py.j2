@@ -30,6 +30,7 @@ def api_call(
     path: str,
     params: dict[str, Any] | None = None,
     json_data: dict[str, Any] | None = None,
+    form_data: dict[str, Any] | None = None,
 ) -> Any:
     """Make an HTTP request to the API."""
     url = BASE_URL.rstrip("/") + path
@@ -40,6 +41,7 @@ def api_call(
         url,
         params=params,
         json=json_data,
+        data=form_data,
         headers=headers,
         timeout=TIMEOUT,
         verify=True,
