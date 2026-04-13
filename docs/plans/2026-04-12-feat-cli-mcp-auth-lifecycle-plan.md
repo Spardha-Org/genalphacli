@@ -1,7 +1,7 @@
 ---
 title: "feat: CLI & MCP auth lifecycle — automatic token management"
 type: feat
-status: active
+status: completed
 date: 2026-04-12
 deepened: 2026-04-13
 ---
