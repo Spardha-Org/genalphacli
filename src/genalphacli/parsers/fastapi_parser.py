@@ -16,6 +16,7 @@ from genalphacli.models import (
     RESPONSE_CLASS_MAP,
     HttpMethod,
     ParamLocation,
+    ParamType,
     ParsedRoute,
     ParseWarning,
     ResponseFormat,
