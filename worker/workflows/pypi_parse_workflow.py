@@ -12,10 +12,12 @@ from temporalio import workflow
 from temporalio.common import RetryPolicy
 
 with workflow.unsafe.imports_passed_through():
+    from worker.activities.auth_activities import detect_auth_activity
     from worker.activities.github_activities import cleanup_clone_activity
     from worker.activities.parse_activities import parse_routes_activity
     from worker.activities.pypi_activities import fetch_pypi_sdist_activity
     from worker.activities.schemas import (
+        DetectAuthInput,
         FetchPyPISdistInput,
         ParseRoutesInput,
     )
@@ -90,7 +92,23 @@ class PyPIParseWorkflow:
                 retry_policy=RetryPolicy(maximum_attempts=1),
             )
 
-            # Step 3: Update status to parsed with route graph
+            # Step 3: Detect auth endpoints (non-fatal)
+            auth_candidates = []
+            try:
+                auth_result = await workflow.execute_activity(
+                    detect_auth_activity,
+                    DetectAuthInput(
+                        route_graph=parse_result.route_graph,
+                        service_id=input.service_id,
+                    ),
+                    start_to_close_timeout=timedelta(seconds=10),
+                    retry_policy=RetryPolicy(maximum_attempts=1),
+                )
+                auth_candidates = auth_result.candidates
+            except Exception:
+                pass
+
+            # Step 4: Update status to parsed with route graph
             await workflow.execute_activity(
                 update_service_status,
                 StatusUpdateInput(
@@ -104,6 +122,7 @@ class PyPIParseWorkflow:
                         "total_routes": parse_result.route_count,
                         "parse_time_ms": parse_result.parse_time_ms,
                         "warnings": parse_result.warnings,
+                        "auth_candidates": auth_candidates,
                     },
                 ),
                 start_to_close_timeout=timedelta(seconds=10),
