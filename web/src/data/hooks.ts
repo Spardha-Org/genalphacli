@@ -179,6 +179,19 @@ export function useCreateService() {
   });
 }
 
+export function useSetAuthConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { serviceId: string; config: { login_endpoint: string; login_params: string[]; refresh_endpoint?: string; auth_type?: string } }) =>
+      servicesApi.setAuthConfig(args.serviceId, args.config),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: keys.service(variables.serviceId),
+      });
+    },
+  });
+}
+
 export function useCreatePyPIService() {
   const queryClient = useQueryClient();
   return useMutation({

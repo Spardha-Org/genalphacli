@@ -117,6 +117,12 @@ export const servicesApi = {
 
   getStatus: (id: string) => apiFetch<Service>(`/services/${id}`),
 
+  setAuthConfig: (serviceId: string, config: { login_endpoint: string; login_params: string[]; refresh_endpoint?: string; auth_type?: string }) =>
+    apiFetch<{ ok: boolean }>(`/services/${serviceId}/auth-config`, {
+      method: "POST",
+      body: JSON.stringify(config),
+    }),
+
   createFromPyPI: (payload: { package_name: string; project_id: string; version?: string }) =>
     apiFetch<{ serviceId: string; workflowId: string; status: string }>(
       "/parse/pypi",

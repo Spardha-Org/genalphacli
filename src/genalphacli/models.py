@@ -201,6 +201,10 @@ class AuthConfig(BaseModel):
 
     type: AuthType = AuthType.NONE
     env_var: str = ""
+    # Auth lifecycle fields (populated from user confirmation in frontend)
+    login_endpoint: str = ""
+    login_params: list[str] = []
+    refresh_endpoint: str = ""
 
 
 class CommandParam(BaseModel):

@@ -144,6 +144,51 @@ async def delete_service(
     return {"ok": True}
 
 
+class AuthConfigRequest(BaseModel):
+    login_endpoint: str = ""
+    login_params: list[str] = []
+    refresh_endpoint: str = ""
+    auth_type: str = "bearer"
+
+
+@router.post("/{service_id}/auth-config")
+async def set_auth_config(
+    service_id: str,
+    body: AuthConfigRequest,
+    db: DbDep,
+    workspace: CurrentWorkspaceDep,
+):
+    """Save user-confirmed auth config. Merges into route_graph.auth for generators."""
+    stmt = (
+        select(Service)
+        .join(Project)
+        .where(Service.id == service_id, Project.workspace_id == workspace.id)
+    )
+    result = await db.exec(stmt)
+    service = result.first()
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+
+    # Merge into route_graph.auth so generators read from established path
+    route_graph = service.route_graph or {}
+    auth = route_graph.get("auth", {})
+    auth["login_endpoint"] = body.login_endpoint
+    auth["login_params"] = body.login_params
+    auth["refresh_endpoint"] = body.refresh_endpoint
+    route_graph["auth"] = auth
+    service.route_graph = route_graph
+
+    # Also store in metadata for frontend reference
+    metadata = service.metadata_json or {}
+    metadata["auth_config"] = body.model_dump()
+    service.metadata_json = metadata
+
+    db.add(service)
+    await db.commit()
+
+    return {"ok": True}
+
+
 @router.get("/{service_id}/download")
 async def download_service(
     service_id: str,
