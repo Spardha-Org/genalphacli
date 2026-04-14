@@ -12,6 +12,7 @@ from temporalio import activity
 logger = logging.getLogger(__name__)
 
 CORE_URL = os.environ.get("CORE_URL", "http://localhost:8000")
+WORKER_SECRET = os.environ.get("WORKER_SECRET", "dev-worker-shared-secret")
 
 
 @dataclass
@@ -39,8 +40,9 @@ def update_service_status(input: StatusUpdateInput) -> None:
 
     with httpx.Client(timeout=10.0) as client:
         response = client.post(
-            f"{CORE_URL}/services/{input.service_id}/status",
+            f"{CORE_URL}/api/v1/internal/services/{input.service_id}/status",
             json=payload,
+            headers={"X-Worker-Secret": WORKER_SECRET},
         )
         response.raise_for_status()
 

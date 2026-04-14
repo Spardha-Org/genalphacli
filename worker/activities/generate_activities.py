@@ -26,6 +26,7 @@ from worker.activities.schemas import (
 )
 
 CORE_URL = os.environ.get("CORE_URL", "http://localhost:8000")
+WORKER_SECRET = os.environ.get("WORKER_SECRET", "dev-worker-shared-secret")
 
 logger = logging.getLogger(__name__)
 
@@ -88,9 +89,10 @@ def upload_artifact_activity(input: UploadArtifactInput) -> UploadArtifactOutput
 
     with httpx.Client(timeout=60.0) as client:
         response = client.post(
-            f"{CORE_URL}/services/{input.service_id}/artifacts",
+            f"{CORE_URL}/api/v1/internal/services/{input.service_id}/artifacts",
             files={"file": (input.filename, zip_bytes, "application/zip")},
             data={"artifact_type": input.artifact_type},
+            headers={"X-Worker-Secret": WORKER_SECRET},
         )
         response.raise_for_status()
 
