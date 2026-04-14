@@ -1,28 +1,85 @@
-name: Deploy to AWS
+name: Deploy
 
 on:
   push:
     branches: [main]
-  workflow_dispatch: # Manual trigger
+  workflow_dispatch:
 
 jobs:
+  deploy-frontend:
+    name: Deploy Frontend (Vercel)
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Pull Vercel config
+        run: vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+        working-directory: web
+
+      - name: Build
+        run: vercel build --prod --token=$VERCEL_TOKEN
+        working-directory: web
+
+      - name: Deploy
+        run: vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+        working-directory: web
+
   deploy-backend:
     name: Deploy Backend (EC2 #1)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy via SSH
+      - name: Write .env and deploy
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.BACKEND_IP }}
           username: ec2-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DB_PASSWORD,TPS_SECRET,WORKER_SECRET,MAGIC_LINK_SECRET,RESEND_API_KEY,FERNET_KEY,RDS_HOST,TEMPORAL_ADDRESS,VERCEL_URL,OAUTH_CLIENT_ID,OAUTH_CLIENT_SECRET
           script: |
+            # Write .env from GitHub secrets
+            sudo tee /opt/genalpha/.env > /dev/null << ENVEOF
+            # Core
+            CORE_DATABASE__URL=postgresql+asyncpg://genalpha:${DB_PASSWORD}@${RDS_HOST}:5432/core
+            CORE_AUTH__MAGIC_LINK_SECRET=${MAGIC_LINK_SECRET}
+            CORE_AUTH__SESSION_COOKIE_SECURE=false
+            CORE_TPS__URL=http://tps:8001
+            CORE_TPS__SECRET=${TPS_SECRET}
+            CORE_WORKER__SECRET=${WORKER_SECRET}
+            CORE_APP_URL=${VERCEL_URL}
+            CORE_TEMPORAL_ADDRESS=${TEMPORAL_ADDRESS}
+            CORE_EMAIL__RESEND_API_KEY=${RESEND_API_KEY}
+            CORE_EMAIL__FROM_ADDRESS=GenAlpha <onboarding@resend.dev>
+
+            # TPS
+            TPS_DATABASE_URL=postgresql+asyncpg://genalpha:${DB_PASSWORD}@${RDS_HOST}:5432/tps
+            TPS_TPS_SECRET=${TPS_SECRET}
+            TPS_FERNET_KEYS=${FERNET_KEY}
+            TPS_GITHUB_CLIENT_ID=${OAUTH_CLIENT_ID}
+            TPS_GITHUB_CLIENT_SECRET=${OAUTH_CLIENT_SECRET}
+            TPS_GITHUB_REDIRECT_URI=${VERCEL_URL}/api/oauth/callback
+
+            # Worker
+            CORE_URL=http://core:8000
+            TPS_URL=http://tps:8001
+            TPS_SECRET=${TPS_SECRET}
+            WORKER_SECRET=${WORKER_SECRET}
+            TEMPORAL_ADDRESS=${TEMPORAL_ADDRESS}
+            ENVEOF
+
+            # Pull and deploy
             cd /opt/genalpha/repo
-            git pull origin main
-            docker-compose -f infra/compose/docker-compose.backend.yml build
-            docker-compose -f infra/compose/docker-compose.backend.yml up -d
+            sudo git pull origin main
+            sudo docker-compose -f infra/compose/docker-compose.backend.yml --env-file /opt/genalpha/.env down
+            sudo docker-compose -f infra/compose/docker-compose.backend.yml --env-file /opt/genalpha/.env up -d --build
             echo "Backend deployed at $(date)"
 
   deploy-infra:
@@ -37,7 +94,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /opt/genalpha/repo
-            git pull origin main
-            docker-compose -f infra/compose/docker-compose.infra.yml pull
-            docker-compose -f infra/compose/docker-compose.infra.yml up -d
+            sudo git pull origin main
+            sudo docker-compose -f infra/compose/docker-compose.infra.yml pull
+            sudo docker-compose -f infra/compose/docker-compose.infra.yml up -d
             echo "Infra deployed at $(date)"
