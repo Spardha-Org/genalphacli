@@ -26,7 +26,7 @@ jobs:
             CORE_DATABASE__URL=postgresql+asyncpg://genalpha:${DB_PASSWORD}@${RDS_HOST}:5432/core
             CORE_AUTH__MAGIC_LINK_SECRET=${MAGIC_LINK_SECRET}
             CORE_AUTH__SESSION_COOKIE_SECURE=false
-            CORE_TPS__URL=http://localhost:8001
+            CORE_TPS__URL=http://tps:8001
             CORE_TPS__SECRET=${TPS_SECRET}
             CORE_WORKER__SECRET=${WORKER_SECRET}
             CORE_APP_URL=${VERCEL_URL}
@@ -43,8 +43,8 @@ jobs:
             TPS_GITHUB_REDIRECT_URI=${VERCEL_URL}/api/oauth/callback
 
             # Worker
-            CORE_URL=http://localhost:8000
-            TPS_URL=http://localhost:8001
+            CORE_URL=http://core:8000
+            TPS_URL=http://tps:8001
             TPS_SECRET=${TPS_SECRET}
             WORKER_SECRET=${WORKER_SECRET}
             TEMPORAL_ADDRESS=${TEMPORAL_ADDRESS}
