@@ -30,6 +30,9 @@ def fetch_pypi_sdist_activity(input: FetchPyPISdistInput) -> FetchPyPISdistOutpu
         input.service_id,
     )
 
+    from worker.heartbeat import heartbeat_periodically
+
+    activity.heartbeat("fetching_package_info")
     info = fetch_package_info(input.package_name)
     sdist = find_sdist_url(info, version=input.version)
 
@@ -40,9 +43,15 @@ def fetch_pypi_sdist_activity(input: FetchPyPISdistInput) -> FetchPyPISdistOutpu
             "Only pre-built wheels may be available for this release."
         )
 
+    activity.heartbeat("downloading_sdist")
     download_dir = Path(tempfile.mkdtemp(prefix="pypi-"))
-    tar_path = download_sdist(sdist.url, download_dir, sdist.sha256)
+    with heartbeat_periodically(interval=10.0, message="downloading_sdist"):
+        tar_path = download_sdist(sdist.url, download_dir, sdist.sha256)
+
+    activity.heartbeat("extracting_sdist")
     extract_dir = extract_sdist_safe(tar_path, download_dir / "src")
+
+    activity.heartbeat("detecting_framework")
     framework = detect_framework(extract_dir)
 
     logger.info(

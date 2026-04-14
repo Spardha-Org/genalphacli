@@ -64,6 +64,7 @@ class PublishWorkflow:
                     service_id=input.service_id,
                 ),
                 start_to_close_timeout=timedelta(seconds=120),
+                heartbeat_timeout=timedelta(seconds=30),
                 retry_policy=RetryPolicy(maximum_attempts=2),
             )
 
@@ -87,6 +88,7 @@ class PublishWorkflow:
                         integration_id=input.integration_id,
                     ),
                     start_to_close_timeout=timedelta(seconds=180),
+                    heartbeat_timeout=timedelta(seconds=30),
                     retry_policy=RetryPolicy(maximum_attempts=2),
                 )
                 published_packages.append({

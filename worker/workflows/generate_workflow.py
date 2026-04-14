@@ -63,6 +63,7 @@ class GenerateWorkflow:
                     service_id=input.service_id,
                 ),
                 start_to_close_timeout=timedelta(seconds=120),
+                heartbeat_timeout=timedelta(seconds=30),
                 retry_policy=RetryPolicy(maximum_attempts=2),
             )
 
@@ -94,6 +95,7 @@ class GenerateWorkflow:
                     filename=f"{input.cli_name}.zip",
                 ),
                 start_to_close_timeout=timedelta(seconds=60),
+                heartbeat_timeout=timedelta(seconds=20),
                 retry_policy=RetryPolicy(maximum_attempts=2),
             )
 

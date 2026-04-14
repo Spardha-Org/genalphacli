@@ -62,6 +62,7 @@ class PyPIParseWorkflow:
                     user_id=input.user_id,
                 ),
                 start_to_close_timeout=timedelta(seconds=120),
+                heartbeat_timeout=timedelta(seconds=30),
                 retry_policy=RetryPolicy(
                     initial_interval=timedelta(seconds=2),
                     backoff_coefficient=2.0,
@@ -89,6 +90,7 @@ class PyPIParseWorkflow:
                     command_name=input.command_name,
                 ),
                 start_to_close_timeout=timedelta(seconds=180),
+                heartbeat_timeout=timedelta(seconds=30),
                 retry_policy=RetryPolicy(maximum_attempts=1),
             )
 
