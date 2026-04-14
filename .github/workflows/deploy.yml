@@ -1,0 +1,43 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend (EC2 #1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.BACKEND_IP }}
+          username: ec2-user
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/genalpha/repo
+            git pull origin main
+            docker-compose -f infra/compose/docker-compose.backend.yml build
+            docker-compose -f infra/compose/docker-compose.backend.yml up -d
+            echo "Backend deployed at $(date)"
+
+  deploy-infra:
+    name: Deploy Infra (EC2 #2)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.INFRA_IP }}
+          username: ec2-user
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/genalpha/repo
+            git pull origin main
+            docker-compose -f infra/compose/docker-compose.infra.yml pull
+            docker-compose -f infra/compose/docker-compose.infra.yml up -d
+            echo "Infra deployed at $(date)"

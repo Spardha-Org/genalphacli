@@ -1,0 +1,30 @@
+# Multi-stage build for Core + TPS services
+FROM python:3.14-slim AS base
+
+WORKDIR /app
+
+# Install system deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git curl build-essential libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install uv for fast dependency management
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy dependency + build files (cache layer)
+COPY pyproject.toml uv.lock README.md ./
+
+# Install Python dependencies
+RUN uv sync --frozen --no-dev --group services --group worker
+
+# Copy source code
+COPY src/ src/
+COPY services/ services/
+COPY worker/ worker/
+COPY alembic.ini ./
+
+# Default: run Core service
+ENV PYTHONPATH=.:src
+EXPOSE 8000
+
+CMD ["uv", "run", "uvicorn", "services.core.main:app", "--host", "0.0.0.0", "--port", "8000"]
