@@ -1,11 +1,13 @@
-"""Core service database models (SQLModel)."""
+"""Core service database models (SQLModel).
 
-from __future__ import annotations
+Note: Do NOT use 'from __future__ import annotations' here.
+SQLAlchemy/SQLModel needs concrete types for relationship() mapping.
+"""
 
 import enum
 import secrets
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from sqlalchemy import JSON, Column, LargeBinary, UniqueConstraint, event, text
 from sqlmodel import Field, Relationship, SQLModel
@@ -17,8 +19,8 @@ def generate_id() -> str:
 
 
 def utc_now() -> datetime:
-    """Return current UTC time (timezone-aware)."""
-    return datetime.now(timezone.utc)
+    """Return current UTC time (naive — matches DB TIMESTAMP WITHOUT TIME ZONE)."""
+    return datetime.utcnow()
 
 
 # ── Enums ──
@@ -65,8 +67,8 @@ class User(SQLModel, table=True):
     email_verified: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utc_now)
 
-    sessions: list[Session] = Relationship(back_populates="user")
-    memberships: list[WorkspaceMember] = Relationship(back_populates="user")
+    sessions: list["Session"] = Relationship(back_populates="user")
+    memberships: list["WorkspaceMember"] = Relationship(back_populates="user")
 
 
 # ── Sessions ──
@@ -83,7 +85,7 @@ class Session(SQLModel, table=True):
     last_active_at: datetime = Field(default_factory=utc_now)
     user_agent: str | None = None
 
-    user: User | None = Relationship(back_populates="sessions")
+    user: Optional["User"] = Relationship(back_populates="sessions")
 
 
 # ── Workspaces ──
@@ -99,8 +101,8 @@ class Workspace(SQLModel, table=True):
     integration_id: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
 
-    members: list[WorkspaceMember] = Relationship(back_populates="workspace")
-    projects: list[Project] = Relationship(
+    members: list["WorkspaceMember"] = Relationship(back_populates="workspace")
+    projects: list["Project"] = Relationship(
         back_populates="workspace",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
@@ -119,8 +121,8 @@ class WorkspaceMember(SQLModel, table=True):
     role: str = Field(default=WorkspaceRole.OWNER.value)
     created_at: datetime = Field(default_factory=utc_now)
 
-    workspace: Workspace | None = Relationship(back_populates="members")
-    user: User | None = Relationship(back_populates="memberships")
+    workspace: Optional["Workspace"] = Relationship(back_populates="members")
+    user: Optional["User"] = Relationship(back_populates="memberships")
 
 
 # ── Projects ──
@@ -135,8 +137,8 @@ class Project(SQLModel, table=True):
     description: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
 
-    workspace: Workspace | None = Relationship(back_populates="projects")
-    services: list[Service] = Relationship(
+    workspace: Optional["Workspace"] = Relationship(back_populates="projects")
+    services: list["Service"] = Relationship(
         back_populates="project",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
@@ -168,8 +170,8 @@ class Service(SQLModel, table=True):
         sa_column_kwargs={"onupdate": utc_now},
     )
 
-    project: Project | None = Relationship(back_populates="services")
-    artifacts: list[Artifact] = Relationship(
+    project: Optional["Project"] = Relationship(back_populates="services")
+    artifacts: list["Artifact"] = Relationship(
         back_populates="service",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
@@ -189,4 +191,4 @@ class Artifact(SQLModel, table=True):
     file_size: int = 0
     created_at: datetime = Field(default_factory=utc_now)
 
-    service: Service | None = Relationship(back_populates="artifacts")
+    service: Optional["Service"] = Relationship(back_populates="artifacts")

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
-from services.core.auth.oauth_state import create_oauth_state, verify_oauth_state
+from services.core.oauth_state import encode_state, decode_state, OAuthState
 from services.core.clients.tps_client import TpsHttpClient
 from services.core.config import settings
 from services.core.exceptions import NotFoundError, ValidationError
@@ -51,7 +51,10 @@ class IntegrationService:
         form_data: dict | None = None,
     ) -> str:
         """Build OAuth authorize URL with encrypted state."""
-        state = create_oauth_state(user_id, app_name, callback_path)
+        state = encode_state(OAuthState(
+            user_id=user_id, app_name=app_name,
+            timestamp=__import__("time").time(), callback_path=callback_path,
+        ))
         redirect_uri = f"{settings.app_url}/api/oauth/callback"
 
         result = await self._tps.install_app(user_id, app_name, state, redirect_uri)
@@ -63,13 +66,14 @@ class IntegrationService:
 
     async def handle_oauth_callback(self, code: str, state: str) -> tuple[str, str]:
         """Exchange OAuth code. Returns (app_name, callback_path)."""
-        state_data = verify_oauth_state(state)
-        if not state_data:
+        try:
+            state_data = decode_state(state)
+        except ValueError:
             raise ValidationError("Invalid or expired OAuth state")
 
-        user_id = state_data["user_id"]
-        app_name = state_data["app_name"]
-        callback_path = state_data.get("callback_path", "/app-store")
+        user_id = state_data.user_id
+        app_name = state_data.app_name
+        callback_path = state_data.callback_path or "/app-store"
 
         redirect_uri = f"{settings.app_url}/api/oauth/callback"
         await self._tps.exchange_code(user_id, app_name, code, redirect_uri)

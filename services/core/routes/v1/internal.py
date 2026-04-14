@@ -51,6 +51,7 @@ async def update_service_status(
 
 @router.post("/services/{service_id}/artifacts")
 async def upload_artifact(
+    *,
     service_id: str,
     file: UploadFile,
     artifact_type: str = Form(...),
