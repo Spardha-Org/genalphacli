@@ -6,10 +6,6 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-    vercel = {
-      source  = "vercel/vercel"
-      version = "~> 1.0"
-    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.0"
@@ -29,9 +25,8 @@ provider "aws" {
   }
 }
 
-provider "vercel" {
-  api_token = var.vercel_api_token
-}
+# Vercel managed manually (needs team scope token)
+# provider "vercel" { api_token = var.vercel_api_token }
 
 # Generate secrets if not provided
 resource "random_password" "db_password" {
@@ -84,5 +79,5 @@ data "aws_ami" "amazon_linux" {
 # SSH Key
 resource "aws_key_pair" "deploy" {
   key_name   = "${var.project_name}-deploy"
-  public_key = var.ssh_public_key != "" ? var.ssh_public_key : file("~/.ssh/id_rsa.pub")
+  public_key = var.ssh_public_key != "" ? var.ssh_public_key : file("~/.ssh/genalpha_deploy.pub")
 }

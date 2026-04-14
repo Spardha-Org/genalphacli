@@ -1,6 +1,6 @@
 # Security Groups
 
-# Backend EC2 — Core + TPS + Worker
+# Backend EC2 - Core + TPS + Worker
 resource "aws_security_group" "backend" {
   name_prefix = "${var.project_name}-backend-"
   vpc_id      = aws_vpc.main.id
@@ -22,7 +22,7 @@ resource "aws_security_group" "backend" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # SSH — restricted
+  # SSH - restricted
   ingress {
     from_port   = 22
     to_port     = 22
@@ -41,13 +41,13 @@ resource "aws_security_group" "backend" {
   tags = { Name = "${var.project_name}-backend-sg" }
 }
 
-# Infra EC2 — Temporal
+# Infra EC2 - Temporal
 resource "aws_security_group" "infra" {
   name_prefix = "${var.project_name}-infra-"
   vpc_id      = aws_vpc.main.id
   description = "Infrastructure (Temporal, Temporal UI)"
 
-  # Temporal gRPC — from backend only
+  # Temporal gRPC - from backend only
   ingress {
     from_port       = 7233
     to_port         = 7233
@@ -55,7 +55,7 @@ resource "aws_security_group" "infra" {
     security_groups = [aws_security_group.backend.id]
   }
 
-  # Temporal UI — restricted to my IP
+  # Temporal UI - restricted to my IP
   ingress {
     from_port   = 8080
     to_port     = 8080
@@ -63,7 +63,7 @@ resource "aws_security_group" "infra" {
     cidr_blocks = [var.my_ip]
   }
 
-  # SSH — restricted
+  # SSH - restricted
   ingress {
     from_port   = 22
     to_port     = 22
@@ -82,11 +82,11 @@ resource "aws_security_group" "infra" {
   tags = { Name = "${var.project_name}-infra-sg" }
 }
 
-# RDS — from backend + infra only
+# RDS - from backend + infra only
 resource "aws_security_group" "rds" {
   name_prefix = "${var.project_name}-rds-"
   vpc_id      = aws_vpc.main.id
-  description = "RDS PostgreSQL — backend + infra access only"
+  description = "RDS PostgreSQL - backend + infra access only"
 
   ingress {
     from_port       = 5432

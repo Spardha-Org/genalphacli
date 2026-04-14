@@ -24,9 +24,8 @@ resource "aws_db_instance" "main" {
   skip_final_snapshot = true
   deletion_protection = false
 
-  # Backups
-  backup_retention_period = 7
-  backup_window           = "03:00-04:00"
+  # Free trial — no backups (upgrade later)
+  backup_retention_period = 0
   maintenance_window      = "sun:04:00-sun:05:00"
 
   tags = { Name = "${var.project_name}-db" }

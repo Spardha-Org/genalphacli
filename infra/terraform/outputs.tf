@@ -32,12 +32,12 @@ output "core_api" {
 
 output "ssh_backend" {
   description = "SSH to backend"
-  value       = "ssh -i ~/.ssh/id_rsa ec2-user@${aws_eip.backend.public_ip}"
+  value       = "ssh -i ~/.ssh/genalpha_deploy ec2-user@${aws_eip.backend.public_ip}"
 }
 
 output "ssh_infra" {
   description = "SSH to infra"
-  value       = "ssh -i ~/.ssh/id_rsa ec2-user@${aws_eip.infra.public_ip}"
+  value       = "ssh -i ~/.ssh/genalpha_deploy ec2-user@${aws_eip.infra.public_ip}"
 }
 
 output "db_password" {
