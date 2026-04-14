@@ -49,10 +49,12 @@ def generate_packages_activity(input: GeneratePackagesInput) -> GeneratePackages
     output_dir = Path(tempfile.mkdtemp(prefix=f"genalpha-gen-{input.service_id}-"))
 
     if "cli" in input.output_types:
+        activity.heartbeat("generating_cli")
         cli_path = gen_cli(graph, config, output_dir)
         logger.info("Generated CLI package at %s", cli_path)
 
     if "mcp" in input.output_types:
+        activity.heartbeat("generating_mcp")
         mcp_path = gen_mcp(graph, config, output_dir)
         logger.info("Generated MCP package at %s", mcp_path)
 
@@ -85,6 +87,7 @@ def package_zip_activity(input: PackageZipInput) -> PackageZipOutput:
 @activity.defn
 def upload_artifact_activity(input: UploadArtifactInput) -> UploadArtifactOutput:
     """Read ZIP from disk and upload to Core as multipart/form-data."""
+    activity.heartbeat("uploading_artifact")
     zip_bytes = Path(input.zip_path).read_bytes()
 
     with httpx.Client(timeout=60.0) as client:

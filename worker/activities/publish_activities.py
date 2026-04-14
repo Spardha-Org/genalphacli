@@ -133,9 +133,11 @@ def publish_to_pypi_activity(input: PublishToPyPIInput) -> PublishToPyPIOutput:
     3. Build sdist + wheel with `python -m build`
     4. Upload each dist file to PyPI
     """
+    from worker.heartbeat import heartbeat_periodically
+
     logger.info("Publishing %s package for service %s", input.package_type, input.service_id)
 
-    # Fetch token
+    activity.heartbeat("fetching_token")
     token = _fetch_pypi_token(input.integration_id, input.user_id)
 
     # Find the package directory within the output dir
@@ -159,11 +161,13 @@ def publish_to_pypi_activity(input: PublishToPyPIInput) -> PublishToPyPIOutput:
     name, version = _extract_metadata(package_dir)
     logger.info("Building package: %s v%s from %s", name, version, package_dir)
 
-    # Build
-    dist_files = _build_package(package_dir)
+    activity.heartbeat("building_package")
+    with heartbeat_periodically(interval=10.0, message="building_package"):
+        dist_files = _build_package(package_dir)
 
     # Upload each dist file
-    for dist_file in dist_files:
+    for i, dist_file in enumerate(dist_files):
+        activity.heartbeat(f"uploading_{i+1}_of_{len(dist_files)}")
         _upload_to_pypi(token, dist_file, name, version)
 
     published_url = f"https://pypi.org/project/{name}/{version}/"

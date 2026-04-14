@@ -21,14 +21,18 @@ def parse_routes_activity(input: ParseRoutesInput) -> ParseRoutesOutput:
     Uses plain def (not async def) because the pipeline is CPU-bound/synchronous.
     Temporal runs sync activities in a thread pool automatically.
     """
+    from worker.heartbeat import heartbeat_periodically
+
     clone_path = Path(input.clone_dir)
     logger.info("Parsing routes from %s (framework=%s)", clone_path, input.framework)
 
-    graph = run_pipeline(
-        repo_root=clone_path,
-        framework=input.framework,
-        command_name=input.command_name,
-    )
+    activity.heartbeat("parsing_routes")
+    with heartbeat_periodically(interval=10.0, message="parsing_routes"):
+        graph = run_pipeline(
+            repo_root=clone_path,
+            framework=input.framework,
+            command_name=input.command_name,
+        )
 
     # Convert Pydantic model to dict at the Temporal boundary
     route_graph = graph.model_dump()
