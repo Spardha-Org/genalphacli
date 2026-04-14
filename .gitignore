@@ -8,10 +8,11 @@ build/
 .ruff_cache/
 .mypy_cache/
 .env
-.beads/
-repos/*
-!repos/.gitkeep
+repos/
 graph.json
 .logs/
 .pids/
 *.pid
+.code-review-graph/
+.atom/
+.beads/

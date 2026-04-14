@@ -107,7 +107,6 @@ async def get_service(
         "route_graph": service.route_graph,
         "error_message": service.error_message,
         "artifact_id": service.artifact_id,
-        "download_url": service.download_url,  # deprecated
         "metadata": service.metadata_json,
         "created_at": service.created_at.isoformat(),
     }

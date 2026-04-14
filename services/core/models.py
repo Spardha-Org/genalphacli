@@ -116,7 +116,6 @@ class Service(SQLModel, table=True):
     error_message: Optional[str] = None
     parse_workflow_id: Optional[str] = None
     generate_workflow_id: Optional[str] = None
-    download_url: Optional[str] = None  # deprecated — use artifact_id
     artifact_id: Optional[str] = None
     metadata_json: Optional[dict] = Field(default=None, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=utc_now)

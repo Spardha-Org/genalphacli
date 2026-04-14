@@ -106,7 +106,6 @@ def upgrade() -> None:
         sa.Column("error_message", sa.String(), nullable=True),
         sa.Column("parse_workflow_id", sa.String(), nullable=True),
         sa.Column("generate_workflow_id", sa.String(), nullable=True),
-        sa.Column("download_url", sa.String(), nullable=True),
         sa.Column("artifact_id", sa.String(), nullable=True),
         sa.Column("metadata_json", sa.JSON(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
