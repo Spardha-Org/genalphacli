@@ -94,17 +94,29 @@ async def health():
     return {"status": "ok", "service": "core", "checks": checks}
 
 
-# ── Backward Compatibility Routes ──
-# Keep old routes working during frontend migration to /api/v1/*
-# TODO: Remove after frontend is fully migrated
+# ── Backward Compatibility ──
+# Mount the same v1 routes WITHOUT the /api/v1 prefix so the frontend
+# proxy (which hits Core at root paths like /auth/session, /projects, etc.)
+# continues to work during the migration period.
+# TODO: Remove after frontend proxies are updated to /api/v1/*
 
-from services.core.routes.v1.auth import router as auth_v1  # noqa: E402
-from services.core.routes.v1.projects import router as projects_v1  # noqa: E402
-from services.core.routes.v1.services import router as services_v1  # noqa: E402
-from services.core.routes.v1.parse import router as parse_v1  # noqa: E402
-from services.core.routes.v1.generate import router as generate_v1  # noqa: E402
-from services.core.routes.v1.integrations import router as integrations_v1  # noqa: E402
-from services.core.routes.v1.artifacts import router as artifacts_v1  # noqa: E402
+from fastapi import APIRouter as _APIRouter  # noqa: E402
 
-# These are the SAME routers — they'll be mounted at both /api/v1/* and /*
-# FastAPI deduplicates them, so this is safe during transition
+_compat_router = _APIRouter()
+
+from services.core.routes.v1 import (  # noqa: E402
+    auth, projects, services, parse, generate, integrations, artifacts, oauth_callback,
+)
+# Internal routes are NOT mounted at root — they require X-Worker-Secret
+# and worker already calls /api/v1/internal/*
+
+_compat_router.include_router(auth.router)
+_compat_router.include_router(projects.router)
+_compat_router.include_router(services.router)
+_compat_router.include_router(parse.router)
+_compat_router.include_router(generate.router)
+_compat_router.include_router(integrations.router)
+_compat_router.include_router(artifacts.router)
+_compat_router.include_router(oauth_callback.router)
+
+app.include_router(_compat_router)
