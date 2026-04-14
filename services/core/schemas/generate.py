@@ -4,16 +4,18 @@ from __future__ import annotations
 
 import re
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 CLI_NAME_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
 class GenerateRequest(BaseModel):
-    service_id: str
-    output_types: list[str] = Field(min_length=1)
-    cli_name: str
-    base_url: str
+    model_config = ConfigDict(populate_by_name=True)
+
+    service_id: str = Field(alias="serviceId")
+    output_types: list[str] = Field(min_length=1, alias="outputTypes")
+    cli_name: str = Field(alias="cliName")
+    base_url: str = Field(alias="baseUrl")
 
     @field_validator("cli_name")
     @classmethod
@@ -39,6 +41,6 @@ class PublishRequest(GenerateRequest):
 
 
 class GenerateResponse(BaseModel):
-    service_id: str
-    workflow_id: str
+    serviceId: str
+    workflowId: str
     status: str

@@ -15,7 +15,7 @@ async def start_generate(body: GenerateRequest, workspace: CurrentWorkspaceDep, 
     result = await generate_service.start_generate(
         body.service_id, body.output_types, body.cli_name, body.base_url, workspace,
     )
-    return GenerateResponse(service_id=result.service_id, workflow_id=result.workflow_id, status=result.status)
+    return GenerateResponse(serviceId=result.service_id, workflowId=result.workflow_id, status=result.status)
 
 
 @router.post("/publish", response_model=GenerateResponse)
@@ -23,4 +23,4 @@ async def start_publish(body: PublishRequest, workspace: CurrentWorkspaceDep, ge
     result = await generate_service.start_publish(
         body.service_id, body.output_types, body.cli_name, body.base_url, workspace,
     )
-    return GenerateResponse(service_id=result.service_id, workflow_id=result.workflow_id, status=result.status)
+    return GenerateResponse(serviceId=result.service_id, workflowId=result.workflow_id, status=result.status)
