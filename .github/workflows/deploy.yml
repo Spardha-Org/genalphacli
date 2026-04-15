@@ -34,6 +34,18 @@ jobs:
   deploy-backend:
     name: Deploy Backend (EC2 #1)
     runs-on: ubuntu-latest
+    env:
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      TPS_SECRET: ${{ secrets.TPS_SECRET }}
+      WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
+      MAGIC_LINK_SECRET: ${{ secrets.MAGIC_LINK_SECRET }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      FERNET_KEY: ${{ secrets.FERNET_KEY }}
+      RDS_HOST: ${{ secrets.RDS_HOST }}
+      TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_ADDRESS }}
+      VERCEL_URL: ${{ secrets.VERCEL_URL }}
+      OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+      OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
 
@@ -45,7 +57,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           envs: DB_PASSWORD,TPS_SECRET,WORKER_SECRET,MAGIC_LINK_SECRET,RESEND_API_KEY,FERNET_KEY,RDS_HOST,TEMPORAL_ADDRESS,VERCEL_URL,OAUTH_CLIENT_ID,OAUTH_CLIENT_SECRET
           script: |
-            # Write .env from GitHub secrets
             sudo tee /opt/genalpha/.env > /dev/null << ENVEOF
             # Core
             CORE_DATABASE__URL=postgresql+asyncpg://genalpha:${DB_PASSWORD}@${RDS_HOST}:5432/core
@@ -80,6 +91,11 @@ jobs:
             sudo git pull origin main
             sudo docker-compose -f infra/compose/docker-compose.backend.yml --env-file /opt/genalpha/.env down
             sudo docker-compose -f infra/compose/docker-compose.backend.yml --env-file /opt/genalpha/.env up -d --build
+
+            # Run migrations
+            sudo docker exec compose-core-1 bash -c 'PYTHONPATH=.:src uv run alembic -c services/core/alembic.ini upgrade head' || true
+            sudo docker exec compose-core-1 bash -c 'PYTHONPATH=.:src uv run alembic upgrade head' || true
+
             echo "Backend deployed at $(date)"
 
   deploy-infra:
