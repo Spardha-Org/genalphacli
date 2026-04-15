@@ -101,6 +101,9 @@ jobs:
   deploy-infra:
     name: Deploy Infra (EC2 #2)
     runs-on: ubuntu-latest
+    env:
+      TEMPORAL_UI_USER: ${{ secrets.TEMPORAL_UI_USER }}
+      TEMPORAL_UI_PASS: ${{ secrets.TEMPORAL_UI_PASS }}
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
@@ -108,9 +111,30 @@ jobs:
           host: ${{ secrets.INFRA_IP }}
           username: ec2-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: TEMPORAL_UI_USER,TEMPORAL_UI_PASS
           script: |
             cd /opt/genalpha/repo
             sudo git pull origin main
             sudo docker-compose -f infra/compose/docker-compose.infra.yml pull
             sudo docker-compose -f infra/compose/docker-compose.infra.yml up -d
+
+            # Set up Temporal UI basic auth via Nginx
+            sudo yum install -y nginx httpd-tools 2>/dev/null
+            echo -n "${TEMPORAL_UI_USER}:" | sudo tee /etc/nginx/.htpasswd > /dev/null
+            echo "${TEMPORAL_UI_PASS}" | openssl passwd -stdin -apr1 | sudo tee -a /etc/nginx/.htpasswd > /dev/null
+
+            sudo tee /etc/nginx/conf.d/temporal.conf > /dev/null << 'NGEOF'
+            server {
+                listen 8081;
+                server_name _;
+                auth_basic "Temporal UI";
+                auth_basic_user_file /etc/nginx/.htpasswd;
+                location / {
+                    proxy_pass http://localhost:8080;
+                }
+            }
+            NGEOF
+
+            sudo systemctl enable nginx
+            sudo systemctl restart nginx
             echo "Infra deployed at $(date)"
