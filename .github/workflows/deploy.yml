@@ -57,7 +57,7 @@ jobs:
             CORE_APP_URL=${VERCEL_URL}
             CORE_TEMPORAL_ADDRESS=${TEMPORAL_ADDRESS}
             CORE_EMAIL__RESEND_API_KEY=${RESEND_API_KEY}
-            CORE_EMAIL__FROM_ADDRESS=GenAlpha <onboarding@resend.dev>
+            CORE_EMAIL__FROM_ADDRESS=GenAlpha <noreply@contact.boot41.online>
 
             # TPS
             TPS_DATABASE_URL=postgresql+asyncpg://genalpha:${DB_PASSWORD}@${RDS_HOST}:5432/tps

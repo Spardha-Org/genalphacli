@@ -25,7 +25,7 @@ class AuthSettings(BaseModel):
 
 class EmailSettings(BaseModel):
     resend_api_key: str = ""
-    from_address: str = "GenAlpha <onboarding@resend.dev>"
+    from_address: str = "GenAlpha <noreply@contact.boot41.online>"
 
 
 class TpsSettings(BaseModel):
