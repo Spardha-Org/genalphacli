@@ -16,7 +16,7 @@ Paste a GitHub repo URL, extract all API routes via static analysis, configure a
 │ Clone + Detect      │    │  Generate:             │     │  CLI               │
 │ OpenAPI Spec Parse  │───>│    [x] CLI tool        │────>│    myapi login     │
 │ AST Route Extract   │    │    [x] MCP server      │     │    myapi list-users│
-│ Auth Detection      │    │    [x] Auth lifecycle   │     │  MCP               │
+│ FastAPI + Django    │    │    [x] Auth lifecycle   │     │  MCP               │
 └─────────────────────┘    └────────────────────────┘     │    "list all users"│
                                                           │  PyPI              │
                                                           │    pip install myapi│
