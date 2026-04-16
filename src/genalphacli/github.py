@@ -222,9 +222,11 @@ _DEP_FILES = [
 
 _FRAMEWORK_KEYWORDS = {
     "fastapi": "fastapi",
-    # Phase 2+:
+    "djangorestframework": "django",
+    "django-rest-framework": "django",
+    "django": "django",
+    # Phase 3+:
     # "flask": "flask",
-    # "django": "django",
 }
 
 
@@ -232,7 +234,8 @@ def detect_framework(repo_path: Path) -> str | None:
     """Detect the API framework used in the repository.
 
     Scans root-level and common subdirectories (backend/, app/, src/, api/)
-    for dependency files. Currently supports: fastapi.
+    for dependency files. Also checks for Django structural markers like
+    manage.py and settings.py with INSTALLED_APPS.
     """
     # Search root and common nested project directories
     search_roots = [repo_path]
@@ -246,7 +249,37 @@ def detect_framework(repo_path: Path) -> str | None:
         if result:
             return result
 
+    # Fallback: detect Django by structural markers (manage.py, settings.py)
+    if _detect_django_structure(repo_path):
+        return "django"
+
     return None
+
+
+def _detect_django_structure(repo_path: Path) -> bool:
+    """Detect Django by structural markers when dependency files are missing."""
+    # manage.py at root is a strong Django signal
+    manage_py = repo_path / "manage.py"
+    if manage_py.exists() and not manage_py.is_symlink():
+        try:
+            content = manage_py.read_text(errors="ignore")
+            if "django" in content.lower() or "DJANGO_SETTINGS_MODULE" in content:
+                return True
+        except OSError:
+            pass
+
+    # settings.py with INSTALLED_APPS is another strong signal
+    for settings_path in repo_path.rglob("settings.py"):
+        if settings_path.is_symlink() or ".venv" in settings_path.parts:
+            continue
+        try:
+            content = settings_path.read_text(errors="ignore")
+            if "INSTALLED_APPS" in content:
+                return True
+        except OSError:
+            continue
+
+    return False
 
 
 def _detect_in_directory(directory: Path) -> str | None:
