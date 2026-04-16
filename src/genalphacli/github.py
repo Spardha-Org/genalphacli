@@ -222,9 +222,11 @@ _DEP_FILES = [
 
 _FRAMEWORK_KEYWORDS = {
     "fastapi": "fastapi",
-    # Phase 2+:
+    "djangorestframework": "django",
+    "django-rest-framework": "django",
+    "django": "django",
+    # Phase 3+:
     # "flask": "flask",
-    # "django": "django",
 }
 
 

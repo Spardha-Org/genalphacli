@@ -250,6 +250,17 @@ def run_pipeline(
             all_warnings.extend(ast_warnings)
             logger.info("Layer 2 (AST): %d routes", len(ast_routes))
 
+    # Layer 2b: Django/DRF AST
+    if framework == "django" or (framework is None and not ast_routes):
+        py_files = file_index.get(".py", [])
+        if py_files:
+            from genalphacli.parsers.django_parser import parse_django
+
+            django_routes, django_warnings = parse_django(repo_root, py_files)
+            ast_routes.extend(django_routes)
+            all_warnings.extend(django_warnings)
+            logger.info("Layer 2b (Django AST): %d routes", len(django_routes))
+
     # Merge: later layer wins
     merged = merge_routes(openapi_routes, ast_routes)
     logger.info("Merged: %d routes", len(merged))
