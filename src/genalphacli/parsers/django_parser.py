@@ -113,8 +113,6 @@ def _convert_django_path(route: str) -> tuple[str, list[tuple[str, ParamType]]]:
     converted = _PATH_PARAM_RE.sub(replace_match, route)
     # Normalize: strip trailing slash, ensure leading slash
     converted = "/" + converted.strip("/")
-    if converted == "/":
-        pass
     return converted, params
 
 
@@ -130,8 +128,8 @@ def _convert_regex_path(pattern: str) -> tuple[str, list[tuple[str, ParamType]]]
 
     # Replace named groups with {name}
     converted = re.sub(r"\(\?P<(\w+)>[^)]*\)", lambda m: f"{{{m.group(1)}}}", cleaned)
-    # Strip remaining regex syntax roughly
-    converted = re.sub(r"[\\^$+?*.()\[\]{}|]", "", converted)
+    # Strip remaining regex syntax roughly (exclude {} to preserve {name} placeholders)
+    converted = re.sub(r"[\\^$+?*.()\[\]|]", "", converted)
     converted = "/" + converted.strip("/")
     return converted, params
 
@@ -445,6 +443,8 @@ class _UrlPatternCollector:
         self._meta: _FileMetadataCollector | None = None
         # local function/class name -> AST node
         self._funcs: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
+        # AST cache: avoid re-parsing the same file multiple times
+        self._ast_cache: dict[Path, ast.Module] = {}
 
     def collect(self) -> None:
         """Parse the file and extract routes."""
@@ -481,12 +481,14 @@ class _UrlPatternCollector:
                     self._process_urlpatterns(node.value)
 
     def _process_urlpatterns(self, node: ast.expr) -> None:
-        """Process a urlpatterns list node."""
-        if not isinstance(node, ast.List):
-            return
-        for elt in node.elts:
-            if isinstance(elt, ast.Call):
-                self._process_path_call(elt)
+        """Process a urlpatterns list node (or BinOp concatenation)."""
+        if isinstance(node, ast.List):
+            for elt in node.elts:
+                if isinstance(elt, ast.Call):
+                    self._process_path_call(elt)
+        elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+            self._process_urlpatterns(node.left)
+            self._process_urlpatterns(node.right)
 
     def _process_path_call(self, call: ast.Call, extra_prefix: str = "") -> None:
         """Process a single path(), re_path(), or include() call."""
@@ -893,14 +895,24 @@ class _UrlPatternCollector:
 
         return None
 
-    def _get_func_from_file(
-        self, file_path: Path, func_name: str
-    ) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
-        """Parse a file and return the named function."""
+    def _parse_file_cached(self, file_path: Path) -> ast.Module | None:
+        """Return a cached AST for file_path, parsing only on first access."""
+        if file_path in self._ast_cache:
+            return self._ast_cache[file_path]
         try:
             source = file_path.read_text(encoding="utf-8", errors="ignore")
             tree = ast.parse(source, filename=str(file_path))
         except (SyntaxError, OSError):
+            return None
+        self._ast_cache[file_path] = tree
+        return tree
+
+    def _get_func_from_file(
+        self, file_path: Path, func_name: str
+    ) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+        """Return the named function from a file (uses AST cache)."""
+        tree = self._parse_file_cached(file_path)
+        if tree is None:
             return None
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == func_name:
@@ -908,11 +920,9 @@ class _UrlPatternCollector:
         return None
 
     def _get_class_from_file(self, file_path: Path, class_name: str) -> ast.ClassDef | None:
-        """Parse a file and return the named class."""
-        try:
-            source = file_path.read_text(encoding="utf-8", errors="ignore")
-            tree = ast.parse(source, filename=str(file_path))
-        except (SyntaxError, OSError):
+        """Return the named class from a file (uses AST cache)."""
+        tree = self._parse_file_cached(file_path)
+        if tree is None:
             return None
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef) and node.name == class_name:
