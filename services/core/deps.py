@@ -41,9 +41,22 @@ def get_tps_client(request: Request):
     return client
 
 
-def get_temporal_client(request: Request):
+async def get_temporal_client(request: Request):
     from services.core.clients.temporal_client import TemporalClient
-    client: TemporalClient = request.app.state.temporal
+    from services.core.config import settings
+    from services.core.exceptions import ValidationError
+
+    client: TemporalClient | None = request.app.state.temporal
+    if client is None:
+        # Lazy reconnect — Temporal may have become available after startup
+        try:
+            client = await TemporalClient.connect(settings.temporal_address)
+            request.app.state.temporal = client
+        except Exception:
+            raise ValidationError(
+                "Temporal is not available. Ensure Temporal is running at "
+                f"{settings.temporal_address}"
+            )
     return client
 
 

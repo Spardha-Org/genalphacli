@@ -239,27 +239,46 @@ def run_pipeline(
     all_warnings.extend(openapi_warnings)
     logger.info("Layer 1 (OpenAPI): %d routes", len(openapi_routes))
 
-    # Layer 2: FastAPI AST
+    # Layer 2: Framework-specific AST parsing
     ast_routes: list[ParsedRoute] = []
-    if framework == "fastapi" or framework is None:
-        py_files = file_index.get(".py", [])
+    py_files = file_index.get(".py", [])
+
+    if framework == "fastapi":
         if py_files:
             from genalphacli.parsers.fastapi_parser import parse_fastapi
 
             ast_routes, ast_warnings = parse_fastapi(repo_root, py_files)
             all_warnings.extend(ast_warnings)
-            logger.info("Layer 2 (AST): %d routes", len(ast_routes))
+            logger.info("Layer 2 (FastAPI AST): %d routes", len(ast_routes))
 
-    # Layer 2b: Django/DRF AST
-    if framework == "django" or (framework is None and not ast_routes):
-        py_files = file_index.get(".py", [])
+    elif framework == "django":
         if py_files:
             from genalphacli.parsers.django_parser import parse_django
 
-            django_routes, django_warnings = parse_django(repo_root, py_files)
-            ast_routes.extend(django_routes)
+            ast_routes, django_warnings = parse_django(repo_root, py_files)
             all_warnings.extend(django_warnings)
-            logger.info("Layer 2b (Django AST): %d routes", len(django_routes))
+            logger.info("Layer 2 (Django AST): %d routes", len(ast_routes))
+
+    elif framework is None and py_files:
+        # No framework detected — try both, keep whichever finds more routes
+        from genalphacli.parsers.fastapi_parser import parse_fastapi
+
+        fastapi_routes, fastapi_warnings = parse_fastapi(repo_root, py_files)
+        logger.info("Layer 2 probe (FastAPI): %d routes", len(fastapi_routes))
+
+        from genalphacli.parsers.django_parser import parse_django
+
+        django_routes, django_warnings = parse_django(repo_root, py_files)
+        logger.info("Layer 2 probe (Django): %d routes", len(django_routes))
+
+        if len(django_routes) >= len(fastapi_routes):
+            ast_routes = django_routes
+            all_warnings.extend(django_warnings)
+            logger.info("Layer 2: Django parser won (%d routes)", len(django_routes))
+        else:
+            ast_routes = fastapi_routes
+            all_warnings.extend(fastapi_warnings)
+            logger.info("Layer 2: FastAPI parser won (%d routes)", len(fastapi_routes))
 
     # Merge: later layer wins
     merged = merge_routes(openapi_routes, ast_routes)
