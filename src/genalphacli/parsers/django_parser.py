@@ -96,6 +96,29 @@ _GENERIC_VIEW_MAP: dict[str, list[tuple[str, str, bool]]] = {
 
 _HTTP_METHODS = {"get", "post", "put", "patch", "delete", "head", "options"}
 
+# Django generic CBV base classes -> default HTTP methods they handle
+_DJANGO_CBV_METHODS: dict[str, list[str]] = {
+    "ListView": ["GET"],
+    "DetailView": ["GET"],
+    "CreateView": ["GET", "POST"],
+    "UpdateView": ["GET", "POST"],
+    "DeleteView": ["GET", "POST"],
+    "FormView": ["GET", "POST"],
+    "TemplateView": ["GET"],
+    "RedirectView": ["GET"],
+    "LoginView": ["GET", "POST"],
+    "LogoutView": ["GET", "POST"],
+    "PasswordChangeView": ["GET", "POST"],
+    "PasswordChangeDoneView": ["GET"],
+    "PasswordResetView": ["GET", "POST"],
+    "PasswordResetDoneView": ["GET"],
+    "PasswordResetConfirmView": ["GET", "POST"],
+    "PasswordResetCompleteView": ["GET"],
+}
+
+# All recognized Django CBV base class names (for _is_apiview / _is_cbv checks)
+_DJANGO_CBV_BASES: set[str] = set(_DJANGO_CBV_METHODS.keys()) | {"View"}
+
 _SKIP_PARAMS = {"self", "cls", "request", "format", "args", "kwargs"}
 
 
@@ -385,16 +408,32 @@ def _is_viewset(class_node: ast.ClassDef) -> bool:
 
 
 def _is_apiview(class_node: ast.ClassDef) -> bool:
-    """Check if a class is an APIView subclass."""
+    """Check if a class is an APIView or Django CBV subclass."""
     for base in class_node.bases:
         name = ""
         if isinstance(base, ast.Name):
             name = base.id
         elif isinstance(base, ast.Attribute):
             name = base.attr
-        if name in ("APIView", "View") or name.endswith("APIView"):
+        if name in ("APIView", "View") or name.endswith("APIView") or name in _DJANGO_CBV_BASES:
             return True
     return False
+
+
+def _get_cbv_default_methods(class_node: ast.ClassDef) -> list[str] | None:
+    """Return default HTTP methods for a Django generic CBV based on its base classes.
+
+    Returns None if the class is not a recognized generic CBV.
+    """
+    for base in class_node.bases:
+        name = ""
+        if isinstance(base, ast.Name):
+            name = base.id
+        elif isinstance(base, ast.Attribute):
+            name = base.attr
+        if name in _DJANGO_CBV_METHODS:
+            return list(_DJANGO_CBV_METHODS[name])
+    return None
 
 
 def _get_api_view_methods_from_decorator(func_node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str] | None:
@@ -599,6 +638,14 @@ class _UrlPatternCollector:
                         source_layer=SourceLayer.AST,
                         confidence=0.95,
                     ))
+            else:
+                # Try resolving as a module-level assignment to .as_view()
+                # e.g. index = BoardList.as_view() or write = login_required(BoardWrite.as_view())
+                class_node = self._resolve_asview_assignment(func_name, source_module)
+                if class_node is not None:
+                    # Create a dummy as_view() Call node (no kwargs)
+                    dummy_call = ast.Call(func=ast.Name(id="as_view"), args=[], keywords=[])
+                    self._handle_class_view(class_node, full_path, path_params, dummy_call)
 
     def _handle_include(self, include_call: ast.Call, prefix_path: str) -> None:
         """Handle include("module.urls") or include(router.urls)."""
@@ -806,10 +853,15 @@ class _UrlPatternCollector:
                         confidence=0.95,
                     ))
         else:
-            # APIView subclass
+            # APIView / Django CBV subclass
             methods = _get_apiview_methods(class_node)
             if not methods:
-                methods = ["GET"]
+                # Check if it's a Django generic CBV with known default methods
+                cbv_methods = _get_cbv_default_methods(class_node)
+                if cbv_methods:
+                    methods = cbv_methods
+                else:
+                    methods = ["GET"]
             for method_str in methods:
                 try:
                     http_method = HttpMethod(method_str)
@@ -856,6 +908,103 @@ class _UrlPatternCollector:
             target_file = self._resolve_module_to_file(module_path)
             if target_file:
                 return self._get_func_from_file(target_file, func_name)
+
+        return None
+
+    def _resolve_asview_assignment(
+        self, name: str, source_module: str | None
+    ) -> ast.ClassDef | None:
+        """Resolve a module-level assignment like ``index = BoardList.as_view()``
+        or ``write = login_required(BoardWrite.as_view())`` to its class node.
+
+        Returns the ClassDef if found, else None.
+        For external Django CBVs (e.g. LogoutView) where the class source isn't
+        available, a synthetic ClassDef stub is returned.
+        """
+        target_file: Path | None = None
+
+        if source_module and self._meta:
+            module_path = self._meta.imports.get(source_module)
+            if module_path is None:
+                module_path = source_module
+            target_file = self._resolve_module_to_file(module_path)
+        else:
+            # Look in current file
+            target_file = self.file_path
+
+        if target_file is None:
+            return None
+
+        tree = self._parse_file_cached(target_file)
+        if tree is None:
+            return None
+
+        # Find assignment: name = ... where value contains .as_view()
+        for node in ast.iter_child_nodes(tree):
+            if not isinstance(node, ast.Assign):
+                continue
+            if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
+                continue
+            if node.targets[0].id != name:
+                continue
+
+            # Unwrap the value to find the .as_view() call
+            class_name_found = self._extract_class_from_asview_expr(node.value)
+            if class_name_found:
+                # Look up the class in the same file
+                cls = self._get_class_from_file(target_file, class_name_found)
+                if cls:
+                    return cls
+                # Try resolving from imports of that file
+                meta = _FileMetadataCollector()
+                meta.visit(tree)
+                cls = meta.classes.get(class_name_found)
+                if cls:
+                    return cls
+
+                # If the class is a known Django CBV imported from Django itself,
+                # create a synthetic ClassDef stub so _handle_class_view works.
+                if class_name_found in _DJANGO_CBV_BASES:
+                    stub = ast.ClassDef(
+                        name=class_name_found,
+                        bases=[ast.Name(id=class_name_found, ctx=ast.Load())],
+                        keywords=[],
+                        body=[ast.Pass()],
+                        decorator_list=[],
+                    )
+                    return stub
+
+        return None
+
+    @staticmethod
+    def _extract_class_from_asview_expr(node: ast.expr) -> str | None:
+        """Extract the class name from expressions like:
+        - ``SomeClass.as_view()``
+        - ``login_required(SomeClass.as_view())``
+        - ``decorator(SomeClass.as_view())``
+
+        Returns the class name string or None.
+        """
+        # Direct: SomeClass.as_view(...)
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "as_view"
+        ):
+            cls_expr = node.func.value
+            if isinstance(cls_expr, ast.Name):
+                return cls_expr.id
+            if isinstance(cls_expr, ast.Attribute):
+                return cls_expr.attr
+            return None
+
+        # Wrapped: some_decorator(SomeClass.as_view(...))
+        if isinstance(node, ast.Call) and node.args:
+            # The first positional arg might be the .as_view() call
+            for arg in node.args:
+                result = _UrlPatternCollector._extract_class_from_asview_expr(arg)
+                if result:
+                    return result
 
         return None
 
@@ -950,6 +1099,22 @@ class _UrlPatternCollector:
             if candidate.exists():
                 return candidate
 
+        # Try each ancestor directory of file_dir up to (and including) repo_root.
+        # This handles Django project layouts where apps are siblings of the
+        # project config package, e.g. include('main.urls') from
+        # tutorialproject/tutorialproject/urls.py finds tutorialproject/main/urls.py.
+        current = file_dir.parent
+        repo_resolved = self.repo_root.resolve()
+        while current != current.parent:
+            for suffix in (f"{parts}.py", f"{parts}/__init__.py"):
+                candidate = current / suffix
+                if candidate.exists():
+                    return candidate
+            # Stop once we've checked repo_root itself
+            if current.resolve() == repo_resolved:
+                break
+            current = current.parent
+
         # Last resort: search by stem, preferring files in same directory
         last_part = module_path.split(".")[-1]
         same_dir_match = None
@@ -999,9 +1164,28 @@ class DjangoParser:
                     if node.args and isinstance(node.args[0], ast.Constant):
                         included_modules.add(str(node.args[0].value))
 
-        # Process each urls.py, starting with root ones (those not included by others)
-        # But also process all — the visited set prevents double-processing
+        # Identify which urls.py files contain include() calls (likely root URLconfs)
+        files_with_includes: list[Path] = []
+        files_without_includes: list[Path] = []
         for urls_file in urls_files:
+            try:
+                source = urls_file.read_text(encoding="utf-8", errors="ignore")
+                tree = ast.parse(source, filename=str(urls_file))
+            except SyntaxError:
+                files_without_includes.append(urls_file)
+                continue
+            has_include = any(
+                isinstance(n, ast.Call) and _call_func_name(n) == "include"
+                for n in ast.walk(tree)
+            )
+            if has_include:
+                files_with_includes.append(urls_file)
+            else:
+                files_without_includes.append(urls_file)
+
+        # Process root URLconfs first (those with include() calls), then the rest.
+        # The visited set prevents double-processing of files reached via include().
+        for urls_file in files_with_includes + files_without_includes:
             collector = _UrlPatternCollector(
                 file_path=urls_file,
                 repo_root=repo_root,
