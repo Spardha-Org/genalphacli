@@ -118,3 +118,32 @@ class TestDjangoComplex:
         health = next(r for r in routes if r.function_name == "health")
         assert health.path == "/health"
         assert health.method == HttpMethod.GET
+
+
+class TestDjangoEdgeCases:
+    def test_empty_path_becomes_root(self):
+        routes, _ = parse_django(FIXTURES / "django_simple")
+        root = next(r for r in routes if r.function_name == "root")
+        assert root.path == "/"
+
+    def test_trailing_slash_stripped(self):
+        routes, _ = parse_django(FIXTURES / "django_simple")
+        list_users = next(r for r in routes if r.function_name == "list_users")
+        assert not list_users.path.endswith("/")
+
+    def test_all_routes_have_source_layer_ast(self):
+        routes, _ = parse_django(FIXTURES / "django_simple")
+        assert all(r.source_layer == SourceLayer.AST for r in routes)
+
+    def test_all_routes_have_confidence(self):
+        routes, _ = parse_django(FIXTURES / "django_simple")
+        assert all(r.confidence == 0.95 for r in routes)
+
+    def test_source_file_set(self):
+        routes, _ = parse_django(FIXTURES / "django_simple")
+        assert all(r.source_file is not None for r in routes)
+
+    def test_no_duplicate_routes(self):
+        routes, _ = parse_django(FIXTURES / "django_complex")
+        route_keys = [(r.method.value, r.path) for r in routes]
+        assert len(route_keys) == len(set(route_keys))
