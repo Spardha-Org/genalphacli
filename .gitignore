@@ -15,6 +15,10 @@ graph.json
 .logs/
 .pids/
 *.pid
+.DS_Store
+web/.env*
+web/.next/
+*.disabled
 
 # Terraform
 infra/terraform/terraform.tfvars
