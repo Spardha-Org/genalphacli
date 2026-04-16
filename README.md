@@ -231,7 +231,7 @@ See [AWS Deployment Guide](docs/deployment/aws-deployment-guide.md) for details.
 - [x] npm integration
 - [x] AWS deployment with Terraform
 - [x] Temporal workflow orchestration with heartbeats
-- [ ] Django REST Framework parser
+- [x] Django REST Framework parser
 - [ ] Express.js parser
 - [ ] Spring Boot parser (tree-sitter)
 - [ ] TypeScript/npm CLI package generation
